@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+
+# Environment
+.env
+.env.prod
+!.env.example
+!.env.prod.example
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/ssl/
+
+# Test output
+htmlcov/
+.coverage
+coverage.xml
+
+# Alembic (behoud versies wel in git)
+# /backend/alembic/versions/*.py  <- NIET negeren
+
+# Logs
+*.log
+logs/
+
+# Brondata (KLIC, DWG, PDFs — te groot voor git, gebruik S3/cloud storage)
+docs/input data/
