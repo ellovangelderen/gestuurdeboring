@@ -1,94 +1,118 @@
 # HDD Ontwerp Platform
 
-Een digitaal engineering platform voor de voorbereiding van gestuurde boringen (HDD — Horizontal Directional Drilling).
+Een digitaal platform voor de voorbereiding van gestuurde boringen (HDD).
 
-Gebouwd met de **LeanAI Platform** werkwijze van [Inodus](https://inodus.nl).
+Beheerd door [Inodus](https://inodus.nl) · Bereikbaar op **hdd.inodus.nl**
 
 ---
 
 ## Wat doet dit platform
 
-Ingenieurs en werkvoorbereiders gebruiken dit platform om gestuurde boringen voor te bereiden. Het platform genereert automatisch een boringtracé op basis van locatiedata, bestaande kabels en leidingen (KLIC), topografie (BGT) en de eisen van de vergunningverlener.
+Engineers en werkvoorbereiders gebruiken dit platform om gestuurde boringen voor te bereiden. Het platform genereert automatisch een boringtracé op basis van locatiedata, bestaande kabels en leidingen (KLIC) en de eisen van de vergunningverlener.
 
-**Verplichte output:**
-- PDF tekening (situatietekening + lengteprofiel)
-- DWG tekening (met lagenstructuur voor AutoCAD)
+De applicatie draait in de cloud — geen installatie nodig. Inloggen op `hdd.inodus.nl` en je kunt direct aan de slag.
 
-**Optionele output (per project in te stellen):**
-- Technische berekeningen (sterkte, intrekkracht, boorvloeistofdruk)
-- Werkplan / boorplan (PDF)
+**Altijd als output:**
+- PDF tekening — situatietekening + lengteprofiel, klaar voor vergunningsindiening
+- DWG tekening — met lagenstructuur, direct te openen in AutoCAD
 
-De scope van dit platform is uitsluitend de **engineeringvoorbereiding**. De boring zelf wordt door een aannemer uitgevoerd en valt buiten dit systeem.
+**Later beschikbaar (volgende versie):**
+- Werkplan / boorplan automatisch gegenereerd
+- Technische berekeningen (intrekkracht, sterkte)
 
----
-
-## Gebruikers
-
-| Rol | Taken |
-|---|---|
-| Werkvoorbereider | Project aanmaken, brondata invoeren, output selecteren |
-| Engineer | Ontwerp beoordelen, aanpassen, berekeningen valideren |
-| Beheerder | Eisenprofielen, templates en gebruikersbeheer |
+De scope is uitsluitend de **engineeringvoorbereiding**. De boring zelf wordt door een aannemer uitgevoerd en valt buiten dit systeem.
 
 ---
 
 ## Workflow
 
 ```
-1. Project intake     Naam, opdrachtgever, locatie, type leiding
+1. Project intake     Naam · opdrachtgever · locatie · type leiding
         ↓
-2. Brondata           KLIC GML upload · BGT ophalen · DWG upload (optioneel)
+2. Brondata           KLIC GML uploaden · start- en eindpunt op kaart aanwijzen
         ↓
-3. Eisen laden        Eisenprofiel per beheerder (RWS / waterschap / gemeente)
+3. Eisen laden        Te kruisen object selecteren · eisenprofiel kiezen
         ↓
-4. Ontwerp genereren  Boorcurve berekenen · conflict check met bestaande leidingen
+4. Ontwerp            Boorcurve automatisch berekend · conflicten gemarkeerd
         ↓
-5. Review + aanpassen Kaartweergave · lengteprofiel · handmatig aanpassen
+5. Review             Bovenaanzicht + lengteprofiel · parameters aanpassen indien nodig
         ↓
-6. Berekeningen       Optioneel: trek · sterkte · boorvloeistofdruk
-        ↓
-7. Output genereren   PDF · DWG · werkplan · berekening
+6. Output             PDF + DWG downloaden · werkplan invullen
         ↓
    Oplevering aan aannemer
 ```
 
 ---
 
-## Architectuur
+## Gebruikers
 
-```
-Frontend (React)
-    Intake wizard · Kaart + brondata · Ontwerp review · Output
-        ↓
-Application API (FastAPI)
-    Workflow · Orkestratie · Auth · Versiebeheer
-        ↓
-┌─────────┬──────────┬──────────┬───────────┬──────────┐
-│  Geo &  │  Rule    │   HDD    │  Doc &    │   AI     │
-│Brondata │ Engine   │  Design  │ Drawing   │ Assist   │
-│ Service │          │  Engine  │Generator  │          │
-└─────────┴──────────┴──────────┴───────────┴──────────┘
-        ↓
-PostgreSQL/PostGIS · File Storage · Async Queue
-```
-
-**Volledige architectuurdocumentatie:** zie `docs/architecture.md`
+Iedereen met een account heeft toegang tot de applicatie. Accountbeheer loopt via Inodus.
 
 ---
 
-## Technische stack
+## Wat de engineer zelf doet (versie 1)
 
-| Laag | Technologie |
+- KLIC aanvragen bij het Kadaster en de GML-bestanden uploaden
+- Ontwerp beoordelen en eventueel parameters aanpassen
+- Werkplan invullen op basis van de parameters die het systeem aanlevert
+
+---
+
+## Versieplan
+
+| | Nu (versie 1) | Volgende versie |
+|---|---|---|
+| Project beheren | ✓ | |
+| KLIC upload + kaart | ✓ | |
+| Eisenprofiel selecteren | ✓ | |
+| Ontwerp berekenen | ✓ | |
+| PDF + DWG downloaden | ✓ | |
+| BGT automatisch ophalen | | ✓ |
+| Werkplan automatisch genereren | | ✓ |
+| Technische berekeningen | | ✓ |
+
+---
+
+## Technisch overzicht
+
+| Onderdeel | Details |
 |---|---|
-| Frontend | React + Vite |
-| Kaart | Leaflet / MapLibre GL |
+| URL | hdd.inodus.nl |
+| Hosting | Railway — beheerd door Inodus |
 | Backend | Python FastAPI |
-| Database | PostgreSQL + PostGIS |
-| File storage | S3-compatibel |
-| Async jobs | ARQ / Celery |
+| Frontend | React |
+| Database | PostgreSQL |
+| Kaart | Leaflet + OpenStreetMap |
+| PDF output | WeasyPrint |
 | DWG output | ezdxf |
-| PDF output | WeasyPrint / ReportLab |
-| Containers | Docker + GitHub Actions |
+| Deployment | Automatisch via GitHub Actions |
+
+---
+
+## Lokaal ontwikkelen
+
+Voor ontwikkeling en testen kun je de applicatie lokaal draaien.
+
+**Vereisten:** Docker + Docker Compose
+
+```bash
+git clone https://github.com/inodus/hdd-platform
+cd hdd-platform
+cp .env.example .env
+docker-compose up
+```
+
+Applicatie: `http://localhost:3000`
+API docs: `http://localhost:8000/docs`
+
+**.env.example:**
+```
+DATABASE_URL=postgresql://postgres:postgres@db:5432/hdd_platform
+SECRET_KEY=lokaal-development-key
+STORAGE_BACKEND=local
+STORAGE_PATH=./data/files
+ENVIRONMENT=development
+```
 
 ---
 
@@ -96,143 +120,38 @@ PostgreSQL/PostGIS · File Storage · Async Queue
 
 ```
 hdd-platform/
-├── CLAUDE.md                    LeanAI Architect Agent instructies
-├── README.md                    Dit bestand
-├── docs/
-│   ├── architect-input.md       Requirements en epics (projectinput)
-│   ├── architecture.md          Architectuurbeslissingen
-│   ├── epics-userstories.md     MoSCoW backlog
-│   └── builder-tasks/           Bouwverzoeken voor Builder Agent
-├── frontend/                    React applicatie
-├── backend/                     FastAPI applicatie
-│   ├── app/
-│   │   ├── project/             Projectbeheer
-│   │   ├── geo/                 KLIC/BGT import en geometrie
-│   │   ├── rules/               Eisenprofielen per beheerder
-│   │   ├── design/              HDD design engine
-│   │   ├── calculations/        Technische berekeningen
-│   │   ├── documents/           PDF en DWG generatie
-│   │   ├── ai_assist/           AI tekstgeneratie werkplan
-│   │   └── api/                 Routes, auth, middleware
-│   ├── tests/
-│   └── alembic/                 Database migraties
-└── docker/
-    ├── docker-compose.yml
-    └── Dockerfile
+├── CLAUDE.md           LeanAI Architect Agent instructies
+├── README.md           Dit bestand
+├── docker-compose.yml  Lokaal opstarten
+├── docs/               Architectuur en bouwtaken
+├── backend/            Python FastAPI
+│   └── app/
+│       ├── core/       Auth, config, database
+│       ├── project/    Projectbeheer
+│       ├── geo/        KLIC import + kaartweergave
+│       ├── rules/      Eisenprofielen per beheerder
+│       ├── design/     HDD ontwerp engine
+│       ├── documents/  PDF + DWG generatie
+│       └── api/        Routes
+└── frontend/           React applicatie
 ```
-
----
-
-## Lokaal opstarten
-
-### Vereisten
-- Docker + Docker Compose
-- Python 3.11+
-- Node.js 20+
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# Database starten
-docker-compose up -d db
-
-# Migraties uitvoeren
-alembic upgrade head
-
-# API starten
-uvicorn app.main:app --reload
-```
-
-API draait op: `http://localhost:8000`
-API docs: `http://localhost:8000/docs`
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend draait op: `http://localhost:5173`
-
-### Alles tegelijk
-
-```bash
-docker-compose up
-```
-
----
-
-## Environment variabelen
-
-Maak een `.env` bestand aan in `backend/` op basis van `.env.example`:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/hdd_platform
-SECRET_KEY=change-me-in-production
-S3_BUCKET=hdd-platform-files
-S3_ENDPOINT=http://localhost:9000
-BGT_API_URL=https://api.pdok.nl/lv/bgt/ogc/v1_0
-```
-
----
-
-## LeanAI werkwijze
-
-Dit project is gebouwd met de **LeanAI Platform** agent-pipeline:
-
-```
-Model Agent  →  Architect Agent  →  Builder Agent  →  Release Agent
-Verkennen       Technisch ontwerp   Bouwen per        Valideren en
-& modelleren    & bewaken           onderdeel         deployen
-```
-
-De **Architect Agent** (`CLAUDE.md`) instrueert Claude Code over architectuurprincipes, scope en werkwijze. De Architect Agent blijft actief gedurende het hele project.
-
-Meer over de LeanAI werkwijze: [inodus.nl](https://inodus.nl)
-
----
-
-## MVP scope
-
-Release 1 bevat alle Must Have stories uit de epics. Zie `docs/epics-userstories.md`.
-
-**Expliciet buiten scope (alle releases):**
-- Calculatiemodule (kostprijs)
-- Offertemodule
-
-**Buiten MVP, mogelijk later:**
-- Geautomatiseerde KLIC-aanvraag
-- Meerdere boringen per project
-- 3D visualisatie
-- Koppeling financieel pakket
 
 ---
 
 ## Domeinkennis
 
-### Gestuurde boring (HDD)
+**HDD (Horizontal Directional Drilling):** Kabels en leidingen aanleggen zonder te graven. Een boormachine boort een stuurbaar gat onder obstakels door — wegen, water, spoor, waterkeringen.
 
-Bij HDD worden kabels en leidingen aangelegd zonder te graven. Een gespecialiseerde boormachine boort een stuurbaar gat onder obstakels door — wegen, water, spoorlijnen, waterkeringen. Daarna wordt de leiding door het geboorde gat getrokken.
+**KLIC:** Overzicht van bestaande kabels en leidingen in de ondergrond. Aangevraagd bij het Kadaster, opgeleverd als GML-bestanden. Bevat elektriciteit, gas, telecom, water en riool.
 
-### KLIC
-
-Via een KLIC-melding bij het Kadaster ontvang je een overzicht van bestaande kabels en leidingen in de ondergrond. De data wordt aangeleverd als GML-bestanden en bevat elektriciteit, gas, telecom, water en riool met geometrie, diepte en beheerdersinformatie.
-
-### BGT
-
-De Basisregistratie Grootschalige Topografie is open topografische data van het Kadaster. Bevat wegen, water, spoor, gebouwen en taluds. Beschikbaar via een open API (PDOK).
-
-### Eisenprofielen
-
-Elke vergunningverlener heeft eigen eisen voor gestuurde boringen. Voorbeelden: Rijkswaterstaat vereist minimaal 3 meter diepte onder de fundering van een rijksweg; waterschappen hanteren 5–10 meter onder de dijkkern afhankelijk van het waterkeringstype.
+**Eisenprofielen:** Elke vergunningverlener stelt eigen eisen aan de boring. Rijkswaterstaat: minimaal 3 m onder de fundering van een rijksweg. Waterschap: 5–10 m onder de dijkkern.
 
 ---
 
-*LeanAI Platform · Inodus · Haarlem · 2026*
+## Beheer en ondersteuning
+
+De applicatie wordt beheerd door Inodus. Voor vragen en ondersteuning: [info@inodus.nl](mailto:info@inodus.nl)
+
+---
+
+*Gebouwd met LeanAI Platform · Inodus · 2026*

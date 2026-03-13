@@ -1,329 +1,240 @@
 # Builder Task — Sprint 6: HDD Design Engine
 
-**Sprint:** 6 | **Duur:** 3 weken | **Afhankelijkheden:** Sprint 5 compleet
+**Sprint:** 6 | **Duur:** 2.5 week | **Afhankelijkheden:** Sprint 5 compleet
 
 ---
 
 ## Doel
 
-Automatisch een boorcurve genereren op basis van locatie, KLIC-data en eisenprofiel. Engineer kan het ontwerp beoordelen in kaart- en profielweergave, aanpassen en accorderen.
+Automatisch een boorcurve genereren. Engineer beoordeelt in kaart + lengteprofiel, past aan en herberekent.
 
-Dit is de zwaarste sprint — iteratief te bouwen in 3 weken.
+> **Versiebeheer per ontwerp** (bewaren van historische versies, vergelijken) **hoort in iteratie 2.**
+> In iteratie 1: één ontwerp per project. Herberekenen overschrijft het bestaande ontwerp.
+
+> **Accorderen door engineer** (met rolcontrole) **hoort in iteratie 2** samen met gebruikersrollen.
+
+> **Geen async queue.** Ontwerp genereren is synchroon (< 5 seconden voor standaard project).
 
 ---
 
 ## Wat te bouwen
 
-### Week 1 — Algoritme fundament
+### Week 1 — Algoritme
 
-#### `app/models/ontwerp.py`
+#### `app/design/engine.py`
 
-SQLAlchemy modellen:
-
-**`hdd.ontwerpen`:**
-- `id` (UUID, PK)
-- `project_id` (UUID FK → projecten)
-- `versie_nummer` (int — 1, 2, 3, ...)
-- `is_huidig` (bool — slechts 1 per project True)
-- `status` (enum: berekend/akkoord/waarschuwing/afgekeurd)
-- `geaccordeerd_door_id` (UUID FK → gebruikers, nullable)
-- `geaccordeerd_op` (datetime, nullable)
-- `tracé_lijn` (PostGIS LINESTRING 2D, SRID=28992 — bovenaanzicht)
-- `aangemaakt_op` (datetime)
-- `opmerking` (str, nullable)
-
-**`hdd.ontwerp_parameters`** (één-op-één met ontwerp):
-- `id` (UUID, PK)
-- `ontwerp_id` (UUID FK → ontwerpen)
-- `totale_lengte_m` (float)
-- `maximale_diepte_m` (float)
-- `intrede_hoek_graden` (float)
-- `uittrede_hoek_graden` (float)
-- `boogstraal_intrede_m` (float)
-- `boogstraal_uittrede_m` (float)
-- `lengte_horizontaal_m` (float)
-- `lengte_intredeboog_m` (float)
-- `lengte_uittredeboog_m` (float)
-
-**`hdd.ontwerp_lengteprofiel_punten`:**
-- `id` (UUID, PK)
-- `ontwerp_id` (UUID FK → ontwerpen)
-- `afstand_m` (float — afstand langs tracé)
-- `diepte_m` (float — diepte in meters onder maaiveld, positief = dieper)
-- `volgorde` (int)
-
-**`hdd.ontwerp_validaties`:**
-- `id` (UUID, PK)
-- `ontwerp_id` (UUID FK → ontwerpen)
-- `regel_type` (str)
-- `status` (enum: OK/WAARSCHUWING/AFGEKEURD)
-- `berekende_waarde` (float)
-- `norm_waarde` (float)
-- `bericht` (str)
-
-**`hdd.ontwerp_conflicten`:**
-- `id` (UUID, PK)
-- `ontwerp_id` (UUID FK → ontwerpen)
-- `klic_object_id` (UUID FK → klic_objecten)
-- `minimale_afstand_m` (float)
-- `ernst` (enum: KRITIEK/WAARSCHUWING/INFO)
-- `dichtstbijzijnd_punt_ontwerp` (PostGIS POINT, SRID=28992)
-- `dichtstbijzijnd_punt_klic` (PostGIS POINT, SRID=28992)
-
-#### `app/services/design_engine.py`
-
-**Hoofdfunctie:**
 ```python
+from shapely.geometry import LineString, Point
+import math
+
 def genereer_ontwerp(
-    startpunt_rd: tuple[float, float],   # (x, y) in RD New
-    eindpunt_rd: tuple[float, float],    # (x, y) in RD New
-    min_diepte_m: float,                 # uit eisenprofiel
-    max_boogstraal_m: float,             # uit leidingspecificaties
-    intrede_hoek_graden: float = 12.0,  # default
-    uittrede_hoek_graden: float = 12.0, # default
+    startpunt: tuple[float, float],   # (lon, lat) WGS84
+    eindpunt: tuple[float, float],    # (lon, lat) WGS84
+    min_diepte_m: float,              # uit eisenprofiel
+    beschermingszone_m: float,        # uit eisenprofiel
+    min_boogstraal_m: float,          # max(eisenprofiel, leiding.min_boogstraal_m)
+    entry_angle_deg: float = 11.0,    # default intredehoek
+    exit_angle_deg: float = 11.0,     # default uittredehoek
 ) -> OntwerpResultaat:
+    """
+    Berekening in RD New (meters) — transformeer invoer eerst.
+
+    Stap 1: Rechte lijn start → eind (bovenaanzicht = WKT LineString)
+    Stap 2: Lengteprofiel berekenen (zijaanzicht):
+      - Intredeboog: van maaiveld naar werkdiepte
+        R_in = boogstraal
+        Valideer: R_in ≥ min_boogstraal_m
+        Horizontale lengte intrede = R_in * sin(entry_angle_rad)
+        Diepte intrede = R_in * (1 - cos(entry_angle_rad))
+      - Horizontaal segment: op werkdiepte (= min_diepte_m)
+        Lengte = totale_horizontale_lengte - lengte_intrede - lengte_uittrede
+        Valideer: lengte > 0 (anders: punt is te dicht bij obstakel of hoek te groot)
+      - Uittredeboog: spiegeling van intredeboog
+    Stap 3: Puntenreeks genereren elke 1 meter (min 20 punten)
+    Stap 4: Totale boorlengte berekenen (langs curve)
+    """
 ```
 
-**Algoritme stappen:**
-
-1. **Rechte lijn** tussen start en eindpunt (bovenaanzicht = 2D)
-
-2. **Lengteprofiel berekenen** (zijaanzicht):
-
-   Segment 1 — Intredeboog (van maaiveld naar werkdiepte):
-   ```
-   Boogstraal R_in = min_diepte / (1 - cos(θ_in))
-   Valideer: R_in ≥ max_boogstraal_m (anders: vergroot hoek)
-   Lengte intredeboog = R_in * sin(θ_in) (horizontale projectie)
-   Diepte op einde intredeboog = min_diepte
-   ```
-
-   Segment 2 — Horizontaal segment:
-   ```
-   Lengte = totale horizontale afstand - lengte_intredeboog - lengte_uittredeboog
-   Valideer: lengte > 0 (anders: project is te kort voor deze eisen)
-   ```
-
-   Segment 3 — Uittredeboog (van werkdiepte naar maaiveld):
-   ```
-   Spiegeling van intredeboog (zelfde R_uit = R_in tenzij anders opgegeven)
-   ```
-
-3. **Puntenreeks genereren** voor lengteprofiel:
-   - Elke 1 meter een punt: `(afstand_m, diepte_m)`
-   - Minimaal 50 punten
-
-4. **Bovenaanzicht tracé** als rechte lijn (simplificatie voor MVP):
-   - LineString van startpunt naar eindpunt in RD New
-
-**Conflictdetectie (`detecteer_conflicten`):**
 ```python
 def detecteer_conflicten(
-    tracé_lijn: LineString,         # PostGIS geometry
-    klic_objecten: list[KlicObject],
+    boorcurve_wkt: str,         # WKT LineString in RD New
+    klic_objecten: list[dict],  # uit database
     buffer_m: float = 0.5
-) -> list[Conflict]:
+) -> list[ConflictResultaat]:
     """
-    1. Buffer tracé met 0.5m (shapely)
-    2. Controleer welke KLIC objecten de buffer snijden (spatiale query PostGIS)
-    3. Bereken minimale afstand per conflict
+    1. Buffer boorcurve met buffer_m (shapely)
+    2. Check elke KLIC-leiding op intersectie met buffer
+    3. Bereken minimale afstand (boorcurve vs KLIC-leiding)
     4. Classificeer ernst:
-       - afstand < 0.3m → KRITIEK
-       - afstand < 1.0m → WAARSCHUWING
+       - afstand < 0.1m → KRITIEK
+       - afstand < 0.5m → WAARSCHUWING
        - afstand < 2.0m → INFO
-    5. Bepaal dichtstbijzijnde punten (voor weergave)
     """
 ```
 
-**Unit tests voor design engine (`tests/test_design_engine.py`):**
-- Bekende invoer → verwachte outputparameters (handmatig berekend)
-- Boogstraal altijd ≥ max_boogstraal constraint
-- Horizontaal segment altijd positief
-- Conflictdetectie: overlappende geometrie → KRITIEK conflict
-- Geen KLIC objecten → geen conflicten
+#### Unit tests (`tests/test_design_engine.py`)
+
+- Standaard invoer → correcte parameters (handmatig verificeerbaar):
+  - start (0,0), eind (300,0), min_diepte=3m, boogstraal=150m, hoek=11°
+  - Verwachte boorlengte ≈ 330m, max diepte ≈ 3m
+- Boogstraal altijd ≥ min_boogstraal constraint
+- Horizontaal segment > 0 (anders fout)
+- Conflictdetectie: KLIC leiding op 0.3m → WAARSCHUWING
+- Conflictdetectie: KLIC leiding op 0.05m → KRITIEK
+- Geen KLIC objecten → lege conflictenlijst
 
 ---
 
-### Week 2 — API en async
+### Week 2 — API
 
-#### `app/workers/design_worker.py`
+#### `app/design/models.py`
+
+SQLAlchemy modellen voor `ontwerp`, `ontwerp_lengteprofiel`, `conflict` (schema aanwezig uit sprint 0).
+
+#### `app/design/service.py`
 
 ```python
-async def genereer_ontwerp_worker(ctx, project_id: str, parameters: dict):
+async def bereken_en_sla_op(project_id: UUID, params: dict, db) -> Ontwerp:
     """
-    1. Haal locatie, eisenprofiel, KLIC objecten op
+    1. Haal locatie, kruisingsobject, eisenprofiel, leiding, klic_objecten op
     2. Roep design_engine.genereer_ontwerp() aan
-    3. Sla Ontwerp, OntwerpParameters, lengteprofiel punten op
-    4. Roep rule_engine.valideer_ontwerp_tegen_profiel() aan
-    5. Sla validatieresultaten op
-    6. Sla conflicten op
-    7. Bepaal ontwerp status (akkoord/waarschuwing/afgekeurd)
-    8. Update async_jobs status
-    max_tries = 1 (niet retrien, deterministische berekening)
-    timeout = 60
+    3. Roep design_engine.detecteer_conflicten() aan
+    4. Valideer via rule_engine.valideer_ontwerp_tegen_profiel()
+    5. Bepaal ontwerp status:
+       - KRITIEK conflict → 'afkeur'
+       - WAARSCHUWING conflict of validatiefout → 'waarschuwing'
+       - Alles OK → 'akkoord'
+    6. Sla ontwerp op (UPSERT — overschrijf bestaand ontwerp van dit project)
+    7. Sla lengteprofiel punten op (verwijder eerst oude)
+    8. Sla conflicten op (verwijder eerst oude)
     """
 ```
 
-#### `app/routers/ontwerp.py`
+#### `app/api/routers/ontwerp.py`
 
 ```
 POST /api/v1/projecten/{id}/ontwerp/genereer
   Auth: Bearer vereist
-  Body: {} of {intrede_hoek_graden: float, uittrede_hoek_graden: float}
-  Vereiste: locatie en kruisingsobject moeten aanwezig zijn
-  Response: {"job_id": str, "status": "gestart"}
-  Actie: ARQ worker starten
-
-GET /api/v1/projecten/{id}/ontwerp/genereer/{job_id}/status
-  Response: {"status": "wacht/bezig/klaar/fout", "ontwerp_id": str}
+  Body: {} (of met custom hoeken: {entry_angle_deg, exit_angle_deg})
+  Vereiste: locatie + kruisingsobject + eisenprofiel aanwezig
+  Actie: synchroon berekenen + opslaan
+  Response: volledig ontwerp object
+  Fout: 422 als project niet gereed is voor berekening
 
 GET /api/v1/projecten/{id}/ontwerp
-  Response: volledig ontwerp object met parameters, validaties, conflicten
+  Response: {
+    status, boorlengte_m, max_diepte_m, boogstraal_m,
+    entry_angle_deg, exit_angle_deg,
+    tracé_geojson: GeoJSON LineString (WGS84),
+    aangemaakt_op, herberekend_op
+  }
 
 GET /api/v1/projecten/{id}/ontwerp/lengteprofiel
-  Response: [{afstand_m: float, diepte_m: float}] (puntenreeks)
-
-GET /api/v1/projecten/{id}/ontwerp/tracé
-  Response: GeoJSON LineString (WGS84)
-
-PUT /api/v1/projecten/{id}/ontwerp/aanpassen
-  Auth: Bearer vereist (engineer of beheerder)
-  Body: {intrede_hoek_graden, uittrede_hoek_graden, max_diepte_m} (alle optioneel)
-  Actie: SYNCHROON herberekenen (< 5 sec), nieuwe versie aanmaken, vorige is_huidig=False
-  Response: nieuw ontwerp object
-
-GET /api/v1/projecten/{id}/ontwerp/versies
-  Response: [{versie_nummer, status, aangemaakt_op, opmerking}]
-
-GET /api/v1/projecten/{id}/ontwerp/versies/{versie_nummer}
-  Response: volledig historisch ontwerp
-
-PUT /api/v1/projecten/{id}/ontwerp/accordeer
-  Auth: engineer of beheerder vereist
-  Body: {} (optioneel opmerking)
-  Vereiste: ontwerp status is niet 'afgekeurd'
-  Response: bijgewerkt ontwerp
+  Response: [{afstand_m: float, diepte_m: float}]
 
 GET /api/v1/projecten/{id}/ontwerp/conflicten
-  Response: lijst van conflicten met klic object details
+  Response: [{klic_type, klic_beheerder, afstand_m, diepte_leiding_m, ernst}]
+
+PUT /api/v1/projecten/{id}/ontwerp/aanpassen
+  Auth: Bearer vereist
+  Body: {entry_angle_deg?, exit_angle_deg?, min_boogstraal_override_m?}
+  Actie: synchroon herberekenen, overschrijft huidig ontwerp
+  Response: nieuw ontwerp object
 ```
 
 ---
 
 ### Week 3 — Frontend
 
-#### `src/components/OntwerKaartlaag.tsx`
+#### `src/components/OntwerpKaartlaag.tsx`
 
-Leaflet layer voor het boortracé:
-- Tracé lijn, kleur op basis van validatiestatus:
-  - Akkoord → groen
-  - Waarschuwing → oranje
-  - Afgekeurd → rood
-  - Berekend (nog niet gevalideerd) → blauw
-- Conflictmarkers:
-  - KRITIEK → rood uitroepteken
-  - WAARSCHUWING → oranje waarschuwingsdriehoek
-  - INFO → blauw info-icoontje
-- Klik op conflict → sidebar met details (KLIC object info, afstand)
+Leaflet layer voor boortracé:
+- Tracélijn, kleur op basis van ontwerp status:
+  - akkoord → groen `#00AA00`
+  - waarschuwing → oranje `#FF8C00`
+  - afkeur → rood `#CC0000`
+  - concept → blauw `#0066CC`
+- Conflictmarkers op dichtstbijzijnd punt:
+  - KRITIEK → rood ⚠ icoon
+  - WAARSCHUWING → oranje ⚠ icoon
+  - INFO → blauw ℹ icoon
+- Klik op marker → popup met KLIC details + afstand
 
-#### `src/components/LengteProfiel.tsx`
+Integreer als layer in `KaartComponent`.
 
-SVG-grafiek (gebruik recharts of D3):
-- X-as: afstand langs tracé in meters
-- Y-as: diepte t.o.v. maaiveld (0 = maaiveld, positief = dieper)
-- Y-as omgekeerd (dieper is lager in grafiek)
-- Maaiveldlijn (y=0, horizontale lijn)
-- Tracélijn (uit lengteprofiel punten)
-- Minimale dieptegrens (rode stippellijn = min_diepte_m uit eisenprofiel)
-- KLIC object doorsnijtepunten (als beschikbaar: verticale lijn op afstand)
-- Hover: tooltip met afstand en diepte
-- Interactief: zoom via scroll, pan via drag
+#### `src/components/LengteProfielGrafiek.tsx`
+
+SVG grafiek (gebruik recharts `LineChart`):
+- X-as: afstand langs tracé (0 tot boorlengte_m)
+- Y-as: diepte (0 = maaiveld, positief = dieper) — omgekeerd
+- Maaiveldlijn (y=0, zwart)
+- Tracélijn (blauw)
+- Minimale dieptegrens (rood stippellijn = min_diepte_m uit eisenprofiel)
+- Hover: tooltip met afstand + diepte
+- Responsive breedte
 
 #### `src/components/OntwerpPanel.tsx`
 
-Rechterpaneel:
-- **Parameters sectie:**
-  - Totale boorlengte
-  - Maximale diepte
-  - Intredehoek / uittredehoek
-  - Boogstraal intrede / uittrede
-  - Horizontale lengte
+Rechterpaneel (naast kaart):
 
-- **Aanpassen sectie (engineer):**
-  - Slider: intredehoek (0-30°)
-  - Slider: uittredehoek (0-30°)
-  - Invoerveld: maximale diepte (m)
-  - "Herberekenen" knop → PUT aanpassen → update kaart + profiel
+**Parameters:**
+- Boorlengte, max. diepte, boogstraal, intrede- en uittredehoek
 
-- **Validaties sectie:**
-  - Tabel: regel, berekende waarde, norm, status (groen/oranje/rood icoon)
+**Aanpassen (inline formulier):**
+- Slider: intredehoek (5°–20°)
+- Slider: uittredehoek (5°–20°)
+- "Herberekenen" knop → PUT aanpassen → kaart + profiel updaten
 
-- **Conflicten sectie:**
-  - Lijst van conflicten, gesorteerd op ernst
-  - Per conflict: klic type, beheerder, afstand
-  - Klik → zoom op kaart naar conflict
+**Validaties:**
+- Lijst van eisenprofiel checks (groen/oranje/rood)
 
-- **Accorderen sectie (engineer/beheerder):**
-  - "Accordeer ontwerp" knop (disabled als afgekeurd)
-  - Waarschuwing als status WAARSCHUWING: "Ontwerp bevat waarschuwingen. Weet u zeker dat u wilt accorderen?"
+**Conflicten:**
+- Gesorteerd op ernst (kritiek eerst)
+- Per conflict: type, beheerder, afstand
 
-#### Integratie in `ProjectDetail.tsx`
+**Genereren knop:**
+- "Genereer ontwerp" → POST genereer → loading indicator → resultaat tonen
 
-Tabblad "Ontwerp" (stap 4-5 van workflow):
-- "Genereer ontwerp" knop → polling tot klaar
-- Laad kaart (locatie + KLIC + BGT + ontwerp lagen)
-- Lengteprofiel grafiek eronder
-- `OntwerpPanel` aan de rechterkant
-- Versiehistorie: dropdown om oudere versies te bekijken (readonly)
+#### Integreren in `ProjectDetail.tsx`
+
+Tabblad "Ontwerp" activeren:
+- Kaart (met KLIC + ontwerp lagen) boven/links
+- `LengteProfielGrafiek` eronder
+- `OntwerpPanel` rechts
 
 ---
 
 ## Data in / Data uit
 
-**In:**
-- startpunt + eindpunt (uit locatie)
-- min_diepte_m, max_intredehoek, beschermingszone (uit eisenprofiel)
-- leiding specs: min_boogstraal (uit nieuwe_leiding)
-- KLIC objecten (uit database)
-
-**Uit:**
-- Ontwerp met versienummer
-- OntwerpParameters (lengte, diepte, hoeken, boogstralen)
-- Lengteprofiel puntenreeks
-- Tracé GeoJSON
-- Validatieresultaten (per eisenprofiel regel)
-- Conflicten lijst
+**In:** locatie + eisenprofiel + leidingspecs + KLIC objecten
+**Uit:** boorcurve WKT, parameters, lengteprofiel punten, conflictenlijst, status
 
 ---
 
 ## Modules geraakt
 
-- `app/services/rule_engine.py` — `valideer_ontwerp_tegen_profiel()` aanroepen
-- `app/services/geo_service.py` — spatiale queries voor conflictdetectie
-- `app/workers/settings.py` — `genereer_ontwerp_worker` toevoegen
-- `ProjectDetail.tsx` — "Ontwerp" tabblad activeren
+- `app/rules/service.py` — `valideer_ontwerp_tegen_profiel()` aanroepen
+- `app/geo/service.py` — WKT ↔ GeoJSON conversie
+- `KaartComponent.tsx` — ontwerp layer toevoegen
 
 ---
 
 ## Acceptatiecriteria
 
-- [ ] "Genereer ontwerp" klikken → ontwerp verschijnt binnen 30 seconden
+- [ ] "Genereer ontwerp" → boorcurve zichtbaar binnen 5 seconden
 - [ ] Tracé respecteert minimale diepte uit eisenprofiel
-- [ ] Boogstraal is altijd ≥ minimum boogstraal uit leidingspecificaties
+- [ ] Boogstraal ≥ minimum (leiding of eisenprofiel)
 - [ ] Alle KLIC conflicten gedetecteerd en geclassificeerd
-- [ ] Engineer kan intredehoek aanpassen → herberekening < 5 seconden → versie 2 aangemaakt
-- [ ] Versie 1 blijft bewaard en bekijkbaar na aanpassing
-- [ ] Lengteprofiel grafiek toont tracé, maaiveld en minimale dieptegrens
-- [ ] Accordering alleen mogelijk voor engineer/beheerder rol
-- [ ] Accordering geeft waarschuwing bij ontwerp-status WAARSCHUWING
+- [ ] Herberekenen na hoek aanpassen werkt
+- [ ] Lengteprofiel toont tracé, maaiveld en minimale dieptegrens
+- [ ] Ontwerp bewaard na herladen pagina
 
 ---
 
 ## User Stories
 
 - Epic 4 Must have: "Als engineer wil ik een automatisch gegenereerde boorcurve zien"
-- Epic 4 Must have: "Als engineer wil ik de berekende ontwerp-parameters zien"
-- Epic 4 Must have: "Als engineer wil ik waarschuwingen zien bij conflicten met KLIC"
+- Epic 4 Must have: "Als engineer wil ik de ontwerp-parameters zien"
+- Epic 4 Must have: "Als engineer wil ik waarschuwingen bij KLIC-conflicten"
 - Epic 4 Must have: "Als engineer wil ik het ontwerp handmatig kunnen aanpassen"
 - Epic 4 Should have: "Als engineer wil ik het ontwerp in bovenaanzicht én lengteprofiel zien"
-- Epic 4 Should have: "Als engineer wil ik een statusindicatie van het ontwerp zien"

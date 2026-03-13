@@ -1,12 +1,12 @@
-# Builder Task — Sprint 2: Projectbeheer
+# Builder Task — Sprint 2: Project CRUD
 
-**Sprint:** 2 | **Duur:** 1.5 week | **Afhankelijkheden:** Sprint 1 compleet
+**Sprint:** 2 | **Duur:** 1 week | **Afhankelijkheden:** Sprint 1 compleet
 
 ---
 
 ## Doel
 
-Werkvoorbereider kan projecten aanmaken, openen en de status bijhouden. Engineer kan een project openen en bewerken.
+Engineers kunnen projecten aanmaken, openen en de status bijhouden.
 
 ---
 
@@ -14,79 +14,57 @@ Werkvoorbereider kan projecten aanmaken, openen en de status bijhouden. Engineer
 
 ### Backend
 
-#### `app/models/project.py`
+#### `app/project/models.py`
 
-SQLAlchemy modellen voor:
+SQLAlchemy modellen voor `project` tabel (schema aanwezig uit sprint 0).
 
-**`hdd.projecten`:**
-- `id` (UUID, PK)
-- `naam` (str, not null)
-- `opdrachtgever` (str, not null)
-- `locatie_omschrijving` (str)
-- `leiding_type` (str — glasvezel/water/gas/elektriciteit/anders)
-- `leiding_materiaal` (str — PE/staal/PVC)
-- `leiding_diameter_mm` (float)
-- `leiding_wanddikte_mm` (float)
-- `gewenste_output` (JSONB — array van strings: pdf/dwg/berekeningen/werkplan)
-- `status` (enum: concept/ontwerp/review/opgeleverd/gearchiveerd)
-- `aangemaakt_door_id` (UUID FK → gebruikers)
-- `aangemaakt_op` (datetime)
-- `gewijzigd_op` (datetime)
+#### `app/project/service.py`
 
-**`hdd.project_status_geschiedenis`:**
-- `id` (UUID, PK)
-- `project_id` (UUID FK → projecten)
-- `oude_status` (str)
-- `nieuwe_status` (str)
-- `opmerking` (str, nullable)
-- `gewijzigd_door_id` (UUID FK → gebruikers)
-- `gewijzigd_op` (datetime)
-
-#### `app/services/project_service.py`
-
-- `maak_project(data, user)` → Project
-- `haal_project_op(project_id, user)` → Project of 404
-- `lijst_projecten(user, status_filter, page, limit)` → lijst + totaal
-- `werk_project_bij(project_id, data, user)` → Project
-- `verwijder_project(project_id, user)` — alleen concept-projecten, alleen eigen projecten of beheerder
-- `wijzig_status(project_id, nieuwe_status, opmerking, user)` → Project
-  - Geldige statusovergangen: concept→ontwerp, ontwerp→review, review→opgeleverd, *→gearchiveerd (beheerder only)
-  - Illegale overgang → 422 met melding
-- `kopieer_project(project_id, user)` → nieuw Project (basisdata, geen brondata)
-- `status_geschiedenis(project_id, user)` → lijst
-
-#### `app/routers/projecten.py`
-
-```
-POST   /api/v1/projecten                    → aanmaken (alle auth. rollen)
-GET    /api/v1/projecten                    → lijst (query params: status, page, limit, zoek)
-GET    /api/v1/projecten/{id}               → ophalen
-PUT    /api/v1/projecten/{id}               → bijwerken (eigen project of beheerder)
-DELETE /api/v1/projecten/{id}              → verwijderen (alleen concept)
-PUT    /api/v1/projecten/{id}/status        → statusovergang
-GET    /api/v1/projecten/{id}/status-geschiedenis → lijst
-POST   /api/v1/projecten/{id}/kopieer      → kopiëren
+```python
+async def maak_project(data: ProjectAanmaken, user: Gebruiker, workspace: Workspace, db) -> Project
+async def haal_project_op(project_id: UUID, workspace: Workspace, db) -> Project   # 404 als niet gevonden
+async def lijst_projecten(workspace: Workspace, status: str | None, db) -> list[Project]
+async def werk_project_bij(project_id: UUID, data: ProjectBijwerken, workspace, db) -> Project
+async def verwijder_project(project_id: UUID, workspace, db) -> None   # alleen concept
+async def wijzig_status(project_id: UUID, nieuwe_status: str, workspace, db) -> Project
 ```
 
-#### `app/schemas/project.py`
+Statusmachine — geldige overgangen:
+```
+concept → ontwerp → review → opgeleverd
+```
+Illegale overgang → 422 met melding.
+
+Alle queries filteren op `workspace_id` via `get_current_workspace`.
+
+#### `app/api/routers/projecten.py`
+
+```
+POST   /api/v1/projecten                → aanmaken
+GET    /api/v1/projecten                → lijst (query param: status)
+GET    /api/v1/projecten/{id}           → ophalen
+PUT    /api/v1/projecten/{id}           → bijwerken
+DELETE /api/v1/projecten/{id}           → verwijderen (alleen concept)
+PUT    /api/v1/projecten/{id}/status    → statusovergang
+```
+
+#### `app/project/schemas.py`
 
 Pydantic v2 schemas:
-- `ProjectAanmaken` — alle velden voor aanmaken
-- `ProjectBijwerken` — optionele velden voor bijwerken
-- `ProjectResponse` — volledige response
+- `ProjectAanmaken` — naam (verplicht), opdrachtgever (verplicht), locatie_omschrijving, type_leiding
+- `ProjectBijwerken` — alle velden optioneel
+- `ProjectResponse` — volledig object
 - `ProjectLijstItem` — compacte versie voor lijst
-- `StatusWijziging` — `{nieuwe_status, opmerking}`
 
 #### Tests (`tests/test_projecten.py`)
 
-- Project aanmaken → 201 + project object
+- Project aanmaken → 201
 - Project ophalen → 200
-- Project bijwerken → 200
-- Project verwijderen (concept) → 204
-- Project verwijderen (niet-concept) → 422
 - Statusovergang geldig → 200
 - Statusovergang ongeldig → 422
-- Kopieer project → nieuw project met zelfde basisdata, andere ID
+- Project verwijderen (concept) → 204
+- Project verwijderen (niet-concept) → 422
+- Projecten zijn workspace-geïsoleerd (query op andere workspace geeft 404)
 
 ---
 
@@ -94,50 +72,40 @@ Pydantic v2 schemas:
 
 #### `src/pages/Projecten.tsx`
 
-Projectenoverzicht:
-- Tabel met kolommen: naam, opdrachtgever, status (badge), aangemaakt op
-- Statusfilter dropdown (alle/concept/ontwerp/review/opgeleverd)
-- Zoekbalk op projectnaam (client-side filtering)
-- "Nieuw project" knop → opent wizard
+- Tabel: naam, opdrachtgever, status (badge), aangemaakt op
+- Statusfilter dropdown
+- Zoekbalk op naam (client-side)
+- "Nieuw project" knop → wizard
 - Klik op rij → navigeer naar `/projecten/{id}`
-- Lege state: "Geen projecten gevonden. Maak uw eerste project aan."
-- Paginatie (20 per pagina)
+- Lege state: "Nog geen projecten. Maak uw eerste project aan."
 
 #### `src/pages/ProjectAanmaken.tsx`
 
-3-staps wizard:
-
-**Stap 1 — Basisgegevens:**
+Eenvoudig formulier (geen wizard nodig voor iteratie 1):
 - Projectnaam (verplicht)
 - Opdrachtgever (verplicht)
-- Locatie omschrijving (optioneel, vrije tekst)
-
-**Stap 2 — Leiding:**
-- Type (dropdown: glasvezel/water/gas/elektriciteit/anders)
-- Materiaal (dropdown: PE/staal/PVC)
-- Diameter in mm (numeriek)
-- Wanddikte in mm (numeriek)
-
-**Stap 3 — Gewenste output:**
-- Checkboxes: PDF tekening (altijd aangevinkt, disabled), DWG tekening (altijd aangevinkt, disabled), Technische berekeningen, Werkplan
-
-Submit → POST `/api/v1/projecten` → redirect naar `/projecten/{id}`
+- Locatie omschrijving (optioneel)
+- Type leiding (dropdown)
+- Submit → POST → redirect naar `/projecten/{id}`
 
 #### `src/pages/ProjectDetail.tsx`
 
-- Sidebar links: projectinfo (naam, opdrachtgever, status badge, datum)
-- Statusbadge met kleur (concept=grijs, ontwerp=blauw, review=oranje, opgeleverd=groen)
-- Tabbladen voor workflow stappen (1-7), alleen stap 1 actief in deze sprint
-- "Status wijzigen" knop → modal met dropdown nieuwe status + tekstveld opmerking
-- "Project kopiëren" knop
-- Statushistorie accordion onderaan
+- Sidebar: projectinfo, status badge
+- Tabbladen voor workflow stappen (worden per sprint gevuld):
+  - Locatie (sprint 3)
+  - Brondata (sprint 4)
+  - Eisen (sprint 5)
+  - Ontwerp (sprint 6)
+  - Output (sprint 7)
+- "Status wijzigen" knop → modal met dropdown
+- In deze sprint: alleen basistabblad zichtbaar, rest grijs
 
 ---
 
 ## Data in / Data uit
 
-**In:** projectgegevens (naam, opdrachtgever, leiding, output selectie)
-**Uit:** Project object met UUID, status-machine
+**In:** projectgegevens (naam, opdrachtgever, type leiding)
+**Uit:** Project object met UUID en status
 
 ---
 
@@ -149,19 +117,18 @@ Submit → POST `/api/v1/projecten` → redirect naar `/projecten/{id}`
 
 ## Acceptatiecriteria
 
-- [ ] Werkvoorbereider maakt project aan in < 2 minuten via 3-staps wizard
-- [ ] Projectenlijst laadt in < 1 seconde (20 projecten, geen N+1 queries)
-- [ ] Statusovergang concept→ontwerp lukt
-- [ ] Statusovergang opgeleverd→concept geeft 422
+- [ ] Project aanmaken in < 1 minuut via formulier
+- [ ] Projectenlijst laadt (paginering niet vereist in iteratie 1)
+- [ ] Statusovergang concept → ontwerp werkt
+- [ ] Ongeldige statusovergang geeft 422
 - [ ] Project verwijderen werkt alleen voor concept-projecten
-- [ ] Kopiëren dupliceert basisgegevens, start als nieuw concept-project
-- [ ] Status-geschiedenis toont alle wijzigingen met gebruikersnaam en tijdstip
+- [ ] Projecten zijn niet zichtbaar voor andere workspaces
 
 ---
 
 ## User Stories
 
 - Epic 1 Must have: "Als werkvoorbereider wil ik een nieuw project aanmaken"
-- Epic 1 Must have: "Als werkvoorbereider wil ik de status van een project kunnen bijhouden"
-- Epic 1 Must have: "Als werkvoorbereider wil ik een overzicht zien van alle projecten"
-- Epic 1 Must have: "Als engineer wil ik een bestaand project kunnen openen en verder bewerken"
+- Epic 1 Must have: "Als werkvoorbereider wil ik de status bijhouden"
+- Epic 1 Must have: "Als werkvoorbereider wil ik een overzicht van alle projecten"
+- Epic 1 Must have: "Als engineer wil ik een project openen en bewerken"

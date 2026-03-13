@@ -1,12 +1,14 @@
-# Builder Task — Sprint 1: Authenticatie & Gebruikersbeheer
+# Builder Task — Sprint 1: Authenticatie
 
-**Sprint:** 1 | **Duur:** 1 week | **Afhankelijkheden:** Sprint 0 compleet
+**Sprint:** 1 | **Duur:** 0.5 week | **Afhankelijkheden:** Sprint 0 compleet
 
 ---
 
 ## Doel
 
-Gebruikers kunnen inloggen. JWT-authenticatie werkt. Rollen worden afgedwongen op alle endpoints.
+Engineers kunnen inloggen. JWT-authenticatie werkt. Iedereen die is ingelogd kan alles — geen rollen in iteratie 1.
+
+> **Gebruikersrollen (werkvoorbereider/engineer/beheerder) worden geïmplementeerd in iteratie 2.**
 
 ---
 
@@ -14,88 +16,71 @@ Gebruikers kunnen inloggen. JWT-authenticatie werkt. Rollen worden afgedwongen o
 
 ### Backend
 
-#### `app/models/gebruiker.py`
+#### `app/core/auth.py`
 
-SQLAlchemy model voor `hdd.gebruikers`:
-- `id` (UUID, PK)
-- `naam` (str, not null)
-- `email` (str, unique, not null)
-- `wachtwoord_hash` (str, not null)
-- `rol` (enum: `werkvoorbereider`, `engineer`, `beheerder`)
-- `actief` (bool, default True)
-- `aangemaakt_op` (datetime)
-- `gewijzigd_op` (datetime)
+```python
+def hash_wachtwoord(plain: str) -> str:
+    """bcrypt via passlib"""
 
-#### `app/services/auth_service.py`
+def verifieer_wachtwoord(plain: str, hashed: str) -> bool:
+    """bcrypt verificatie"""
 
-- `verifieer_wachtwoord(plain, hashed)` — bcrypt via passlib
-- `hash_wachtwoord(plain)` — bcrypt via passlib
-- `maak_access_token(data, expires_delta)` — JWT via python-jose, 30 min geldig
-- `maak_refresh_token(user_id)` — UUID token, opgeslagen in Redis met TTL 7 dagen
-- `verifieer_token(token)` — decoden en valideren
-- `invalideer_refresh_token(token)` — verwijderen uit Redis
+def maak_access_token(user_id: str, expires_delta: timedelta = timedelta(hours=8)) -> str:
+    """JWT, 8 uur geldig — lang genoeg voor een werkdag zonder re-login"""
 
-#### `app/dependencies.py`
+def verifieer_token(token: str) -> dict:
+    """Decoden en valideren — gooit HTTPException 401 bij fout"""
+```
 
-- `get_current_user(token: str = Depends(oauth2_scheme), db: Session)` → Gebruiker object of 401
-- `require_rol(*rollen)` — dependency factory die 403 gooit als rol niet klopt
+#### `app/core/dependencies.py`
 
-#### `app/routers/auth.py`
+```python
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> Gebruiker:
+    """JWT valideren → gebruiker ophalen → 401 als ongeldig"""
+
+# Geen rol-checks in iteratie 1 — iedereen mag alles
+```
+
+#### `app/api/routers/auth.py`
 
 ```
 POST /api/v1/auth/login
   Body: {"email": str, "wachtwoord": str}
-  Response: {"access_token": str, "token_type": "bearer", "gebruiker": {id, naam, email, rol}}
+  Response: {"access_token": str, "token_type": "bearer",
+             "gebruiker": {id, naam, email}}
+  Auth: geen (public)
   Fout: 401 bij ongeldig wachtwoord
-
-POST /api/v1/auth/refresh
-  Body: {"refresh_token": str}
-  Response: {"access_token": str}
-  Fout: 401 bij ongeldig/verlopen refresh token
-
-POST /api/v1/auth/logout
-  Auth: Bearer vereist
-  Body: {"refresh_token": str}
-  Response: {"bericht": "Uitgelogd"}
 
 GET /api/v1/auth/me
   Auth: Bearer vereist
-  Response: {id, naam, email, rol}
-
-PUT /api/v1/auth/me/wachtwoord
-  Auth: Bearer vereist
-  Body: {"huidig_wachtwoord": str, "nieuw_wachtwoord": str}
-  Response: {"bericht": "Wachtwoord gewijzigd"}
+  Response: {id, naam, email}
 ```
 
-#### `app/routers/gebruikers.py`
+Geen refresh tokens in iteratie 1 — 8 uur is voldoende voor een werkdag.
 
-Alle endpoints vereisen `beheerder` rol:
+#### `app/api/routers/gebruikers.py`
+
+Basis CRUD — geen rolcontrole in iteratie 1:
+
 ```
-GET    /api/v1/gebruikers               → lijst van alle gebruikers
-POST   /api/v1/gebruikers               → gebruiker aanmaken
-GET    /api/v1/gebruikers/{id}          → gebruiker ophalen
-PUT    /api/v1/gebruikers/{id}          → gebruiker bijwerken (naam, rol, actief)
-DELETE /api/v1/gebruikers/{id}          → deactiveren (niet verwijderen, actief=False)
+GET    /api/v1/gebruikers        → lijst
+POST   /api/v1/gebruikers        → aanmaken
+GET    /api/v1/gebruikers/{id}   → ophalen
+PUT    /api/v1/gebruikers/{id}   → naam/wachtwoord bijwerken
+DELETE /api/v1/gebruikers/{id}   → deactiveren (actief=False)
 ```
 
-#### Seed script (`app/seed.py`)
-
-Bij eerste start: check of er een beheerder bestaat. Zo niet, maak aan:
-- email: uit `.env` (`SEED_ADMIN_EMAIL`)
-- wachtwoord: uit `.env` (`SEED_ADMIN_PASSWORD`)
-- rol: `beheerder`
-
-Aanroepen in `lifespan` van `main.py` (alleen als `ENVIRONMENT=development` of als `--seed` flag).
+Alle gebruikers worden aangemaakt binnen de huidige workspace (via `get_current_workspace`).
 
 #### Tests (`tests/test_auth.py`)
 
-- Login met geldig wachtwoord → 200 + tokens
+- Login met geldig wachtwoord → 200 + token
 - Login met ongeldig wachtwoord → 401
 - Beveiligd endpoint zonder token → 401
-- Beveiligd endpoint met verkeerde rol → 403
-- Refresh token flow werkt
-- Logout invalideert refresh token
+- `GET /me` geeft huidig gebruikersobject terug
 
 ---
 
@@ -105,64 +90,56 @@ Aanroepen in `lifespan` van `main.py` (alleen als `ENVIRONMENT=development` of a
 
 - Email + wachtwoord formulier
 - Submit → POST `/api/v1/auth/login`
-- Access token opslaan in React context (in-memory, niet localStorage)
-- Refresh token opslaan in httpOnly cookie (via `credentials: 'include'`)
+- Access token opslaan in React context (in-memory)
 - Redirect naar `/projecten` bij succes
-- Foutmelding bij verkeerde credentials
+- Foutmelding bij foute credentials: "Ongeldig e-mailadres of wachtwoord"
 
 #### `src/context/AuthContext.tsx`
 
-- `AuthProvider` component
-- State: `user`, `accessToken`, `isLoading`
-- Functies: `login()`, `logout()`, `refreshToken()`
+```typescript
+interface AuthContext {
+  user: { id: string; naam: string; email: string } | null
+  accessToken: string | null
+  login(email: string, wachtwoord: string): Promise<void>
+  logout(): void
+}
+```
 
-#### `src/api/client.ts` (uitbreiden)
+#### `src/api/client.ts`
 
-- Axios interceptor: voeg `Authorization: Bearer <token>` toe aan elke request
-- Axios interceptor: bij 401 response → probeer refresh → retry original request → bij tweede 401 redirect naar login
+Axios interceptor: voeg `Authorization: Bearer <token>` toe aan elke request.
+Bij 401 response: redirect naar `/login`.
 
 #### `src/components/ProtectedRoute.tsx`
 
-- Wrappt routes die authenticatie vereisen
-- Redirect naar `/login` als niet ingelogd
-
-#### `src/pages/Gebruikers.tsx` (beheerder only)
-
-- Tabel met alle gebruikers (naam, email, rol, actief)
-- "Nieuwe gebruiker" knop → modal met formulier
-- Rol wijzigen via dropdown in tabel
-- Deactiveren via knop
+Redirect naar `/login` als niet ingelogd.
 
 ---
 
 ## Data in / Data uit
 
-**In:** email + wachtwoord (login)
-**Uit:** JWT access token, refresh token (cookie), gebruikersobject
+**In:** email + wachtwoord
+**Uit:** JWT access token (8 uur geldig), gebruikersobject
 
 ---
 
 ## Modules geraakt
 
-- `app/main.py` — seed aanroep toevoegen in lifespan
-- `docker-compose.yml` — omgevingsvariabelen voor seed toevoegen
+- `app/main.py` — auth en gebruikers routers registreren
 
 ---
 
 ## Acceptatiecriteria
 
-- [ ] Werkvoorbereider logt in → redirect naar projectenoverzicht
-- [ ] Ongeldige credentials → 401 met melding "Ongeldige inloggegevens"
+- [ ] Engineer logt in → redirect naar `/projecten`
+- [ ] Ongeldige credentials → 401 met duidelijke melding
 - [ ] Beveiligd endpoint zonder token → 401
-- [ ] Niet-beheerder op `/api/v1/gebruikers` → 403
-- [ ] Na 30 minuten: access token verlopen, automatisch vernieuwd via refresh token
-- [ ] Uitloggen invalideert refresh token (nieuwe refresh met oud token → 401)
-- [ ] Wachtwoorden zijn gehashed in database (nooit plaintext zichtbaar)
-- [ ] Seed-beheerder bestaat na eerste `docker compose up`
+- [ ] Token geldig voor 8 uur
+- [ ] Wachtwoorden gehashed in database (nooit plaintext)
+- [ ] Seed admin gebruiker kan inloggen na eerste deployment
 
 ---
 
 ## User Stories
 
 - Epic 7 Must have: "Als gebruiker wil ik kunnen inloggen met een eigen account"
-- Epic 7 Must have: "Als beheerder wil ik gebruikers kunnen aanmaken met een rol"
