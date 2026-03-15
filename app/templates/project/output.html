@@ -7,13 +7,13 @@
   <div class="card">
     <h2>DXF tekening</h2>
     <p>Laagnamen conform NLCS · R2013 · Direct te openen in AutoCAD Map 3D</p>
-    <a href="/projecten/{{ project.id }}/dxf" class="btn btn-primary btn-lg">⬇ Download DXF</a>
+    <a href="/api/v1/projecten/{{ project.id }}/dxf" class="btn btn-primary btn-lg">⬇ Download DXF</a>
   </div>
 
   <div class="card">
     <h2>PDF tekening</h2>
     <p>Situatietekening + lengteprofiel + doorsnede + titelblok · A2 landscape</p>
-    <a href="/projecten/{{ project.id }}/pdf" class="btn btn-primary btn-lg">⬇ Download PDF</a>
+    <a href="/api/v1/projecten/{{ project.id }}/pdf" class="btn btn-primary btn-lg">⬇ Download PDF</a>
   </div>
 </div>
 
@@ -34,7 +34,7 @@
 </p>
 
 <div class="form-actions">
-  <a href="/projecten/{{ project.id }}/review" class="btn btn-secondary">← Terug naar review</a>
+  <a href="/api/v1/projecten/{{ project.id }}/review" class="btn btn-secondary">← Terug naar review</a>
   <a href="/" class="btn btn-secondary">Naar projectenlijst</a>
 </div>
 {% endblock %}

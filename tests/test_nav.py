@@ -18,16 +18,16 @@ def test_nav_b_met_auth(client, workspace):
 def test_nav_c_download_dxf(client, workspace):
     # Maak project met tracépunten
     resp = client.post(
-        "/projecten/nieuw",
+        "/api/v1/projecten/nieuw",
         data={"naam": "HDD-nav-test", "De_mm": "160", "Dg_mm": "240", "SDR": "11"},
         auth=AUTH,
         follow_redirects=True,
     )
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
 
     # Voeg tracépunten toe (minimaal 2 voor boorlijn)
     client.post(
-        f"/projecten/{project_id}/trace",
+        f"/api/v1/projecten/{project_id}/trace",
         data={
             "RD_x_list": "103896.9,104118.8",
             "RD_y_list": "489289.5,489243.7",
@@ -39,7 +39,7 @@ def test_nav_c_download_dxf(client, workspace):
         follow_redirects=True,
     )
 
-    resp = client.get(f"/projecten/{project_id}/dxf", auth=AUTH)
+    resp = client.get(f"/api/v1/projecten/{project_id}/dxf", auth=AUTH)
     assert resp.status_code == 200
     assert "Content-Disposition" in resp.headers
     assert ".dxf" in resp.headers["Content-Disposition"]
@@ -48,24 +48,24 @@ def test_nav_c_download_dxf(client, workspace):
 # TC-nav-D: Download PDF → Content-Type application/pdf
 def test_nav_d_download_pdf(client, workspace):
     resp = client.post(
-        "/projecten/nieuw",
+        "/api/v1/projecten/nieuw",
         data={"naam": "HDD-pdf-nav"},
         auth=AUTH,
         follow_redirects=True,
     )
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
 
-    resp = client.get(f"/projecten/{project_id}/pdf", auth=AUTH)
+    resp = client.get(f"/api/v1/projecten/{project_id}/pdf", auth=AUTH)
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
 
 
 # TC-nav-E: Projectdetail toont voortgangsstatus
 def test_nav_e_projectdetail_voortgang(client, workspace):
-    resp = client.post("/projecten/nieuw", data={"naam": "HDD-voortgang"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-voortgang"}, auth=AUTH, follow_redirects=True)
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
 
-    resp = client.get(f"/projecten/{project_id}", auth=AUTH)
+    resp = client.get(f"/api/v1/projecten/{project_id}", auth=AUTH)
     assert resp.status_code == 200
     assert "Tracé invoeren" in resp.text
     assert "Brondata" in resp.text

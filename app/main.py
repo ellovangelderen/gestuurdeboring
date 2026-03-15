@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.documents.router import router as documents_router
@@ -10,3 +11,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(project_router)
 app.include_router(documents_router)
+
+
+@app.get("/")
+def root_redirect():
+    return RedirectResponse(url="/api/v1/")

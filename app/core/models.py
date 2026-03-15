@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, String
 
@@ -11,4 +11,4 @@ class Workspace(Base):
     id = Column(String, primary_key=True)
     naam = Column(String, nullable=False)
     slug = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

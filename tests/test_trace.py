@@ -37,12 +37,12 @@ def test_trace_c_tussenpunt_opgeslagen(client, db, workspace):
     from tests.conftest import AUTH
 
     # Maak project
-    resp = client.post("/projecten/nieuw", data={"naam": "HDD-test"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-test"}, auth=AUTH, follow_redirects=True)
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
 
     # Sla tracé op
     resp = client.post(
-        f"/projecten/{project_id}/trace",
+        f"/api/v1/projecten/{project_id}/trace",
         data={
             "RD_x_list": "103896.9,103934.3,104118.8",
             "RD_y_list": "489289.5,489279.1,489243.7",
@@ -66,11 +66,11 @@ def test_trace_c_tussenpunt_opgeslagen(client, db, workspace):
 def test_trace_d_volgorde(client, db, workspace):
     from tests.conftest import AUTH
 
-    resp = client.post("/projecten/nieuw", data={"naam": "HDD-volgorde"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-volgorde"}, auth=AUTH, follow_redirects=True)
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
 
     client.post(
-        f"/projecten/{project_id}/trace",
+        f"/api/v1/projecten/{project_id}/trace",
         data={
             "RD_x_list": "103896.9,103916.4,103934.3,104118.8",
             "RD_y_list": "489289.5,489284.1,489279.1,489243.7",

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <h1>Projecten</h1>
-  <a href="/projecten/nieuw" class="btn btn-primary">+ Nieuw project</a>
+  <a href="/api/v1/projecten/nieuw" class="btn btn-primary">+ Nieuw project</a>
 </div>
 
 {% if projecten %}
@@ -21,17 +21,17 @@
   <tbody>
     {% for p in projecten %}
     <tr>
-      <td><a href="/projecten/{{ p.id }}">{{ p.naam }}</a></td>
+      <td><a href="/api/v1/projecten/{{ p.id }}">{{ p.naam }}</a></td>
       <td>{{ p.opdrachtgever or '—' }}</td>
       <td>{{ p.ordernummer or '—' }}</td>
       <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
       <td>{{ p.aangemaakt_op.strftime('%d-%m-%Y') }}</td>
-      <td><a href="/projecten/{{ p.id }}">Open →</a></td>
+      <td><a href="/api/v1/projecten/{{ p.id }}">Open →</a></td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% else %}
-<p class="empty">Nog geen projecten. <a href="/projecten/nieuw">Maak het eerste project aan.</a></p>
+<p class="empty">Nog geen projecten. <a href="/api/v1/projecten/nieuw">Maak het eerste project aan.</a></p>
 {% endif %}
 {% endblock %}

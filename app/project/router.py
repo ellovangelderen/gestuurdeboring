@@ -1,4 +1,3 @@
-import os
 import shutil
 from pathlib import Path
 from uuid import uuid4
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.dependencies import fetch_project, get_workspace_id
 from app.core.models import Workspace
 from app.geo.coords import rd_to_wgs84
 from app.project.models import (
@@ -22,13 +22,11 @@ from app.project.models import (
 )
 from app.rules.models import EisenProfiel, ProjectEisenProfiel
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1")
 templates = Jinja2Templates(directory="app/templates")
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
-
-WORKSPACE_ID = "gbt-workspace-001"
 
 
 def _f(v: str) -> float | None:
@@ -41,13 +39,6 @@ def _i(v: str) -> int | None:
     return int(v) if v and v.strip() else None
 
 
-def _get_project(project_id: str, db: Session) -> Project:
-    project = db.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project niet gevonden")
-    return project
-
-
 # ── Projectenlijst ──────────────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
@@ -56,9 +47,10 @@ def projecten_lijst(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    workspace_id = get_workspace_id(user)
     projecten = (
         db.query(Project)
-        .filter_by(workspace_id=WORKSPACE_ID)
+        .filter_by(workspace_id=workspace_id)
         .order_by(Project.aangemaakt_op.desc())
         .all()
     )
@@ -101,8 +93,9 @@ def project_nieuw_opslaan(
     if not naam or not naam.strip():
         raise HTTPException(status_code=400, detail="Naam is verplicht")
 
+    workspace_id = get_workspace_id(user)
     project = Project(
-        workspace_id=WORKSPACE_ID,
+        workspace_id=workspace_id,
         naam=naam.strip(),
         opdrachtgever=opdrachtgever or None,
         ordernummer=ordernummer or None,
@@ -121,7 +114,7 @@ def project_nieuw_opslaan(
     db.add(project)
     db.commit()
     db.refresh(project)
-    return RedirectResponse(f"/projecten/{project.id}", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project.id}", status_code=303)
 
 
 # ── Project detail ───────────────────────────────────────────────────────────
@@ -133,7 +126,7 @@ def project_detail(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     return templates.TemplateResponse(
         "project/detail.html", {"request": request, "project": project, "user": user}
     )
@@ -160,7 +153,7 @@ def project_update(
 ):
     if not naam or not naam.strip():
         raise HTTPException(status_code=400, detail="Naam is verplicht")
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     project.naam = naam.strip()
     project.opdrachtgever = opdrachtgever or None
     project.ordernummer = ordernummer or None
@@ -175,7 +168,7 @@ def project_update(
     project.intreehoek_gr = _f(intreehoek_gr) or 18.0
     project.uittreehoek_gr = _f(uittreehoek_gr) or 22.0
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}", status_code=303)
 
 
 # ── Tracé ────────────────────────────────────────────────────────────────────
@@ -187,7 +180,7 @@ def trace_form(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     punten_wgs84 = []
     for p in project.trace_punten:
         lat, lon = rd_to_wgs84(p.RD_x, p.RD_y)
@@ -201,7 +194,6 @@ def trace_form(
 @router.post("/projecten/{project_id}/trace")
 def trace_opslaan(
     project_id: str,
-    # Komma-gescheiden lijsten van velden
     RD_x_list: str = Form(...),
     RD_y_list: str = Form(...),
     type_list: str = Form(...),
@@ -210,21 +202,28 @@ def trace_opslaan(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
 
-    # Verwijder bestaande punten
-    for punt in project.trace_punten:
-        db.delete(punt)
-    db.flush()
+    try:
+        xs = [float(v.strip()) for v in RD_x_list.split(",") if v.strip()]
+        ys = [float(v.strip()) for v in RD_y_list.split(",") if v.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ongeldige RD-coördinaten")
 
-    xs = [float(v.strip()) for v in RD_x_list.split(",") if v.strip()]
-    ys = [float(v.strip()) for v in RD_y_list.split(",") if v.strip()]
     types = [v.strip() for v in type_list.split(",") if v.strip()]
     labels = [v.strip() for v in label_list.split(",") if v.strip()]
     rhs = [v.strip() for v in Rh_list.split(",")] if Rh_list else [""] * len(xs)
 
+    for punt in project.trace_punten:
+        db.delete(punt)
+    db.flush()
+
     for i, (x, y, t, label) in enumerate(zip(xs, ys, types, labels)):
         rh_val = rhs[i] if i < len(rhs) else ""
+        try:
+            rh = float(rh_val) if rh_val else None
+        except ValueError:
+            rh = None
         punt = TracePunt(
             project_id=project_id,
             volgorde=i,
@@ -232,12 +231,12 @@ def trace_opslaan(
             RD_x=x,
             RD_y=y,
             label=label,
-            Rh_m=float(rh_val) if rh_val else None,
+            Rh_m=rh,
         )
         db.add(punt)
 
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}", status_code=303)
 
 
 # ── Brondata ─────────────────────────────────────────────────────────────────
@@ -249,7 +248,7 @@ def brondata_form(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     return templates.TemplateResponse(
         "project/brondata.html", {"request": request, "project": project, "user": user}
     )
@@ -263,7 +262,7 @@ def maaiveld_opslaan(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     if project.maaiveld_override:
         project.maaiveld_override.MVin_NAP_m = MVin_NAP_m
         project.maaiveld_override.MVuit_NAP_m = MVuit_NAP_m
@@ -277,7 +276,7 @@ def maaiveld_opslaan(
         )
         db.add(mv)
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}/brondata", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
 
 
 @router.post("/projecten/{project_id}/klic")
@@ -287,23 +286,25 @@ async def klic_upload(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     dest_dir = UPLOAD_DIR / project_id
     dest_dir.mkdir(parents=True, exist_ok=True)
-    dest_path = dest_dir / klic_zip.filename
+    # Path().name voorkomt path traversal (bijv. ../../etc/passwd)
+    safe_filename = Path(klic_zip.filename).name
+    dest_path = dest_dir / safe_filename
 
     with open(dest_path, "wb") as f:
         shutil.copyfileobj(klic_zip.file, f)
 
     upload = KLICUpload(
         project_id=project_id,
-        bestandsnaam=klic_zip.filename,
+        bestandsnaam=safe_filename,
         bestandspad=str(dest_path),
         verwerkt=False,
     )
     db.add(upload)
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}/brondata", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
 
 
 @router.post("/projecten/{project_id}/doorsneden")
@@ -316,29 +317,38 @@ def doorsneden_opslaan(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
+
+    try:
+        afstanden = [float(v.strip()) for v in afstand_list.split(",") if v.strip()]
+        naps = [float(v.strip()) for v in NAP_list.split(",") if v.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ongeldige afstanden of NAP-waarden")
+
+    grondtypen = [v.strip() for v in grondtype_list.split(",") if v.strip()]
+    gwssen = [v.strip() for v in GWS_list.split(",")] if GWS_list else [""] * len(afstanden)
+
     for d in project.doorsneden:
         db.delete(d)
     db.flush()
 
-    afstanden = [float(v.strip()) for v in afstand_list.split(",") if v.strip()]
-    naps = [float(v.strip()) for v in NAP_list.split(",") if v.strip()]
-    grondtypen = [v.strip() for v in grondtype_list.split(",") if v.strip()]
-    gwssen = [v.strip() for v in GWS_list.split(",")] if GWS_list else [""] * len(afstanden)
-
     for i, (afstand, nap, grondtype) in enumerate(zip(afstanden, naps, grondtypen)):
         gws_val = gwssen[i] if i < len(gwssen) else ""
+        try:
+            gws = float(gws_val) if gws_val else None
+        except ValueError:
+            gws = None
         ds = Doorsnede(
             project_id=project_id,
             volgorde=i,
             afstand_m=afstand,
             NAP_m=nap,
             grondtype=grondtype,
-            GWS_m=float(gws_val) if gws_val else None,
+            GWS_m=gws,
         )
         db.add(ds)
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}/brondata", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
 
 
 @router.post("/projecten/{project_id}/intrekkracht")
@@ -348,7 +358,7 @@ def intrekkracht_opslaan(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     if project.berekening:
         project.berekening.Ttot_N = Ttot_N
         project.berekening.bron = "sigma_override"
@@ -356,7 +366,7 @@ def intrekkracht_opslaan(
         b = Berekening(project_id=project_id, Ttot_N=Ttot_N, bron="sigma_override")
         db.add(b)
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}/brondata", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
 
 
 # ── Eisenprofiel ──────────────────────────────────────────────────────────────
@@ -368,9 +378,10 @@ def eisen_form(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
+    workspace_id = get_workspace_id(user)
     eisenprofielen = db.query(EisenProfiel).filter(
-        (EisenProfiel.workspace_id == None) | (EisenProfiel.workspace_id == WORKSPACE_ID)
+        (EisenProfiel.workspace_id == None) | (EisenProfiel.workspace_id == workspace_id)
     ).all()
     return templates.TemplateResponse(
         "rules/select.html",
@@ -385,7 +396,7 @@ def eisen_opslaan(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     if project.project_eisenprofiel:
         project.project_eisenprofiel.eisenprofiel_id = eisenprofiel_id
         project.project_eisenprofiel.override_eisen = None
@@ -393,7 +404,7 @@ def eisen_opslaan(
         pep = ProjectEisenProfiel(project_id=project_id, eisenprofiel_id=eisenprofiel_id)
         db.add(pep)
     db.commit()
-    return RedirectResponse(f"/projecten/{project_id}", status_code=303)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}", status_code=303)
 
 
 # ── Review ────────────────────────────────────────────────────────────────────
@@ -405,7 +416,7 @@ def review(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     punten_wgs84 = []
     for p in project.trace_punten:
         lat, lon = rd_to_wgs84(p.RD_x, p.RD_y)
@@ -425,7 +436,7 @@ def output_pagina(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     return templates.TemplateResponse(
         "project/output.html", {"request": request, "project": project, "user": user}
     )

@@ -42,13 +42,13 @@ def test_rules_c_override_eisen(client, db, workspace):
     from app.rules.models import EisenProfiel, ProjectEisenProfiel
 
     # Maak project
-    resp = client.post("/projecten/nieuw", data={"naam": "HDD-eisen"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-eisen"}, auth=AUTH, follow_redirects=True)
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
 
     # Selecteer RWS
     rws = db.query(EisenProfiel).filter_by(naam="RWS Rijksweg").first()
     resp = client.post(
-        f"/projecten/{project_id}/eisen",
+        f"/api/v1/projecten/{project_id}/eisen",
         data={"eisenprofiel_id": rws.id},
         auth=AUTH,
         follow_redirects=True,

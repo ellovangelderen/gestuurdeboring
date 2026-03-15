@@ -1,4 +1,5 @@
-from datetime import datetime
+import math
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
@@ -30,7 +31,7 @@ class Project(Base):
     # Meta
     status = Column(String, default="concept")
     aangemaakt_door = Column(String)
-    aangemaakt_op = Column(DateTime, default=datetime.utcnow)
+    aangemaakt_op = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     trace_punten = relationship("TracePunt", back_populates="project",
                                 order_by="TracePunt.volgorde", cascade="all, delete-orphan")
@@ -59,12 +60,10 @@ class Project(Base):
 
     @property
     def intreehoek_pct(self) -> float:
-        import math
         return round(math.tan(math.radians(self.intreehoek_gr)) * 100, 1)
 
     @property
     def uittreehoek_pct(self) -> float:
-        import math
         return round(math.tan(math.radians(self.uittreehoek_gr)) * 100, 1)
 
 
@@ -91,7 +90,7 @@ class MaaiveldOverride(Base):
     MVin_NAP_m = Column(Float)
     MVuit_NAP_m = Column(Float)
     bron = Column(String, default="handmatig")
-    override_datum = Column(DateTime, default=datetime.utcnow)
+    override_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="maaiveld_override")
 
@@ -103,7 +102,7 @@ class KLICUpload(Base):
     project_id = Column(String, ForeignKey("projects.id"), nullable=False)
     bestandsnaam = Column(String)
     bestandspad = Column(String)
-    upload_datum = Column(DateTime, default=datetime.utcnow)
+    upload_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     verwerkt = Column(Boolean, default=False)
 
     project = relationship("Project", back_populates="klic_uploads")
@@ -122,7 +121,7 @@ class Doorsnede(Base):
     phi_graden = Column(Float, default=35.0)
     E_modulus = Column(Float, default=75.0)
     override_vlag = Column(Boolean, default=True)
-    override_datum = Column(DateTime, default=datetime.utcnow)
+    override_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="doorsneden")
 
@@ -134,6 +133,6 @@ class Berekening(Base):
     project_id = Column(String, ForeignKey("projects.id"), nullable=False)
     Ttot_N = Column(Float)
     bron = Column(String, default="sigma_override")
-    override_datum = Column(DateTime, default=datetime.utcnow)
+    override_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="berekening")

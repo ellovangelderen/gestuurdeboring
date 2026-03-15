@@ -7,7 +7,7 @@ from tests.conftest import AUTH
 # TC-proj-A: Project aanmaken → opgeslagen, redirect naar detail
 def test_proj_a_aanmaken(client, workspace):
     resp = client.post(
-        "/projecten/nieuw",
+        "/api/v1/projecten/nieuw",
         data={"naam": "HDD11 Haarlem Kennemerplein", "ordernummer": "3D25V700"},
         auth=AUTH,
         follow_redirects=True,
@@ -36,7 +36,7 @@ def test_proj_c_dn_handmatig_hdd11():
 # TC-proj-D: Verplicht veld 'naam' leeg → validatiefout (422 of form-redirect)
 def test_proj_d_naam_verplicht(client, workspace):
     resp = client.post(
-        "/projecten/nieuw",
+        "/api/v1/projecten/nieuw",
         data={"naam": ""},
         auth=AUTH,
         follow_redirects=False,
@@ -49,7 +49,7 @@ def test_proj_d_naam_verplicht(client, workspace):
 def test_proj_e_lijst(client, workspace):
     # Maak 2 projecten
     for naam in ["HDD11", "HDD28"]:
-        client.post("/projecten/nieuw", data={"naam": naam}, auth=AUTH, follow_redirects=True)
+        client.post("/api/v1/projecten/nieuw", data={"naam": naam}, auth=AUTH, follow_redirects=True)
 
     resp = client.get("/", auth=AUTH)
     assert resp.status_code == 200

@@ -5,8 +5,8 @@ from tests.conftest import AUTH
 
 
 def _maak_project(client, naam="HDD-bron-test"):
-    resp = client.post("/projecten/nieuw", data={"naam": naam}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/projecten/")[1].split("/")[0].rstrip("/")
+    resp = client.post("/api/v1/projecten/nieuw", data={"naam": naam}, auth=AUTH, follow_redirects=True)
+    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
     return project_id
 
 
@@ -15,7 +15,7 @@ def test_bron_a_klic_upload(client, db, workspace):
     pid = _maak_project(client)
     zip_content = b"PK\x03\x04"  # minimale ZIP header
     resp = client.post(
-        f"/projecten/{pid}/klic",
+        f"/api/v1/projecten/{pid}/klic",
         files={"klic_zip": ("Levering_test.zip", io.BytesIO(zip_content), "application/zip")},
         auth=AUTH,
         follow_redirects=True,
@@ -34,7 +34,7 @@ def test_bron_a_klic_upload(client, db, workspace):
 def test_bron_b_maaiveld_hdd11(client, db, workspace):
     pid = _maak_project(client)
     resp = client.post(
-        f"/projecten/{pid}/maaiveld",
+        f"/api/v1/projecten/{pid}/maaiveld",
         data={"MVin_NAP_m": "1.01", "MVuit_NAP_m": "1.27"},
         auth=AUTH,
         follow_redirects=True,
@@ -58,7 +58,7 @@ def test_bron_c_doorsneden_hdd11(client, db, workspace):
     grondtypen = "Zand,Zand,Klei,Klei,Zand,Zand"
 
     resp = client.post(
-        f"/projecten/{pid}/doorsneden",
+        f"/api/v1/projecten/{pid}/doorsneden",
         data={"afstand_list": afstanden, "NAP_list": naps, "grondtype_list": grondtypen},
         auth=AUTH,
         follow_redirects=True,
@@ -77,7 +77,7 @@ def test_bron_c_doorsneden_hdd11(client, db, workspace):
 def test_bron_d_intrekkracht_hdd11(client, db, workspace):
     pid = _maak_project(client)
     resp = client.post(
-        f"/projecten/{pid}/intrekkracht",
+        f"/api/v1/projecten/{pid}/intrekkracht",
         data={"Ttot_N": "30106"},
         auth=AUTH,
         follow_redirects=True,

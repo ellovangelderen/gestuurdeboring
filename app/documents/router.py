@@ -1,21 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.dependencies import fetch_project
 from app.documents.dxf_generator import generate_dxf
 from app.documents.pdf_generator import generate_pdf
-from app.project.models import Project
 
-router = APIRouter()
-
-
-def _get_project(project_id: str, db: Session) -> Project:
-    project = db.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project niet gevonden")
-    return project
+router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/projecten/{project_id}/dxf")
@@ -24,7 +17,7 @@ def download_dxf(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     dxf_bytes = generate_dxf(project)
     ordernr = project.ordernummer or project.id[:8]
     filename = f"{ordernr}-rev.1.dxf"
@@ -41,7 +34,7 @@ def download_pdf(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_project(project_id, db)
+    project = fetch_project(project_id, db)
     pdf_bytes = generate_pdf(project)
     ordernr = project.ordernummer or project.id[:8]
     filename = f"{ordernr}-rev.1.pdf"

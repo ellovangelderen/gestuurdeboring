@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Eisenprofiel selecteren — {{ project.naam }}</h1>
 
-<form method="post" action="/projecten/{{ project.id }}/eisen">
+<form method="post" action="/api/v1/projecten/{{ project.id }}/eisen">
   <table class="table">
     <thead>
       <tr>
@@ -35,7 +35,7 @@
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Eisenprofiel opslaan</button>
-    <a href="/projecten/{{ project.id }}" class="btn btn-secondary">Terug</a>
+    <a href="/api/v1/projecten/{{ project.id }}" class="btn btn-secondary">Terug</a>
   </div>
 </form>
 {% endblock %}

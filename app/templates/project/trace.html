@@ -6,7 +6,7 @@
 
 <div class="trace-layout">
   <div class="trace-form">
-    <form method="post" action="/projecten/{{ project.id }}/trace" x-data="traceForm()" @submit="prepareSubmit">
+    <form method="post" action="/api/v1/projecten/{{ project.id }}/trace" x-data="traceForm()" @submit="prepareSubmit">
 
       <template x-for="(punt, index) in punten" :key="index">
         <div class="trace-punt">
@@ -40,7 +40,7 @@
 
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Tracé opslaan</button>
-        <a href="/projecten/{{ project.id }}" class="btn btn-secondary">Terug</a>
+        <a href="/api/v1/projecten/{{ project.id }}" class="btn btn-secondary">Terug</a>
       </div>
     </form>
   </div>

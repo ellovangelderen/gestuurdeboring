@@ -22,28 +22,28 @@
 <h2>Voortgang</h2>
 <ul class="stappen">
   <li class="{{ 'ok' if project.trace_punten else 'leeg' }}">
-    <a href="/projecten/{{ project.id }}/trace">Tracé invoeren</a>
+    <a href="/api/v1/projecten/{{ project.id }}/trace">Tracé invoeren</a>
     {% if project.trace_punten %}✓ {{ project.trace_punten|length }} punten{% else %}→ Nog niet ingevuld{% endif %}
   </li>
   <li class="{{ 'ok' if project.maaiveld_override else 'leeg' }}">
-    <a href="/projecten/{{ project.id }}/brondata">Brondata (maaiveld, KLIC, doorsneden)</a>
+    <a href="/api/v1/projecten/{{ project.id }}/brondata">Brondata (maaiveld, KLIC, doorsneden)</a>
     {% if project.maaiveld_override %}✓ MVin={{ project.maaiveld_override.MVin_NAP_m }}m, MVuit={{ project.maaiveld_override.MVuit_NAP_m }}m{% else %}→ Nog niet ingevuld{% endif %}
   </li>
   <li class="{{ 'ok' if project.project_eisenprofiel else 'leeg' }}">
-    <a href="/projecten/{{ project.id }}/eisen">Eisenprofiel selecteren</a>
+    <a href="/api/v1/projecten/{{ project.id }}/eisen">Eisenprofiel selecteren</a>
     {% if project.project_eisenprofiel %}✓ {{ project.project_eisenprofiel.eisenprofiel.naam }}{% else %}→ Nog niet geselecteerd{% endif %}
   </li>
   <li class="ok">
-    <a href="/projecten/{{ project.id }}/review">Review — kaart + profiel</a>
+    <a href="/api/v1/projecten/{{ project.id }}/review">Review — kaart + profiel</a>
   </li>
   <li class="ok">
-    <a href="/projecten/{{ project.id }}/output">Output downloaden (DXF + PDF)</a>
+    <a href="/api/v1/projecten/{{ project.id }}/output">Output downloaden (DXF + PDF)</a>
   </li>
 </ul>
 
 <hr>
 <h2>Project bewerken</h2>
-<form method="post" action="/projecten/{{ project.id }}/update">
+<form method="post" action="/api/v1/projecten/{{ project.id }}/update">
   <fieldset>
     <legend>Projectgegevens</legend>
     <label>Naam *
