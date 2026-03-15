@@ -71,17 +71,21 @@ Authorization: Basic base64(gebruiker:wachtwoord)
 ## 4. Applicatieroutes (scope)
 
 ```
-GET  /                          Projectenlijst (vereist auth)
-GET  /projecten/nieuw           Aanmaakformulier
-POST /projecten/nieuw           Project opslaan
-GET  /projecten/{id}            Projectdetail + voortgang
-GET  /projecten/{id}/trace      Tracé invoer + Leaflet kaart
-GET  /projecten/{id}/brondata   KLIC upload + overrides (NAP, grondtype, Ttot)
-GET  /projecten/{id}/eisen      Eisenprofiel selectie
-GET  /projecten/{id}/review     Kaart + lengteprofiel overzicht
-GET  /projecten/{id}/output     Download pagina
-GET  /projecten/{id}/dxf        DXF download (binary response)
-GET  /projecten/{id}/pdf        PDF download (binary response)
+GET  /                                    Redirect naar /api/v1/ (vereist auth)
+GET  /api/v1/projecten/nieuw              Aanmaakformulier
+POST /api/v1/projecten/nieuw              Project opslaan
+GET  /api/v1/projecten/{id}              Projectdetail + voortgang
+GET  /api/v1/projecten/{id}/trace        Tracé invoer + Leaflet kaart
+GET  /api/v1/projecten/{id}/brondata     KLIC upload + overrides (NAP, grondtype, Ttot)
+GET  /api/v1/projecten/{id}/eisen        Eisenprofiel selectie
+GET  /api/v1/projecten/{id}/review       Kaart + lengteprofiel overzicht
+GET  /api/v1/projecten/{id}/output       Download pagina
+GET  /api/v1/projecten/{id}/dxf          DXF download (binary response)
+GET  /api/v1/projecten/{id}/pdf          PDF download (binary response)
+POST /api/v1/projecten/{id}/klic/{uid}/verwerken  KLIC parsing triggeren
+GET  /api/v1/projecten/{id}/klic/status  JSON: verwerkt, aantallen, waarschuwingen
+POST /api/v1/projecten/{id}/maaiveld/ahn5         AHN5 maaiveld ophalen
+POST /api/v1/projecten/{id}/ev-mailreferentie     EV mailreferentie opslaan
 ```
 
 Alle routes vereisen HTTPBasic auth. Zonder auth → 401 + `WWW-Authenticate: Basic` header.
@@ -209,6 +213,18 @@ Alle bestanden staan in `docs/input_data_14maart/`:
 | `Levering_25O0136974_1.zip` | KLIC parsing tests (backlog 1) |
 | `Logo3D.jpg` | PDF-11: logo aanwezig in output |
 
+**Aanvullende werkplan stijlreferenties** (`docs/Input_data_16maart/werkplannen/`):
+
+| Bestand | Gebruik in tests |
+|---|---|
+| `3D24V473 Werkplan - Diemen, Muiderstraatweg.pdf` | Werkplan structuur Formaat A (oud), RWS-beheerder-alinea |
+| `3D25V679 HDD1 Werkplan - Ouderkerk aan de Amstel.pdf` | Werkplan structuur Formaat B (huidig), NURijnland-boilerplate |
+| `3D25V679 HDD8&9 Werkplan - Ouderkerk Korte Dwarsweg.pdf` | Werkplan Formaat B, waterkering-sectie |
+| `3D25V638 Werkplan - Velsen-Noord, Rijksweg A22.pdf` | Werkplan Formaat B, CKB ST-B, 3-buis bundel, EV aanwezig |
+| `Order overview shared with Ello.xlsx` | Projectregistratie-structuur, EV-tracking, klantcodes seed-data |
+
+**Correctie werkplan testcase (TC-4.3.A):** 6 hoofdstukken + bijlagen A-G (niet 7 hoofdstukken).
+
 **HDD11 leidingparameters (testinput):**
 ```
 naam:           HDD11 Haarlem Kennemerplein
@@ -300,6 +316,16 @@ Groep F — Berekeningen (altijd)
   CALC-01 t/m CALC-06 (zie sectie 5.3)
 ```
 
+Groep G — EV-detectie (na backlog 1 uitbreiding)
+  EV-01  KLIC met EV-leiding → ev_verplicht=True, contactgegevens niet leeg
+  EV-02  Brondata-pagina met EV → WAARSCHUWING-blok zichtbaar
+  EV-03  Brondata-pagina zonder EV → geen WAARSCHUWING-blok
+
+Groep H — EV-zone DXF (na backlog 2b)
+  EVDXF-01  DXF met EV-leidingen → laag "EV-ZONE" aanwezig met entiteiten
+  EVDXF-04  Review-pagina met EV → rood WAARSCHUWING-blok + contactgegevens
+  EVDXF-07  DXF regressie → alle bestaande lagen nog aanwezig na toevoeging EV-ZONE
+
 Nieuwe modules voegen een nieuwe groep toe aan de regressieset. Bestaande groepen worden nooit verkleind.
 
 ---
@@ -366,6 +392,52 @@ Bij elke backlog oplevering wordt dit document uitgebreid met een nieuwe sectie.
 
 ---
 
+### Backlog 1 uitbreiding — EV-detectie, materiaalregel, BOB tekstveld
+
+**Nieuwe testcases:**
+
+| Code | Test | Input | Verwacht | Fout = |
+|---|---|---|---|---|
+| EV-01 | KLIC met EV-leiding → KLICLeiding records | Mock EV-leiding | `ev_verplicht=True`, `ev_contactgegevens` niet leeg | BLOCKER |
+| EV-02 | Brondata-pagina met EV-leidingen | Project met EV | WAARSCHUWING-blok zichtbaar, bevat "EV" | BLOCKER |
+| EV-03 | Brondata-pagina zonder EV-leidingen | Project zonder EV | Geen WAARSCHUWING-blok | HIGH |
+| MAT-01 | Leiding materiaal PE100 | Mock leiding | `sleufloze_techniek=True` | HIGH |
+| MAT-02 | Leiding materiaal PVC | Mock leiding | `sleufloze_techniek=False`, `mogelijk_sleufloze=False` | HIGH |
+| MAT-03 | Leiding materiaal Staal | Mock leiding | `sleufloze_techniek=False`, `mogelijk_sleufloze=True` | MEDIUM |
+| BOB-01 | Label "+/-2.58 -NAP" | Mock tekstveld | `diepte_m=2.58`, `diepte_bron="tekstveld_onzeker"` | MEDIUM |
+| BOB-02 | Label zonder dieptepatroon | Mock tekstveld | `diepte_m=None`, geen crash | HIGH |
+| BOB-03 | Leiding met gestructureerde diepte + label met diepte | Mock | Gestructureerde diepte wint, `diepte_bron` ongewijzigd | HIGH |
+
+**Regressie:** voeg EV-01 t/m EV-03 toe aan sectie 8 als Groep G.
+
+**Go/No-Go aanvulling:**
+- NO-GO: EV-leidingen aanwezig maar geen WAARSCHUWING getoond op brondata-pagina
+- NO-GO: `ev_verplicht=True` maar `ev_contactgegevens` leeg
+
+---
+
+### Backlog 2b — EV-zone DXF rendering
+
+**Nieuwe testcases:**
+
+| Code | Test | Input | Verwacht | Fout = |
+|---|---|---|---|---|
+| EVDXF-01 | DXF met EV-leidingen | Project met EV | Laag "EV-ZONE" aanwezig, bevat entiteiten | BLOCKER |
+| EVDXF-02 | DXF zonder EV-leidingen | Project zonder EV | Laag "EV-ZONE" aanwezig maar leeg | HIGH |
+| EVDXF-03 | DXF EV-ZONE laageigenschappen | Project met EV | kleur=1 (rood), lijntype="DASHDOT" | HIGH |
+| EVDXF-04 | Review-pagina met EV | Project met EV | Rood WAARSCHUWING-blok + contactgegevens zichtbaar | BLOCKER |
+| EVDXF-05 | Review-pagina zonder EV | Project zonder EV | Geen WAARSCHUWING-blok | HIGH |
+| EVDXF-06 | PDF met EV-leidingen | Project met EV | Tekst "EV-ZONE" aanwezig in PDF | HIGH |
+| EVDXF-07 | DXF regressie na EV-ZONE toevoeging | Bestaand project | Alle bestaande lagen nog aanwezig (DXF-04 t/m DXF-11) | BLOCKER |
+
+**Regressie:** voeg EVDXF-01 en EVDXF-04 toe aan sectie 8 als Groep H.
+
+**Go/No-Go aanvulling:**
+- NO-GO: DXF met EV-leidingen maar laag "EV-ZONE" ontbreekt of leeg
+- NO-GO: Review-pagina met EV maar geen WAARSCHUWING-blok zichtbaar
+
+---
+
 *TEST_CONTEXT_HDD.md — HDD Ontwerp Platform | Inodus*
 *Gebruik altijd samen met TEST_AGENT_v2.md*
-*Versie 1.0 — Walking Skeleton*
+*Versie 1.1 — Walking Skeleton + Backlog 1 EV/Materiaal + Backlog 2b EV-zone*

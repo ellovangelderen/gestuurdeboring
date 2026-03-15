@@ -53,9 +53,10 @@ Model Agent → Architect Agent (jij) → Builder Agent → Release Agent
 
 | # | Feature | Waarde | Override vervangt |
 |---|---|---|---|
-| 1 | KLIC IMKL 2.0 parser | KERN | Placeholder leidingen |
-| 2 | AHN5 maaiveld PDOK WCS | KERN | Handmatig MVin/MVuit |
-| 3 | Werkplan generator Claude API | ★★★★★ Martien | ~2u schrijven |
+| 1  | KLIC IMKL 2.0 parser | KERN | Placeholder leidingen |
+| 2  | AHN5 maaiveld PDOK WCS | KERN | Handmatig MVin/MVuit |
+| 2b | **EV-zone DXF rendering + ontwerp-workflow** | ★★★★★ WETTELIJK | EV-waarschuwing handmatig |
+| 3  | Werkplan generator Claude API | ★★★★★ Martien | ~2u schrijven |
 | 4 | Boorprofiel geometrie ARCs + tangentiaal | KERN | Handmatige hoeken |
 | 5 | Sleufloze leidingen detectie KLIC PDF | ★★★★ Martien | Handmatig uitzoeken |
 | 6 | GWSW riool BOB + gemeente-mail auto | ★★★★ Martien | Handmatig mailen |
@@ -426,7 +427,41 @@ B11 TC-3.3.D  Ttot = 30.106N (vs BerekeningHDD11 pagina 9)
 
 **KLIC dieptes zijn altijd onbetrouwbaar.** Alle 1127 leidingen HDD11 KLIC: `dieptePeil=GEEN`, alleen `verticalPosition=underground`. Structureel, niet uitzonderlijk. Altijd waarschuwen bij conflictcheck.
 
-**Sleufloze leidingen.** KL1049 Reggefiber HDD11: 3 mantelbuizen zonder Z + PDF-bijlagen `boogzinker_8.pdf` + `gestuurde_boring_13.pdf`. Platform detecteert dit: mantelbuis zonder diepte + PDF-bijlage in KLIC = sleufloze techniek. Markeren en koppelen.
+**Sleufloze leidingen — materiaalregel (primair).** De aanlegmethode volgt uit het buismateriaal:
+```
+PE (HPE, HDPE, PE100, PE80) = ALTIJD geboord (HDD of andere sleufloze techniek)
+Staal                        = KAN geboord zijn (beoordeel in/uittree-ruimte)
+PVC                          = gegraven (kan in principe NIET met HDD worden aangebracht)
+Beton / asbestcement         = gegraven
+```
+Dit is de primaire detectieregel voor sleufloze leidingen in de KLIC. Staal markeren als `mogelijk_sleufloze_techniek=True` (niet hard als sleufloze). PVC/beton nooit als sleufloze behandelen.
+
+**Sleufloze leidingen — bijlage-heuristiek (aanvullend).** KL1049 Reggefiber HDD11: 3 mantelbuizen zonder diepte + PDF-bijlagen `boogzinker_8.pdf` + `gestuurde_boring_13.pdf`. Platform detecteert dit: leidingtype bevat "mantelbuis" EN diepte_m IS NULL EN PDF-bijlage aanwezig → `sleufloze_techniek=True`. Dit is een aanvullende heuristiek bovenop de materiaalregel, voor gevallen waar het materiaal niet in het IMKL-veld staat.
+
+**EV — Eis Voorzorgsmaatregel (wettelijk kritisch).** Sommige K&L in de KLIC zijn gemarkeerd met een EV. IMKL-element: `EisVoorzorgsmaatregel` met verplichte contactgegevens van de netbeheerder.
+```
+Betekenis:   Vóór aanvang werkzaamheden MOET contact/afmelding plaatsvinden bij netbeheerder.
+Risico:      Niet afhandelen → hoge boetes van Agentschap Telecom.
+Ontwerpregel: Altijd buiten de EV-zonering ontwerpen.
+Als niet mogelijk: mailconversatie met netbeheerder voeren en meeleveran bij ontwerp.
+```
+Platform-verplichtingen: EV-leidingen markeren (`ev_verplicht=True`), contactgegevens opslaan, WAARSCHUWING prominent tonen op de brondata-pagina, EV-zone als aparte laag in DXF (laag `EV-ZONE`), EV-zone zichtbaar in PDF-situatietekening met voetnoot contactgegevens.
+
+**Riool-taxonomie.** KLIC maakt onderscheid:
+```
+Persriool     = onder druk, geen BOB-afschot vereist
+Vrijverval:
+  DWA  (droogweerafvoer / vuilwater)  — BOB-maten standaard aanwezig en relevant
+  HWA  (hemelwaterafvoer)             — BOB-maten NIET standaard beschikbaar
+                                        Dieptebereik: 80–120 cm (80 cm = vorstgrens NL)
+                                        Ligt NIET op afschot
+  GWA  (gemengd riool)                — BOB-maten standaard aanwezig
+```
+BOB-bronnen per prioriteit: (1) GWSW via `apps.gwsw.nl`, (2) gemeente-specifieke portalen (Haarlem: `kaart.haarlem.nl` — heeft BOB + bomendata incl. kruindiameter), (3) gemeente per mail opvragen.
+
+**BOB uit vrije KLIC tekstvelden.** BOB-informatie zit soms NIET in gestructureerde IMKL-velden maar in vrije tekstvelden `label` en `toelichting`. Voorbeelden: `"R 234, +/-2.58 -NAP"`, `"diepte gem. -2.6m tov NAP"`. Platform extraheert dit via regex maar markeert altijd als `diepte_bron="tekstveld_onzeker"` — nooit als betrouwbare diepte behandelen.
+
+**Bomen als obstakel.** Bomen zijn beschermd in Nederland. Wortelradius ≈ kruindiameter van de boom. Worteldiepte: circa 1 meter. Bij boomconflict kiest ontwerper altijd voor boren i.p.v. graven. Bomendata Haarlem beschikbaar via `kaart.haarlem.nl` (kruindiameter per boom).
 
 **DWG vs DXF.** Martien werkt in AutoCAD Map 3D 2023 met XREF-structuur (BGT/DKK/GWSW/KLIC als losse DWGs). Platform genereert standalone DXF zonder XREFs — Martien importeert dit in zijn AutoCAD. Akkoord.
 
@@ -434,7 +469,9 @@ B11 TC-3.3.D  Ttot = 30.106N (vs BerekeningHDD11 pagina 9)
 
 **RDNAP altijd.** Coördinaten altijd in RD New EPSG:28992, 2 decimalen. Kaart is oriëntatie, coördinaten zijn primaire invoer.
 
-**Werkplan deels automatisch.** Secties die volledig automatisch kunnen: inleiding, 2.3 KLIC-samenvatting, 2.3 geotechniek, 4 berekeningen samenvatting, 5 kwel standaard, 6.1 CKB-klasse, 6.3 tijdsplanning. Locatiespecifiek (2.1, 2.2, 2.4) vereist Martien's input.
+**Werkplan deels automatisch.** Bespaart Martien's eigen tijd (niet die van zijn collega). Secties die volledig automatisch kunnen: inleiding, 2.3 KLIC-samenvatting, 2.3 geotechniek, 4 berekeningen samenvatting, 5 kwel standaard, 6.1 CKB-klasse, 6.3 tijdsplanning. Locatiespecifiek (2.1, 2.2, 2.4) vereist Martien's input. Martien levert stijlreferentie-werkplannen aan vóór start backlog 3.
+
+**Tracévarianten — formaat.** Simpel houden: 1 kaartje met knelpunt + 1-2 alternatieve lijnen + beknopte onderbouwing. Geen uitgebreid vergelijkingsdocument. Formaat: eenvoudig PDF-kaartje (A4).
 
 **Opdrachtketen.** Liander (eindopdrachtgever) → aannemer (bijv. DMMB) → 3D-Drilling → GestuurdeBoringTekening.nl (Martien). Alle lagen vermeldenswaardig in titelblok + werkplan.
 

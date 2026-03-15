@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HDD Platform — Project Overzicht v6</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+:root {
+  --bg: #F2F0EC; --surface: #FFFFFF; --border: #D8D5CE; --text: #1A1A18; --muted: #7A7870;
+  --accent: #1A3A5C; --accent-light: #E8EFF6;
+  --ok: #1A4D2E; --ok-bg: #EAF4EE; --ok-border: #A8D4B4;
+  --warn: #7A4A00; --warn-bg: #FFF4DE; --warn-border: #E8C97A;
+  --risk: #6B1A1A; --risk-bg: #FAEAEA; --risk-border: #D49090;
+  --info: #1A3A5C; --info-bg: #E8EFF6; --info-border: #90B4D4;
+  --purple: #3A1A6A; --purple-bg: #F0E8F8; --purple-border: #C4A8E0;
+  --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+.page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 6rem; }
+
+/* HEADER */
+.header { margin-bottom: 2rem; border-bottom: 2px solid var(--text); padding-bottom: 1.25rem; }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
+.header h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.025em; }
+.header h1 span { color: var(--muted); font-weight: 300; display: block; font-size: 13px; margin-top: 3px; }
+.header-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.8; text-align: right; flex-shrink: 0; }
+.header-intro { font-size: 13px; color: var(--muted); line-height: 1.7; max-width: 700px; }
+
+/* NAV TABS */
+.nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+.nav-tab { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; padding: 0.6rem 1.25rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.1s; user-select: none; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+.tab-section { display: none; }
+.tab-section.active { display: block; }
+
+/* SHARED COMPONENTS */
+.badge { font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 2px; white-space: nowrap; font-weight: 500; display: inline-block; }
+.badge-ok { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+.badge-risk { background: var(--risk-bg); color: var(--risk); border: 1px solid var(--risk-border); }
+.badge-info { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+.badge-purple { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.badge-auto { background: #E8F8EE; color: #1A4D2E; border: 1px solid #70C890; }
+.badge-manual { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+.badge-client { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+.badge-override { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.badge-testdata { background: #E8FFE8; color: #1A4A1A; border: 1px solid #70C870; }
+.badge-testdata-nee { background: #FFF0F0; color: #6A1A1A; border: 1px solid #E09090; }
+.blok { padding: 0.6rem 0.875rem; border-radius: 3px; margin-top: 0.5rem; font-size: 12px; line-height: 1.6; }
+.blok-ok { background: var(--ok-bg); border-left: 3px solid #3A8A5A; color: var(--ok); }
+.blok-warn { background: var(--warn-bg); border-left: 3px solid #CC8800; color: var(--warn); }
+.blok-risk { background: var(--risk-bg); border-left: 3px solid #AA2222; color: var(--risk); }
+.blok-info { background: var(--info-bg); border-left: 3px solid #3A6A9A; color: var(--info); }
+.dl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.5rem; margin-top: 0.75rem; display: flex; align-items: center; gap: 6px; }
+.dl::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ══════════════════════ TAB 1: AANPAK ══════════════════════ */
+.aanpak-hero { background: var(--text); color: #fff; border-radius: 3px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; }
+.aanpak-hero h2 { font-size: 18px; font-weight: 500; margin-bottom: 0.5rem; }
+.aanpak-hero p { font-size: 13px; opacity: 0.7; line-height: 1.7; max-width: 700px; }
+.skeleton-box { border: 2px solid var(--text); border-radius: 3px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+.skeleton-box h3 { font-size: 14px; font-weight: 500; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+.skeleton-feature { display: flex; align-items: baseline; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.skeleton-feature:last-child { border-bottom: none; }
+.skeleton-feature-label { font-weight: 500; min-width: 220px; }
+.skeleton-feature-sub { color: var(--muted); font-size: 12px; }
+.flow-strip { display: flex; align-items: center; gap: 0; margin: 1.5rem 0; }
+.flow-step { background: var(--surface); border: 1px solid var(--border); padding: 0.6rem 1rem; font-size: 12px; font-weight: 500; border-radius: 3px; white-space: nowrap; }
+.flow-arrow { color: var(--muted); font-size: 16px; padding: 0 0.5rem; }
+
+/* BACKLOG */
+.backlog-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.backlog-table th { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--text); text-align: left; }
+.backlog-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.backlog-table tr:hover td { background: #F8F7F4; }
+.prio-num { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--muted); }
+.prio-num.high { color: var(--text); }
+.complexity-bar { display: flex; gap: 2px; }
+.complexity-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.complexity-dot.filled { background: var(--text); }
+
+/* ══════════════════════ TAB 2: PROCESSTAPPEN ══════════════════════ */
+.fase { margin-bottom: 1.5rem; }
+.fase-header { display: flex; align-items: center; gap: 1rem; background: var(--text); color: #fff; padding: 0.6rem 1.25rem; border-radius: 3px 3px 0 0; cursor: pointer; user-select: none; }
+.fase-num { font-family: var(--mono); font-size: 16px; font-weight: 600; opacity: 0.3; }
+.fase-title { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; flex: 1; }
+.fase-badges { display: flex; gap: 6px; }
+.fase-chevron { font-size: 10px; opacity: 0.4; }
+.fase-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 3px 3px; }
+.stap { border-bottom: 1px solid var(--border); }
+.stap:last-child { border-bottom: none; }
+.stap-header { display: grid; grid-template-columns: 40px 1fr auto; background: var(--surface); cursor: pointer; }
+.stap-header:hover { background: #F8F7F4; }
+.stap-num { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--muted); padding: 0.75rem 0 0.75rem 1.25rem; display: flex; align-items: center; }
+.stap-title-wrap { padding: 0.6rem 0.75rem; }
+.stap-title { font-size: 13px; font-weight: 500; }
+.stap-subtitle { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+.stap-right { padding: 0.6rem 0.875rem 0.6rem 0; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.chevron { font-size: 10px; color: var(--muted); transition: transform 0.15s; margin-left: 4px; }
+.stap.open .chevron { transform: rotate(180deg); }
+.stap-detail { display: none; background: #FAFAF8; border-top: 1px solid var(--border); }
+.stap.open .stap-detail { display: block; }
+.detail-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.detail-col { padding: 1rem 1.25rem; }
+.detail-col + .detail-col { border-left: 1px solid var(--border); }
+.detail-full { padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
+.tijd-balk { display: flex; gap: 1.5rem; padding: 0.5rem 1.25rem; background: #F0EEE8; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 10px; flex-wrap: wrap; align-items: center; }
+.tijd-item .t-label { font-size: 8px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+.tijd-item .t-val { font-weight: 600; font-size: 12px; }
+.z-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+.z-hoog { background: #3A8A5A; } .z-midden { background: #CC8800; } .z-laag { background: #AA2222; }
+.norm-tag { display: inline-flex; font-family: var(--mono); font-size: 10px; background: var(--info-bg); color: var(--info); border: 1px solid #B8CCE0; padding: 2px 8px; border-radius: 2px; margin: 2px; }
+.override-tag { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.dt { font-size: 13px; line-height: 1.7; }
+.dt ul { padding-left: 1.1rem; }
+.dt li { margin-bottom: 3px; }
+
+/* ══════════════════════ TAB 3: INFORMATIESTROMEN ══════════════════════ */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+.info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 1rem 1.125rem; }
+.info-card-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.info-card-source { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 6px; }
+.info-card-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.contact-card { background: var(--surface); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 1rem; }
+.contact-header { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--border); background: #FAFAF8; }
+.contact-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.contact-name { font-size: 14px; font-weight: 500; }
+.contact-sub { font-size: 11px; color: var(--muted); }
+.contact-body { padding: 0.875rem 1.25rem; font-size: 12px; line-height: 1.7; color: var(--muted); }
+.contact-channels { display: flex; flex-wrap: wrap; gap: 4px; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); background: #F8F7F4; }
+.channel-tag { font-size: 10px; padding: 2px 8px; border-radius: 2px; background: var(--bg); border: 1px solid var(--border); color: var(--muted); }
+.bottleneck-tag { font-size: 10px; padding: 2px 8px; border-radius: 2px; background: var(--risk-bg); border: 1px solid var(--risk-border); color: var(--risk); }
+.platform-tag { font-size: 10px; padding: 2px 8px; border-radius: 2px; background: var(--ok-bg); border: 1px solid var(--ok-border); color: var(--ok); }
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+
+/* ══════════════════════ TAB 4: TESTDATA ══════════════════════ */
+.testdata-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.testdata-table th { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--text); text-align: left; }
+.testdata-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.testdata-table tr:hover td { background: #F8F7F4; }
+.file-name { font-family: var(--mono); font-size: 11px; font-weight: 500; }
+.tc-list { font-size: 11px; color: var(--muted); line-height: 1.7; }
+.section-title { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; font-family: var(--mono); text-transform: uppercase; color: var(--muted); padding: 0.75rem 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* RESPONSIVE */
+@media (max-width: 800px) {
+  .detail-inner { grid-template-columns: 1fr; }
+  .detail-col + .detail-col { border-left: none; border-top: 1px solid var(--border); }
+  .info-grid { grid-template-columns: 1fr; }
+  .stap-right { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <h1>HDD Platform — Project Overzicht v6
+      <span>Aanpak · Processtappen · Informatiestromen · Testdata</span>
+    </h1>
+    <div class="header-meta">
+      Versie 6.0 · 16-03-2026<br>
+      Inodus / LeanAI Platform<br>
+      Klant: Luijben Engineering Projects<br>
+      Status: Walking Skeleton opgeleverd — Backlog in uitvoering
+    </div>
+  </div>
+  <div class="header-intro">
+    Eén werkend end-to-end systeem als eerste oplevering (walking skeleton), daarna geprioriteerde backlog feature voor feature in overleg met Martien. Geen iteraties of fasen — gewoon bouwen, testen, uitrollen.
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-tab active" onclick="showTab('aanpak')">AANPAK &amp; BACKLOG</div>
+  <div class="nav-tab" onclick="showTab('processtappen')">PROCESSTAPPEN</div>
+  <div class="nav-tab" onclick="showTab('informatiestromen')">INFORMATIESTROMEN</div>
+  <div class="nav-tab" onclick="showTab('testdata')">TESTDATA</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- TAB 1: AANPAK & BACKLOG -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="tab-aanpak" class="tab-section active">
+
+  <div class="aanpak-hero">
+    <h2>Walking Skeleton eerst — daarna feature voor feature</h2>
+    <p>We beginnen met een volledig werkend end-to-end systeem waarbij alle complexe stappen tijdelijk handmatig worden ingevuld (overrides). Martien kan er direct mee werken. Daarna zetten we overrides één voor één uit en vervangen ze door echte functionaliteit — in volgorde van waarde, bepaald in overleg met Martien.</p>
+  </div>
+
+  <!-- SKELETON -->
+  <div class="skeleton-box">
+    <h3>
+      <span style="font-family:var(--mono);font-size:20px;font-weight:600;opacity:0.3">S</span>
+      Walking Skeleton — oplevering 1 (~40–60 uur · ~2 weken)
+      <span class="badge badge-info">OVERRIDE ALLES</span>
+    </h3>
+
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">Project aanmaken</div>
+      <div class="skeleton-feature-sub">naam · opdrachtgever · ordernummer · leidingparameters (PE100 SDR11 defaults) · Drive-koppeling</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">Locatie invoeren</div>
+      <div class="skeleton-feature-sub">RD-coördinaten A/B + tussenpunten · Rh per segment · Leaflet kaart als oriëntatie</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">KLIC upload → <span class="badge badge-override">OVERRIDE</span></div>
+      <div class="skeleton-feature-sub">ZIP uploaden → leidingen als placeholder getoond · echte parsing komt later</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">NAP maaiveld → <span class="badge badge-override">OVERRIDE</span></div>
+      <div class="skeleton-feature-sub">handmatig invoeren (MVin / MVuit) · AHN5 auto-ophalen komt later</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">Grondtype → <span class="badge badge-override">OVERRIDE</span></div>
+      <div class="skeleton-feature-sub">dropdown (Zand/Klei/Veen) · GEF/CPT parser komt later</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">Intrekkracht → <span class="badge badge-override">OVERRIDE</span></div>
+      <div class="skeleton-feature-sub">handmatig invoeren vanuit Sigma · NEN 3651 berekening komt later</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">PDF tekening genereren</div>
+      <div class="skeleton-feature-sub">situatietekening + lengteprofiel NAP + doorsnede boorgat + GPS punten + titelblok · iteratief verfijnen met Martien</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">DXF/DWG export</div>
+      <div class="skeleton-feature-sub">exact conform laagnamen HDD28 (BOORLIJN · BOORGAT · MAAIVELD · K&L lagen · MAATVOERING)</div>
+    </div>
+    <div class="skeleton-feature">
+      <div class="skeleton-feature-label">Google Drive sync</div>
+      <div class="skeleton-feature-sub">input ophalen uit Drive · outputs automatisch wegschrijven naar project-map</div>
+    </div>
+
+    <div class="blok blok-info" style="margin-top:1rem">
+      Na de walking skeleton kan Martien zijn werkproces inrichten en data organiseren — ook al zijn berekeningen nog niet geautomatiseerd. Elk project levert al een PDF-tekening en DXF op.
+    </div>
+  </div>
+
+  <!-- FLOW -->
+  <div class="dl">Workflow walking skeleton</div>
+  <div class="flow-strip" style="flex-wrap:wrap;gap:4px;align-items:center">
+    <div class="flow-step">Project aanmaken</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Locatie + leidingdata invoeren</div><div class="flow-arrow">→</div>
+    <div class="flow-step">KLIC + overrides invullen</div><div class="flow-arrow">→</div>
+    <div class="flow-step">PDF + DXF genereren</div><div class="flow-arrow">→</div>
+    <div class="flow-step" style="background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok)">Automatisch naar Drive</div>
+  </div>
+
+  <!-- BACKLOG — herziene volgorde conform Martien's feedback -->
+  <div class="dl" style="margin-top:1.5rem">Geprioriteerde backlog — na skeleton (herziene volgorde v6)</div>
+  <table class="backlog-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Feature</th>
+        <th>Waarde voor Martien</th>
+        <th>Implementatietijd</th>
+        <th>Zekerheid</th>
+        <th>Override vervangt</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="prio-num high">1</span></td>
+        <td><strong>KLIC IMKL 2.0 parser</strong><br><span style="font-size:11px;color:var(--muted)">IMKL 2.0 XML → geometrie + leidingtype per beheerder</span></td>
+        <td><span class="badge badge-risk">KERN</span></td>
+        <td>3d</td>
+        <td><span class="z-dot z-hoog"></span>Hoog</td>
+        <td>Placeholder leidingen</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num high">1b</span></td>
+        <td><strong>EV-zone DXF + ontwerp-workflow</strong><br><span style="font-size:11px;color:var(--muted)">EV-zone in DXF verwerken · ontwerp-workflow EV-check</span></td>
+        <td><span class="badge badge-risk" style="background:#FAEAEA;color:#6B1A1A;border-color:#D49090">WETTELIJK KRITISCH</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-hoog"></span>Hoog</td>
+        <td>Handmatige EV-check</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num high">2</span></td>
+        <td><strong>GWSW riool BOB + gemeente-mail</strong><br><span style="font-size:11px;color:var(--muted)">GWSW API + gemeente-mail auto-genereren als niet beschikbaar</span></td>
+        <td><span class="badge badge-ok">★★★★</span></td>
+        <td>3d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>Handmatig mailen</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num high">3</span></td>
+        <td><strong>Sleufloze leidingen detectie</strong><br><span style="font-size:11px;color:var(--muted)">KLIC PDF-bijlagen koppelen · leidingen zonder Z markeren</span></td>
+        <td><span class="badge badge-ok">★★★★</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>Handmatig uitzoeken</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num high">4</span></td>
+        <td><strong>Conflictcheck K&amp;L 3D afstand</strong><br><span style="font-size:11px;color:var(--muted)">afstandsberekening boring vs leidingen · AKKOORD/WAARSCHUWING/KRITIEK</span></td>
+        <td><span class="badge badge-risk">KERN</span></td>
+        <td>3d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>Altijd WAARSCHUWING</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num high">5</span></td>
+        <td><strong>Boorprofiel geometrie ARCs</strong><br><span style="font-size:11px;color:var(--muted)">ARCs + LINEs + LWPolyline tangentiaal · Rv/Rh/Rv compositie</span></td>
+        <td><span class="badge badge-risk">KERN</span></td>
+        <td>3d</td>
+        <td><span class="z-dot z-hoog"></span>Hoog</td>
+        <td>Handmatige hoeken</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num high">6</span></td>
+        <td><strong>AHN5 maaiveld PDOK WCS</strong><br><span style="font-size:11px;color:var(--muted)">PDOK WCS API → NAP-profiel langs tracé automatisch</span></td>
+        <td><span class="badge badge-risk">KERN</span></td>
+        <td>1d</td>
+        <td><span class="z-dot z-hoog"></span>Hoog</td>
+        <td>Handmatig MVin/MVuit</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">7</span></td>
+        <td><strong>Tracévarianten vergelijken + PDF</strong><br><span style="font-size:11px;color:var(--muted)">meerdere tracés per project · risicoscore · PDF voor opdrachtgever</span></td>
+        <td><span class="badge badge-ok">★★★★</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>Telefonisch overleg</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">8</span></td>
+        <td><strong>Dinoloket sonderingen REST API</strong><br><span style="font-size:11px;color:var(--muted)">REST API → dichtstbijzijnde CPT automatisch zoeken</span></td>
+        <td><span class="badge badge-ok">★★★</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>Handmatig Dinoloket</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">9</span></td>
+        <td><strong>GEF/CPT parser Robertson</strong><br><span style="font-size:11px;color:var(--muted)">pygef → Robertson classificatie → grondlagen override</span></td>
+        <td><span class="badge badge-info">OPTIONEEL</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-laag"></span>Laag</td>
+        <td>Handmatig grondtype</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">10</span></td>
+        <td><strong>Topotijdreis historische kaarten</strong><br><span style="font-size:11px;color:var(--muted)">historische kaartintegratie · funderingsresten detectie</span></td>
+        <td><span class="badge badge-ok">★★★★</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>Handmatige controle</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">11</span></td>
+        <td><strong>Vergunningscheck omgevingswet.nl</strong><br><span style="font-size:11px;color:var(--muted)">relevante overheden automatisch bepalen op basis van tracé-coördinaten</span></td>
+        <td><span class="badge badge-ok">★★★</span></td>
+        <td>2d</td>
+        <td><span class="z-dot z-laag"></span>Laag</td>
+        <td>Handmatig uitzoeken</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">12</span></td>
+        <td><strong>Intrekkrachtberekening NEN 3651</strong><br><span style="font-size:11px;color:var(--muted)">5 sub-berekeningen · validatie vs BerekeningHDD11 · target 30.106N</span></td>
+        <td><span class="badge badge-info">OPTIONEEL</span></td>
+        <td>5d</td>
+        <td><span class="z-dot z-laag"></span>Laag</td>
+        <td>Handmatig Sigma</td>
+      </tr>
+      <tr>
+        <td><span class="prio-num">13</span></td>
+        <td><strong>Werkplan generator Claude API</strong><br><span style="font-size:11px;color:var(--muted)">Claude API genereert concept-werkplan in Martien's stijl</span></td>
+        <td><span class="badge badge-ok">★★★★</span></td>
+        <td>4d</td>
+        <td><span class="z-dot z-midden"></span>Midden</td>
+        <td>~2u schrijven</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="blok blok-info" style="margin-top:1rem">
+    <strong>Noten bij herziene volgorde:</strong><br>
+    · <strong>1b (EV-zone):</strong> wettelijk kritisch — direct na item 1, ongeacht klantvolgorde<br>
+    · <strong>10 (Topotijdreis):</strong> API-beschikbaarheid eerst onderzoeken; tijdsbereik bepalen met Martien<br>
+    · <strong>11 (Vergunningscheck):</strong> eerst onderzoek omgevingswet.overheid.nl API<br>
+    · <strong>12 (Berekeningen):</strong> transparante output als alternatief voor gecertificeerde software onderzoeken
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- TAB 2: PROCESSTAPPEN -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="tab-processtappen" class="tab-section">
+
+  <!-- FASE 1: PROJECT INTAKE -->
+  <div class="fase">
+    <div class="fase-header" onclick="toggleFase(this)">
+      <span class="fase-num">01</span>
+      <span class="fase-title">PROJECT INTAKE</span>
+      <div class="fase-badges"><span class="badge badge-info">SKELETON</span></div>
+      <span class="fase-chevron">▼</span>
+    </div>
+    <div class="fase-body">
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">1.1</span>
+          <div class="stap-title-wrap"><div class="stap-title">Projectgegevens vastleggen</div><div class="stap-subtitle">naam · opdrachtgever · ordernummer · leidingspec</div></div>
+          <div class="stap-right"><span class="badge badge-info">SKELETON</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Invoer</div>
+              <div class="dt"><ul>
+                <li>Projectnaam · opdrachtgever · ordernummer</li>
+                <li>Leidingparameters: materiaal, De, SDR, medium</li>
+                <li>Wanddikte auto uit SDR, overschrijfbaar</li>
+                <li>Boorstang Db · pilot Dp · ruimer Dg,r</li>
+              </ul></div>
+              <div class="dl">Referentie HDD11</div>
+              <div class="dt" style="font-family:var(--mono);font-size:11px">
+                3D25V700 · M.Luijben · M.Visser<br>
+                PE100 SDR11 · De=160mm · dn=14,6mm<br>
+                Db=60 · Dp=110 · Dg,r=240mm
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Testdata</div>
+              <div class="dt"><ul>
+                <li>✓ BerekeningHDD11 pagina 1–2 (alle waarden)</li>
+                <li>✓ Werkplan HDD11 sectie 3 (specificaties)</li>
+                <li>✓ DXF HDD28: INSERT blokken VermeerD40, 1xBuis</li>
+              </ul></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-1.1.A: SDR→wanddikte berekening (160/11=14,55mm)</li>
+                <li>TC-1.1.B: afgeleide eigenschappen vs Sigma pagina 5</li>
+                <li>TC-1.1.C: velden correct in PDF titelblok</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">4–8 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">1.2</span>
+          <div class="stap-title-wrap"><div class="stap-title">Locatie vastleggen — tussenpunten met Rh</div><div class="stap-subtitle">RDNAP-coördinaten · tussenpunten · horizontale boogstraal per segment · tangentiaal</div></div>
+          <div class="stap-right"><span class="badge badge-info">SKELETON</span><span class="badge badge-override">OVERRIDE: kaart = oriëntatie</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Aanpak (nav Martien feedback)</div>
+              <div class="dt"><p>RD-coördinaten invoeren als primaire methode (2 decimalen = cm-nauwkeurig). Kaart = visuele oriëntatie. Tussenpunten toevoegen met Rh per segment. Boorlijn sluit tangentiaal aan — geen knikken.</p></div>
+              <div class="dl">GPS punten HDD11 (uit PDF tekening)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.8">
+                A:   103896.9 · 489289.5<br>
+                Tv1: 103916.4 · 489284.1<br>
+                Tv2: 103934.3 · 489279.1<br>
+                Th1: 103947.3 · 489275.5<br>
+                Th2: 103960.8 · 489272.4<br>
+                Tv3: 104079.7 · 489250.8<br>
+                Tv4: 104109.2 · 489245.5<br>
+                B:   104118.8 · 489243.7
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">GPS punten HDD28 (uit DXF)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.8">
+                Th1: 105314 · 498803<br>
+                Tv1: 105315 · 498805<br>
+                Tv2: 105325 · 498847<br>
+                Th2: 105344 · 498885<br>
+                Th3: 105393 · 498962<br>
+                Tv3: 105406 · 498979<br>
+                Th4: 105448 · 499018<br>
+                Tv4: 105448 · 499018
+              </div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-1.2.A: RD→WGS84 conversie (pyproj)</li>
+                <li>TC-1.2.B: tangentiaal aansluiting boogdelen</li>
+                <li>TC-1.2.C: HDD11 GPS punten op kaart</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">16–24 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-midden"></span>Midden</div></div>
+            <div class="tijd-item"><div class="t-label">Feedback nodig</div><div class="t-val">Hoog — Rh per segment</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAP 1.3 — NIEUW v6: KLIC-melding doen -->
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">1.3</span>
+          <div class="stap-title-wrap"><div class="stap-title">KLIC-melding doen</div><div class="stap-subtitle">oriëntatie of graafmelding, afhankelijk van uitvoerdatum</div></div>
+          <div class="stap-right"><span class="badge badge-manual">HANDMATIG</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Beschrijving</div>
+              <div class="dt"><p>Oriëntatiegraving is standaard bij ontwerpen ter voorbereiding (uitvoering &gt; 4 weken). Graafmelding als uitvoering ≤ 4 weken gepland is — graafmelding verloopt na 20 werkdagen. KLIC-levering kan pas worden geüpload nadat het Kadaster de levering heeft verstuurd (stap 2.1).</p></div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Platform-functionaliteit (backlog)</div>
+              <div class="dt"><p>Platform toont herinnering: bij bekende uitvoerdatum &lt; 4 weken, waarschuwing om graafmelding te overwegen.</p></div>
+              <div class="dl">Afhankelijkheid</div>
+              <div class="dt"><ul>
+                <li>Stap 2.1 (KLIC upload) kan pas na ontvangst levering van Kadaster</li>
+                <li>Oriëntatiegraving: geen vervaldatum</li>
+                <li>Graafmelding: geldig 20 werkdagen</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Type</div><div class="t-val">Handmatig via KLIC-viewer</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 2: BRONDATA -->
+  <div class="fase">
+    <div class="fase-header" onclick="toggleFase(this)">
+      <span class="fase-num">02</span>
+      <span class="fase-title">BRONDATA LADEN</span>
+      <div class="fase-badges"><span class="badge badge-info">SKELETON (upload)</span><span class="badge badge-purple">BACKLOG 1–2, 5, 6, 8</span></div>
+      <span class="fase-chevron">▼</span>
+    </div>
+    <div class="fase-body">
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">2.1</span>
+          <div class="stap-title-wrap"><div class="stap-title">KLIC-melding uploaden</div><div class="stap-subtitle">IMKL 2.0 XML → 11 beheerders · 1127 leidingen · geen Z-waarden · PDF-bijlagen sleufloze leidingen</div></div>
+          <div class="stap-right"><span class="badge badge-override">OVERRIDE: placeholder</span><span class="badge badge-purple">BACKLOG 1</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Testdata HDD11 KLIC-levering (volledig geanalyseerd)</div>
+              <div class="dt"><ul>
+                <li>KL1040 Liander: 476 leidingen (LS+MS+Gas+Data)</li>
+                <li>KL1011 Ziggo: 589 leidingen (data)</li>
+                <li>GM0392 Gemeente Haarlem: 708 (LS+riool)</li>
+                <li>KL1100 PWN: 72 waterleidingen</li>
+                <li>KL1049 Reggefiber: 3 mantelbuizen + PDF boogzinker!</li>
+                <li>+ 6 andere beheerders</li>
+              </ul></div>
+              <div class="blok blok-risk">Alle 1127 leidingen: <strong>dieptePeil = GEEN</strong>. Alleen verticalPosition=underground. KLIC-dieptes zijn indicatief — altijd waarschuwen.</div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Laagnamen uit DXF (gevalideerd HDD28)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.9">
+                KLIC|B-OI-KL-ET_LS_[beheerder]-G  kleur=190<br>
+                KLIC|B-OI-KL-ET_MS_[beheerder]-G  kleur=130<br>
+                KLIC|B-OI-KL-ET_HS_[beheerder]-G  kleur=10<br>
+                KLIC|B-OI-KL-GAS_LD_[beheerder]-G kleur=50<br>
+                KLIC|B-OI-KL-GAS_HD_[beheerder]-G kleur=30<br>
+                KLIC|B-OI-KL-WATER_[beheerder]-G  kleur=170<br>
+                KLIC|B-OI-RI-VRIJVERVAL_[beh]-G   kleur=210<br>
+                KLIC|B-OI-KL-DATA_[beheerder]-G   kleur=90
+              </div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-2.1.A: KLIC ZIP inlezen → leidingen op kaart</li>
+                <li>TC-2.1.B: KL1049 Reggefiber → PDF-bijlage gedetecteerd</li>
+                <li>TC-2.1.C: lijntype-mapping NLCS correct</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#1</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">24–40 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-midden"></span>Midden</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">2.2</span>
+          <div class="stap-title-wrap"><div class="stap-title">AHN5 maaiveld ophalen</div><div class="stap-subtitle">PDOK WCS API · NAP langs tracé · fallback AHN3/4 waar AHN5 niet beschikbaar</div></div>
+          <div class="stap-right"><span class="badge badge-override">OVERRIDE: handmatig</span><span class="badge badge-purple">BACKLOG 2</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Aanpak</div>
+              <div class="dt"><p>Tracé als polyline → sample-punten elke 2m → PDOK AHN5 WCS GetCoverage → NAP-waarden opslaan. AHN5 is recentste versie (nav Martien feedback). Fallback naar AHN3 waar AHN5 nog niet beschikbaar.</p></div>
+              <div class="dl">Referentiewaarden HDD11</div>
+              <div class="dt" style="font-family:var(--mono);font-size:11px">MVin = +1,01m NAP · MVuit = +1,27m NAP</div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-2.2.A: AHN5 ophalen → MVin≈+1,01m NAP (±0,3m)</li>
+                <li>TC-2.2.B: sample interval 2m langs 226m boring → ~113 punten</li>
+                <li>TC-2.2.C: handmatige override MVin=+1,05 → gemarkeerd</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#2</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">8–16 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">2.3</span>
+          <div class="stap-title-wrap"><div class="stap-title">Sonderingen laden (Dinoloket / GEF) <em style="font-weight:400;font-style:italic;color:var(--muted)">(optioneel)</em></div><div class="stap-subtitle">Dinoloket REST API auto-zoeken · GEF parser · sonderingsgrafiek naast profiel · optioneel per project</div></div>
+          <div class="stap-right"><span class="badge badge-override">OVERRIDE: dropdown grondtype</span><span class="badge badge-purple">BACKLOG 8+9</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">CPT26582 (intredegebied)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.8">
+                RD: 103851 · 489230 · NAP +4,28m<br>
+                Einddiepte: 24,70m · 1150 meetpunten<br>
+                qc 0–5m: 2,5 MPa · 5–20m: ~13–14 MPa<br>
+                20–25m: 24,9 MPa (vast zand)
+              </div>
+              <div class="dl">CPT26578 (uittredegebied)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.8">
+                RD: 103923 · 489219 · NAP +4,31m<br>
+                Einddiepte: 24,51m · 1202 meetpunten<br>
+                qc 0–5m: 5,4 MPa · 10–15m: 23,5 MPa
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Workflow (nav Martien)</div>
+              <div class="dt"><ul>
+                <li>Sonderingen zoeken op Dinoloket zo dicht mogelijk bij tracé</li>
+                <li>Soms aangeleverd door opdrachtgever</li>
+                <li>Soms naast lengteprofiel weergeven (boormeester view)</li>
+                <li><strong>Alleen berekening maken als opdrachtgever vraagt</strong></li>
+                <li><em>Sonderingen zijn optioneel — achteraan in backlog</em></li>
+              </ul></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-2.3.A: GEF parsing CPT26582 → qc-profiel = Sigma p.20</li>
+                <li>TC-2.3.B: Robertson → alle lagen Zand, φ=35°</li>
+                <li>TC-2.3.C: grondlaag override Zand→Klei</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#8 (Dinoloket) + #9 (GEF)</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">16–24 + 40–80 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-laag"></span>Laag (GEF)</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">2.4</span>
+          <div class="stap-title-wrap"><div class="stap-title">BGT · Kadaster · GWSW riool</div><div class="stap-subtitle">BGT PDOK WFS · DKK perceelgrenzen · GWSW BOB-dieptes riool · gemeente-mail als niet beschikbaar</div></div>
+          <div class="stap-right"><span class="badge badge-purple">BACKLOG 6</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">GWSW lagen in DXF HDD28 (gevalideerd)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.8">
+                GWSW|B-OI-RI-GWA_300-G   gemengd riool 300mm<br>
+                GWSW|B-OI-RI-HWA_200-G   hemelwater 200mm<br>
+                GWSW|B-OI-RI-DWA_PE_200-G droogweer 200mm<br>
+                GWSW|B-OI-RI-BOB-S       BOB-punten<br>
+                GWSW|B-OI-RI-VRIJVERVAL_300-G<br>
+                GWSW|B-OI-RI-VRIJVERVAL_PVC_315-G
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Workflow riool (nav Martien)</div>
+              <div class="dt"><ul>
+                <li>Eerst GWSW/riool.net proberen (InfraCAD Map)</li>
+                <li>Als niet beschikbaar: mail gemeente met leidingreferenties</li>
+                <li>Contactgegevens beheerder staan in KLIC</li>
+                <li>Sommige gemeentes stellen BOB niet beschikbaar</li>
+              </ul></div>
+              <div class="dl">Platform auto-actie</div>
+              <div class="dt">Concept-mail genereren met leidingreferenties ingevuld → Martien verstuurt met 1 klik</div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#6</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">16–24 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-midden"></span>Midden</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAP 2.5 — NIEUW v6: Topotijdreis historische check -->
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">2.5</span>
+          <div class="stap-title-wrap"><div class="stap-title">Historische kaarten checken (topotijdreis)</div><div class="stap-subtitle">controle op gesloopte objecten met resterende funderingen</div></div>
+          <div class="stap-right"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-auto">AUTO → backlog 10</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Beschrijving</div>
+              <div class="dt"><p>Controleer topotijdreis.nl voor het tracégebied op historische objecten waarvan funderingen mogelijk nog aanwezig zijn: gesloopte viaducten, bruggen, tunnels, tramverbindingen.</p></div>
+              <div class="dl">Gedocumenteerde cases</div>
+              <div class="dt"><ul>
+                <li>(1) Viaduct A2 — heipalen oud viaduct mogelijk nog aanwezig</li>
+                <li>(2) Boring gestopt op 9m/12m door fundering gesloopte brug</li>
+                <li>(3) Stoomtramfundering 1912 naast tunnel</li>
+              </ul></div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Platform-functionaliteit (backlog 10)</div>
+              <div class="dt"><p>Onderzoeken of topotijdreis.nl API/WMS beschikbaar is voor automatische kaartintegratie. API-beschikbaarheid en tijdsbereik eerst in overleg met Martien bepalen.</p></div>
+              <div class="dl">Verwijzing werkplan</div>
+              <div class="dt"><ul>
+                <li>Historische informatie beschreven in werkplan sectie 2.2</li>
+                <li>Check aanbevolen als werkplan verwacht wordt bij project</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#10</div></div>
+            <div class="tijd-item"><div class="t-label">Type nu</div><div class="t-val">Handmatig via topotijdreis.nl</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid API</div><div class="t-val"><span class="z-dot z-midden"></span>Midden (onderzoeken)</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 3: ONTWERP -->
+  <div class="fase">
+    <div class="fase-header" onclick="toggleFase(this)">
+      <span class="fase-num">03</span>
+      <span class="fase-title">ONTWERP &amp; BEREKENING</span>
+      <div class="fase-badges"><span class="badge badge-info">SKELETON (override)</span><span class="badge badge-purple">BACKLOG 4, 7, 11</span></div>
+      <span class="fase-chevron">▼</span>
+    </div>
+    <div class="fase-body">
+
+      <!-- STAP 3.1 — NIEUW v6: Vergunningscheck -->
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">3.1</span>
+          <div class="stap-title-wrap"><div class="stap-title">Vergunningscheck omgevingswet.overheid.nl</div><div class="stap-subtitle">welke overheden zijn van toepassing op het tracé</div></div>
+          <div class="stap-right"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-auto">AUTO → backlog 11</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Beschrijving</div>
+              <div class="dt"><p>Check via omgevingswet.overheid.nl welke overheden (RWS, provincie, waterschap, gemeente) voorschriften hebben voor de tracélocatie. Los hiervan gelden ook de voorschriften van K&amp;L asset beheerders via de KLIC.</p></div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Platform-functionaliteit (backlog 11)</div>
+              <div class="dt"><p>Onderzoeken of omgevingswet API automatisch de relevante regimes kan bepalen op basis van tracé-coördinaten. Eerst onderzoek omgevingswet.overheid.nl API voordat dit wordt ingepland.</p></div>
+              <div class="dl">Relatie tot eisenprofiel</div>
+              <div class="dt"><ul>
+                <li>Vergunningseisen bepalen het eisenprofiel (stap 3.2)</li>
+                <li>RWS / provincie / waterschap / gemeente hebben elk eigen eisen</li>
+                <li>K&amp;L beheerders hebben aanvullende eisen via KLIC</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#11</div></div>
+            <div class="tijd-item"><div class="t-label">Type nu</div><div class="t-val">Handmatig via omgevingswet.overheid.nl</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid API</div><div class="t-val"><span class="z-dot z-laag"></span>Laag (eerst onderzoeken)</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">3.2</span>
+          <div class="stap-title-wrap"><div class="stap-title">Eisenprofiel selecteren</div><div class="stap-subtitle">beheerder → NEN 3651 eisen · minimale dekking · boogstraal · overschrijfbaar</div></div>
+          <div class="stap-right"><span class="badge badge-info">SKELETON</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Seed data eisenprofielen</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.9">
+                RWS Rijksweg:       3,0m / 5,0m · Rmin=150m<br>
+                Waterschap:         5,0m / 10m  · Rmin=200m<br>
+                Provincie:          2,0m / 3,0m · Rmin=120m<br>
+                Gemeente:           1,2m / 1,5m · Rmin=100m<br>
+                ProRail spoor:      4,0m / 6,0m · Rmin=150m
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-3.1.A: beheerder=RWS → 3,0m / Rmin=150m</li>
+                <li>TC-3.1.B: vergunning override → gemarkeerd</li>
+                <li>TC-3.1.C: NuRijnland Haarlem → welk eisenprofiel?</li>
+              </ul></div>
+              <span class="norm-tag">NEN 3651</span>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">8–12 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">3.3</span>
+          <div class="stap-title-wrap"><div class="stap-title">Boorprofiel geometrie berekenen</div><div class="stap-subtitle">Rv–Rh–Rv compositie · ARCs + LINEs + LWPolyline · tangentiaal · RDNAP sensorpunten</div></div>
+          <div class="stap-right"><span class="badge badge-override">OVERRIDE: handmatige hoeken</span><span class="badge badge-purple">BACKLOG 4</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">HDD11 geometrie (BerekeningHDD11)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.9">
+                A  recht:    21,24m   18° intrede<br>
+                B  curve:    Rv=60m   18,85m langs buis<br>
+                C  horizontaal + Rh=150m bocht<br>
+                D  curve:    Rv=80m   30,72m langs buis<br>
+                E  recht:    10,50m   22° uittrede<br>
+                Totaal:      226,58m · Lhor=223,72m
+              </div>
+              <div class="dl">HDD28 geometrie (DXF gevalideerd)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.9">
+                ARC intrede:  r=140m  center=(105306,496029)<br>
+                ARC uittrede: r=140m  center=(105462,496029)<br>
+                LWPolyline:   6 punten totaal
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">DXF output structuur (gevalideerd)</div>
+              <div class="dt"><ul>
+                <li>Laag BOORLIJN: LWPolyline + ARCs + LINEs + POINTs</li>
+                <li>Laag ATTRIBUTEN: TEXT labels Tv1/Tv2/Th1/Th2...</li>
+                <li>Laag BOORGAT: 2 CIRCLEs (r=boorgat, r=buis)</li>
+              </ul></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-3.2.A: HDD11 → L=226,58m exact (vs Sigma p.1)</li>
+                <li>TC-3.2.B: tangentiaal check: hoek verbindingspunten=0°</li>
+                <li>TC-3.2.C: sensorpunten in RDNAP coördinaten</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#4</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">16–24 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog (bekende wiskunde)</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">3.4</span>
+          <div class="stap-title-wrap"><div class="stap-title">Intrekkrachtberekening NEN 3651</div><div class="stap-subtitle">optioneel · alleen als opdrachtgever vraagt · target 30.106N / 3,01 ton</div></div>
+          <div class="stap-right"><span class="badge badge-override">OVERRIDE: handmatig Sigma</span><span class="badge badge-purple">BACKLOG 11</span><span class="badge badge-info">OPTIONEEL</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Validatiedoelen HDD11 (BerekeningHDD11)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.9">
+                T1 bovengronds:  7.793N · σa=1,73 N/mm²<br>
+                T2 Na intrekken: 23.916N (wrijving vloeistof)<br>
+                Ttot karak:      16.726N / 1,67 ton (f=1)<br>
+                Ttot max:        30.106N / 3,01 ton (f=1,8)<br>
+                Deflectie:       4,60mm ≤ 11,63mm ✓<br>
+                Implosie:        7,85m &lt; 28,12m ✓
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Martien (nav zijn mail)</div>
+              <div class="dt"><div class="blok blok-info">"Nice-to-have, maar is ook niet het moeilijkste." Optioneel per project — alleen als opdrachtgever hier expliciet voor betaalt.</div></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-3.3.A–E: elke sub-berekening vs Sigma pagina 5–9</li>
+                <li>TC-3.3.F: totalisatie Ttot=30.106N exact</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#12 (laagst)</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">80–160 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-laag"></span>Laag</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FASE 4: OUTPUT -->
+  <div class="fase">
+    <div class="fase-header" onclick="toggleFase(this)">
+      <span class="fase-num">04</span>
+      <span class="fase-title">OUTPUT GENEREREN</span>
+      <div class="fase-badges"><span class="badge badge-info">SKELETON (basis)</span><span class="badge badge-purple">BACKLOG 3</span></div>
+      <span class="fase-chevron">▼</span>
+    </div>
+    <div class="fase-body">
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">4.1</span>
+          <div class="stap-title-wrap"><div class="stap-title">DXF/DWG-tekening genereren (leidend)</div><div class="stap-subtitle">NLCS laagnamen HDD28 · BOORLIJN + BOORGAT + MAAIVELD + K&L lagen · RDNAP sensorpunten</div></div>
+          <div class="stap-right"><span class="badge badge-info">SKELETON</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Laagnamen (gevalideerd uit DXF HDD28)</div>
+              <div class="dt" style="font-family:var(--mono);font-size:10px;line-height:1.9">
+                BOORLIJN          kleur=1   lt=Continuous<br>
+                BOORGAT           kleur=5   lt=DASHDOT<br>
+                MAAIVELD          kleur=122 lt=Continuous<br>
+                MAATVOERING       kleur=170 lt=Continuous<br>
+                MAATVOERING-GRIJS kleur=251 lt=Continuous<br>
+                LAAGSPANNING      kleur=190 lt=KL-LS-N<br>
+                MIDDENSPANNING    kleur=130 lt=KL-MS-N<br>
+                HOOGSPANNING      kleur=10  lt=KL-HS-N<br>
+                LD-GAS            kleur=50  lt=KL-GAS-LD-N<br>
+                WATERLEIDING      kleur=170 lt=KL-WATER-N<br>
+                RIOOL-VRIJVERVAL  kleur=210 lt=RI-OVERIG<br>
+                PERSRIOOL         kleur=210 lt=RI-PERS<br>
+                KADASTER          kleur=150 lt=KG-PERCEEL<br>
+                ATTRIBUTEN        kleur=252 lt=Continuous<br>
+                TITELBLOK_TEKST   kleur=7   lt=Continuous
+              </div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">INSERT blokken (uit DXF HDD28)</div>
+              <div class="dt"><ul>
+                <li>VermeerD40 — boormachine symbool</li>
+                <li>Aboorgat3x1 / Bboorgat3x1 — boorgat symbolen</li>
+                <li>1xBuis — buissymbool doorsnede</li>
+                <li>VRACHTWAGEN — machinesymbool</li>
+              </ul></div>
+              <div class="dl">Martien (nav zijn mail)</div>
+              <div class="dt"><div class="blok blok-info">DWG is leidend. PDF is afgeleid — voor beoordelaars die geen DWG kunnen openen.</div></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-4.1.A: DXF openen in AutoCAD → geen errors</li>
+                <li>TC-4.1.B: laagnamen exact gelijk aan HDD28</li>
+                <li>TC-4.1.C: BOORLIJN geometrie = input coördinaten</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">24–40 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog (laagnamen bekend)</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">4.2</span>
+          <div class="stap-title-wrap"><div class="stap-title">PDF-tekening genereren (afgeleid)</div><div class="stap-subtitle">bovenaanzicht 1:4000 · situatie 1:250 · lengteprofiel NAP · doorsnede boorgat · GPS punten titelblok</div></div>
+          <div class="stap-right"><span class="badge badge-info">SKELETON</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Verplichte elementen (bevestigd Martien)</div>
+              <div class="dt"><ul>
+                <li>Bovenaanzicht 1:4000 op Noorden</li>
+                <li>Situatietekening 1:250 met NLCS-kleuren + tracé A→B</li>
+                <li>Lengteprofiel 1:250 op NAP · maatvoering sensorpunten</li>
+                <li>Doorsnede boorgat: 1,5×De=240mm / buis 160mm</li>
+                <li>GPS punten boorlijn: RD-coördinaten per sensorpunt</li>
+                <li>Intredehoek ° en % · uittredehoek ° en %</li>
+                <li>Titelblok: project · schaal · datum · getekend · akkoord</li>
+                <li>Logo 3D-Drilling + DMMB · ordernummer · revisietabel</li>
+              </ul></div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Referentietekeningen</div>
+              <div class="dt"><ul>
+                <li>✓ 3D25V700-11-rev.0 PDF (230,11m)</li>
+                <li>✓ 3D25V700-11-rev.1 PDF (229,59m "Minder diep")</li>
+                <li>✓ 3D26V810-28 DXF (Velsen-Noord) volledig geanalyseerd</li>
+              </ul></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-4.2.A: titelblok HDD11 → alle velden correct</li>
+                <li>TC-4.2.B: doorsnede boorgat Ø240 + PE Ø160</li>
+                <li>TC-4.2.C: NAP-waarden sensorpunten correct</li>
+                <li>TC-4.2.D: visueel gelijkwaardig aan rev.1 PDF</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">40–80 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-midden"></span>Midden (lay-out iteratief)</div></div>
+            <div class="tijd-item"><div class="t-label">Feedback nodig</div><div class="t-val">Hoog — meerdere review rondes</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stap" onclick="toggleStap(event,this)">
+        <div class="stap-header">
+          <span class="stap-num">4.3</span>
+          <div class="stap-title-wrap"><div class="stap-title">Werkplan genereren (Claude API)</div><div class="stap-subtitle">concept in Martien's stijl · alle projectdata als context · 15 min review i.p.v. 2 uur schrijven</div></div>
+          <div class="stap-right"><span class="badge badge-purple">BACKLOG 3</span><span class="badge badge-ok">★★★★★ voor Martien</span><span class="badge badge-testdata">TESTDATA ✓</span><span class="chevron">▼</span></div>
+        </div>
+        <div class="stap-detail">
+          <div class="detail-inner">
+            <div class="detail-col">
+              <div class="dl">Werkplan structuur HDD11 (volledig geanalyseerd)</div>
+              <div class="dt"><ul>
+                <li>1. Inleiding (projectcontext, opdrachtgever)</li>
+                <li>2.1 Locatie · 2.2 Historie (topotijdreis.nl)</li>
+                <li>2.3 Infrastructuur (KLIC samenvatting)</li>
+                <li>2.3 Geotechniek (sonderingen + grondoordeel)</li>
+                <li>2.4 Omgevingsfactoren (werkruimte, verkeer, bentoniet)</li>
+                <li>3. Ontwerp + verwijzing tekening</li>
+                <li>4. Berekeningen (CKB-klasse, machine, trekkracht)</li>
+                <li>5. Kwel (standaard analyse)</li>
+                <li>6. Uitvoering (machine, personeel, planning, afwijkingen)</li>
+                <li>Bijlagen A–G: tekening + berekeningen + sonderingen...</li>
+              </ul></div>
+            </div>
+            <div class="detail-col">
+              <div class="dl">Auto vs handmatig</div>
+              <div class="dt"><ul>
+                <li>Auto: inleiding · KLIC samenvatting · geotechniek · berekeningen · CKB-klasse · tijdsplanning</li>
+                <li>Martien vult aan: locatiebeschrijving · omgevingsfactoren · specifieke risico's</li>
+              </ul></div>
+              <div class="dl">Testdata</div>
+              <div class="dt"><ul>
+                <li>✓ Werkplan HDD11 docx (414 paragrafen, 2 tabellen)</li>
+                <li>✓ Volledige sectiestructuur gedocumenteerd</li>
+              </ul></div>
+              <div class="dl">Testcases</div>
+              <div class="dt"><ul>
+                <li>TC-4.3.A: werkplan HDD11 → alle secties aanwezig</li>
+                <li>TC-4.3.B: projectdata correct verwerkt in tekst</li>
+                <li>TC-4.3.C: stijl vergelijkbaar met origineel werkplan</li>
+              </ul></div>
+            </div>
+          </div>
+          <div class="tijd-balk">
+            <div class="tijd-item"><div class="t-label">Backlog prio</div><div class="t-val">#13</div></div>
+            <div class="tijd-item"><div class="t-label">Implementatie</div><div class="t-val">16–24 uur</div></div>
+            <div class="tijd-item"><div class="t-label">Zekerheid</div><div class="t-val"><span class="z-dot z-hoog"></span>Hoog (Claude API)</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- TAB 3: INFORMATIESTROMEN -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="tab-informatiestromen" class="tab-section">
+
+  <div class="legend">
+    <div class="leg-item"><span class="badge badge-auto">AUTO</span> Platform automatiseert</div>
+    <div class="leg-item"><span class="badge badge-manual">HANDMATIG</span> Martien doet dit nu</div>
+    <div class="leg-item"><span class="badge badge-client">KLANT</span> Opdrachtgever levert aan</div>
+    <div class="leg-item"><span class="badge badge-risk">RISICO</span> Foutgevoelig / onbetrouwbaar</div>
+  </div>
+
+  <div class="section-title">Informatiestromen per project</div>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-source">Opdrachtgever (Liander, DMMB)</div>
+      <div class="info-card-title">Projectinformatie</div>
+      <div class="info-card-body">Locatie A→B, leidingtype, diameter, opdrachtgever, planning, ordernummer</div>
+      <div style="margin-top:8px"><span class="badge badge-client">KLANT</span><span class="badge badge-manual">HANDMATIG</span></div>
+    </div>
+    <!-- NIEUW v6: Projecten in ontwikkeling -->
+    <div class="info-card">
+      <div class="info-card-source">Opdrachtgever of derden</div>
+      <div class="info-card-title">Projecten in ontwikkeling</div>
+      <div class="info-card-body">Informatie over geplande wijzigingen in de infrastructuur (wegen, watergangen) of bebouwing die raakvlak hebben met het tracé. Aangeleverd door opdrachtgever of derden. Kan leiden tot aanpassing van het tracé vóór of tijdens ontwerp.</div>
+      <div style="margin-top:8px"><span class="badge badge-client">KLANT</span><span class="badge badge-manual">HANDMATIG</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">Kadaster.nl → KLIC-viewer</div>
+      <div class="info-card-title">KLIC-melding (K&amp;L)</div>
+      <div class="info-card-body">ZIP met IMKL 2.0 XML per netbeheerder. Alle dieptes indicatief — verticalPosition=underground, dieptePeil=GEEN (bevestigd uit HDD11 KLIC-analyse)</div>
+      <div style="margin-top:8px"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-risk">RISICO</span><span class="badge badge-auto">AUTO → backlog 1</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">PDOK AHN5 WCS API</div>
+      <div class="info-card-title">Maaiveld / NAP-hoogte</div>
+      <div class="info-card-body">Hoogteprofiel langs tracé. AHN5 meest recent (nav Martien). Fallback AHN3/4 waar AHN5 niet beschikbaar.</div>
+      <div style="margin-top:8px"><span class="badge badge-auto">AUTO → backlog 2</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">Dinoloket.nl REST API</div>
+      <div class="info-card-title">Sonderingen (CPT)</div>
+      <div class="info-card-body">Dichtstbijzijnde CPT handmatig gezocht. Soms aangeleverd door opdrachtgever. REST API beschikbaar voor automatisering.</div>
+      <div style="margin-top:8px"><span class="badge badge-auto">AUTO → backlog 8</span><span class="badge badge-client">KLANT</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">PDOK BGT WFS + DKK</div>
+      <div class="info-card-title">BGT topografie + kadaster</div>
+      <div class="info-card-body">Achtergrond situatietekening. InfraCAD Map laadt dit als XREF. Platform haalt op via PDOK API.</div>
+      <div style="margin-top:8px"><span class="badge badge-auto">AUTO</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">GWSW / riool.net + gemeente per mail</div>
+      <div class="info-card-title">Riool BOB-dieptes</div>
+      <div class="info-card-body">BOB t.o.v. NAP. Niet altijd beschikbaar. Als niet online: mail gemeente met contactgegevens uit KLIC. GWSW lagen zichtbaar in DXF HDD28.</div>
+      <div style="margin-top:8px"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-auto">AUTO → backlog 6</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">KL1049 Reggefiber (HDD11 KLIC)</div>
+      <div class="info-card-title">Sleufloze leidingen (PDF-profiel)</div>
+      <div class="info-card-body">Mantelbuizen zonder Z-waarde + PDF-bijlage boogzinker/gestuurde boring in KLIC. Martien zoekt dit handmatig — platform kan automatisch detecteren en markeren.</div>
+      <div style="margin-top:8px"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-risk">RISICO</span><span class="badge badge-auto">AUTO → backlog 5</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">Sigma 2025</div>
+      <div class="info-card-title">Sterkte &amp; intrekkrachtberekening</div>
+      <div class="info-card-body">Handmatig invullen. Optioneel — alleen als opdrachtgever vraagt. Platform vervangt dit uiteindelijk (backlog 12, laagste prio).</div>
+      <div style="margin-top:8px"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-override">OVERRIDE in skeleton</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">Beheerder-voorschriften + NEN 3651</div>
+      <div class="info-card-title">Vergunningseisen</div>
+      <div class="info-card-body">Beheerder-specifiek eisenprofiel. Periodiek bijgesteld — versie + datum tonen in platform, jaarlijkse actualisatie.</div>
+      <div style="margin-top:8px"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-risk">RISICO</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-source">Topotijdreis.nl + BAG</div>
+      <div class="info-card-title">Historische informatie</div>
+      <div class="info-card-body">Historisch kaartmateriaal voor funderingsresten, bruggen, damwanden. Vermeld in werkplan sectie 2.2. AI kan dit automatisch opzoeken.<br><br>
+      <em>Historische informatie leidt zelden direct tot ontwerpwijziging. Als het toch het geval is, is de wijziging al verwerkt vóór het werkplan wordt geschreven — het werkplan beschrijft altijd de definitieve situatie. Topotijdreis-check aanbevolen als processtap 2.5 wanneer een werkplan verwacht wordt.</em></div>
+      <div style="margin-top:8px"><span class="badge badge-manual">HANDMATIG</span><span class="badge badge-auto">AUTO (AI) → backlog 3</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">Contactmomenten per project</div>
+
+  <div class="contact-card">
+    <div class="contact-header">
+      <div class="contact-avatar" style="background:#E8EFF6;color:#1A3A5C">OG</div>
+      <div><div class="contact-name">Opdrachtgever — Liander / DMMB</div><div class="contact-sub">Initiator van het project · Formele keten: Asset owner → Aannemer → Boorbedrijf → GestuurdeBoringTekening.nl</div></div>
+    </div>
+    <div class="contact-body">Bepaalt locatie A→B. Bespreekt tracéopties: "kan de boring meer naar rechts, korter, andere techniek?" Dit is Martien's <strong>grootste tijdvreter</strong> — telefonisch overleg zonder visueel hulpmiddel. Platform kan helpen met tracévarianten-document (backlog 10) dat Martien vooraf kan sturen.<br><br>
+    <strong>Formele keten:</strong> Asset owner (netbeheerder) → Aannemer → Boorbedrijf → GestuurdeBoringTekening.nl. Alle drie partijen worden kortweg 'Opdrachtgever' genoemd maar hebben verschillende belangen. Communicatie afhankelijk van het knelpunt — soms wordt een schakel overgeslagen.</div>
+    <div class="contact-channels">
+      <span class="bottleneck-tag">★ BOTTLENECK — overleg tracékeuze</span>
+      <span class="channel-tag">Telefoon</span><span class="channel-tag">Videocall</span><span class="channel-tag">E-mail + bijlagen</span>
+      <span class="platform-tag">Platform: tracévarianten PDF</span>
+    </div>
+  </div>
+
+  <div class="contact-card">
+    <div class="contact-header">
+      <div class="contact-avatar" style="background:#FFF4DE;color:#7A4A00">VG</div>
+      <div><div class="contact-name">Vergunningverlener — gemeente / waterschap / RWS</div><div class="contact-sub">Beoordeelt aanvraag</div></div>
+    </div>
+    <div class="contact-body">Vooroverleg als Martien twijfelt of aan alle eisen kan worden voldaan. Indienen van tekening + werkplan + berekeningen. Soms verzoek om aanvullende info.</div>
+    <div class="contact-channels">
+      <span class="channel-tag">E-mail + PDF-bijlagen</span><span class="channel-tag">Omgevingsloket</span><span class="channel-tag">Telefoon (vooroverleg)</span>
+      <span class="platform-tag">Platform levert: PDF tekening + werkplan + berekening</span>
+    </div>
+  </div>
+
+  <div class="contact-card">
+    <div class="contact-header">
+      <div class="contact-avatar" style="background:#EAF4EE;color:#1A4D2E">KB</div>
+      <div><div class="contact-name">K&amp;L-beheerders — Liander, PWN, Ziggo, gemeente...</div><div class="contact-sub">Contactgegevens uit KLIC</div></div>
+    </div>
+    <div class="contact-body">Contact als diepte onbekend of als Martien vermoedt dat een leiding sleufloze aanleg heeft. Platform kan automatisch detecteren welke leidingen dit risico hebben en concept-mails genereren.</div>
+    <div class="contact-channels">
+      <span class="bottleneck-tag">★ BOTTLENECK — sleufloze leidingen opzoeken</span>
+      <span class="channel-tag">E-mail (uit KLIC-contactgegevens)</span><span class="channel-tag">Telefoon</span>
+      <span class="platform-tag">Platform: auto-detectie + concept-mail</span>
+    </div>
+  </div>
+
+  <div class="contact-card">
+    <div class="contact-header">
+      <div class="contact-avatar" style="background:#F2F0EC;color:#7A7870">GM</div>
+      <div><div class="contact-name">Gemeente (afdeling riolering)</div><div class="contact-sub">BOB-dieptes riool</div></div>
+    </div>
+    <div class="contact-body">BOB-diepte opvragen als niet beschikbaar via GWSW/riool.net. Standaard mail met leidingreferenties. Soms geen reactie → proefsleuven.</div>
+    <div class="contact-channels">
+      <span class="channel-tag">E-mail</span>
+      <span class="platform-tag">Platform: concept-mail auto-genereren (backlog 6)</span>
+    </div>
+  </div>
+
+  <div class="contact-card">
+    <div class="contact-header">
+      <div class="contact-avatar" style="background:#F2F0EC;color:#7A7870">BM</div>
+      <div><div class="contact-name">Boormeester (uitvoerder)</div><div class="contact-sub">Voert de boring uit</div></div>
+    </div>
+    <div class="contact-body">Ontvangt werkplan + tekening vóór uitvoering. Martien controleert output na afronding. Platform levert het werkplan en tekening automatisch op in Drive.</div>
+    <div class="contact-channels">
+      <span class="channel-tag">Werkplan (Word/PDF)</span><span class="channel-tag">Tekening (PDF)</span><span class="channel-tag">WhatsApp / telefoon tijdens uitvoering</span>
+      <span class="platform-tag">Platform: werkplan + tekening → Drive</span>
+    </div>
+  </div>
+
+  <div class="contact-card">
+    <div class="contact-header">
+      <div class="contact-avatar" style="background:#F2F0EC;color:#7A7870">CO</div>
+      <div><div class="contact-name">Collega tekenaar (M. Visser)</div><div class="contact-sub">Maakt DWG-tekening in AutoCAD Map 3D</div></div>
+    </div>
+    <div class="contact-body">Maakt de tekening op basis van Martien's invoer. DWG bevat KLIC/BGT/DKK als XREF. Martien accordeert. Platform neemt dit werk over — DXF output direct correct.</div>
+    <div class="contact-channels">
+      <span class="channel-tag">Google Drive (DWG-bestanden)</span><span class="channel-tag">Intern overleg</span>
+      <span class="platform-tag">Platform: DXF output met exacte laagnamen HDD28</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- TAB 4: TESTDATA -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="tab-testdata" class="tab-section">
+
+  <div class="blok blok-info" style="margin-bottom:1.5rem">
+    Alle testdata is gebaseerd op echte projecten van Martien. Twee projecten volledig geanalyseerd: HDD11 Haarlem Kennemerplein en HDD28 Velsen-Noord. Testcases worden geïsoleerd per module gedraaid — correctheid gegarandeerd bij elke wijziging.
+  </div>
+
+  <div class="section-title">Project HDD11 — Haarlem Kennemerplein</div>
+  <table class="testdata-table">
+    <thead><tr><th>Bestand</th><th>Type</th><th>Geanalyseerd</th><th>Gebruikt voor testcases</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="file-name">BerekeningHDD11.pdf</div></td>
+        <td>Sigma 2025 berekeningsrapport (21p)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG</span></td>
+        <td class="tc-list">TC-1.1 leidingparameters · TC-3.2 geometrie (L=226,58m) · TC-3.3 intrekkracht (Ttot=30.106N) · TC-3.3 deflectie · TC-3.3 implosie · alle 6 doorsneden geotechniek</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">3D25V700-11-rev.1-A2Z4.pdf</div></td>
+        <td>Referentietekening rev.1 (229,59m)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG</span></td>
+        <td class="tc-list">TC-4.2 titelblok · TC-4.2 doorsnede boorgat · TC-4.2 GPS punten · TC-4.2 lengteprofiel layout · TC-4.2 NLCS kleuren legenda</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">3D25V700-11-A2Z4.pdf</div></td>
+        <td>Referentietekening rev.0 (230,11m)</td>
+        <td><span class="badge badge-ok">✓ BESCHIKBAAR</span></td>
+        <td class="tc-list">Vergelijking rev.0 vs rev.1 ("Minder diep") · revisietabel test</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">3D25V700-11-rev.1.dwg</div></td>
+        <td>DWG AutoCAD 2018 (AC1032)</td>
+        <td><span class="badge badge-warn">⚠ BINAIR (niet leesbaar)</span></td>
+        <td class="tc-list">DXF-export nodig van Martien voor laagnamen verificatie HDD11</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">3D25V700_Werkplan_HDD11.docx</div></td>
+        <td>Werkplan Word (414 paragrafen)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG</span></td>
+        <td class="tc-list">TC-4.3 werkplan structuur · TC-4.3 stijlreferentie · TC-4.3 secties aanwezig · CKB-klasse · tijdsplanning</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">Levering_25O0136974_1.zip</div></td>
+        <td>KLIC-levering IMKL 2.0 (13MB XML)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG GEPARSED</span></td>
+        <td class="tc-list">TC-2.1 KLIC parsing · 11 beheerders · 1127 leidingen · dieptePeil=GEEN bevestigd · KL1049 PDF boogzinker geïdentificeerd · TC-2.4 riool Gemeente Haarlem</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">CPT000000026582_IMBRO_A.gef</div></td>
+        <td>Sondering GEF (NEN 5140 klasse 2)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG</span></td>
+        <td class="tc-list">TC-2.3 GEF parsing · qc-profiel · Robertson classificatie (Zand φ=35°) · RD (103851, 489230) · NAP +4,28m · einddiepte 24,70m</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">CPT000000026578_IMBRO_A.gef</div></td>
+        <td>Sondering GEF (NEN 5140 klasse 2)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG</span></td>
+        <td class="tc-list">TC-2.3 uittredegebied · RD (103923, 489219) · NAP +4,31m · einddiepte 24,51m · qc 10–15m: 23,5 MPa</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title" style="margin-top:1.5rem">Project HDD28 — Velsen-Noord, Verkeersplein Noord N197</div>
+  <table class="testdata-table">
+    <thead><tr><th>Bestand</th><th>Type</th><th>Geanalyseerd</th><th>Gebruikt voor testcases</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="file-name">3D26V810-28 HDD28 Velsen-Noord.dxf</div></td>
+        <td>DXF AC1032 (114.046 regels)</td>
+        <td><span class="badge badge-ok">✓ VOLLEDIG GEPARSED</span></td>
+        <td class="tc-list">TC-4.1 laagnamen (218 lagen) · lijntype NLCS-definities · BOORLIJN geometrie (ARCs r=140m) · BOORGAT cirkels · MAAIVELD 695 punten · INSERT blokken · GWSW rioollagen met BOB · GPS punt labels Tv1..Tv4 Th1..Th4</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">KLIC25O0185752_18-20.dwg</div></td>
+        <td>DWG KLIC-tekening (in ZIP)</td>
+        <td><span class="badge badge-ok">✓ LAAGNAMEN LEESBAAR</span></td>
+        <td class="tc-list">NLCS KLIC-laagnamen per beheerder · lijntypen KL-LS-SO, KL-MS-SO, KL-GAS_LD-SO etc.</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">BGT20251231.dwg</div></td>
+        <td>BGT achtergrond XREF</td>
+        <td><span class="badge badge-ok">✓ BESCHIKBAAR</span></td>
+        <td class="tc-list">BGT laagnamen structuur B-OI-VH/GR/OG/IE... · BGT|MAATVOERING laag</td>
+      </tr>
+      <tr>
+        <td><div class="file-name">DKK20251231.dwg</div></td>
+        <td>Kadaster perceelgrenzen XREF</td>
+        <td><span class="badge badge-ok">✓ BESCHIKBAAR</span></td>
+        <td class="tc-list">DKK laagnamen B-OI-KG-GRENS_KADASTRAAL · perceelgrenzen lijntype</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title" style="margin-top:1.5rem">Ontbrekende testdata</div>
+  <table class="testdata-table">
+    <thead><tr><th>Wat ontbreekt</th><th>Nodig voor</th><th>Actie</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><div class="file-name">HDD11 DXF export</div></td>
+        <td>Laagnamen verificatie HDD11 · vergelijking met HDD28</td>
+        <td><span class="badge badge-warn">Martien: File → Save As → R2013 DXF</span></td>
+      </tr>
+      <tr>
+        <td><div class="file-name">Conflictcheck testdata</div></td>
+        <td>TC-7 3D-afstandsberekening boring vs K&amp;L</td>
+        <td><span class="badge badge-warn">Synthetisch aanmaken of KLIC + werkelijke dieptes</span></td>
+      </tr>
+      <tr>
+        <td><div class="file-name">Tweede werkplan (ander project)</div></td>
+        <td>Werkplan generator stijlconsistentie</td>
+        <td><span class="badge badge-warn">Martien: 2–3 extra werkplannen aanleveren</span></td>
+      </tr>
+      <tr>
+        <td><div class="file-name">Tracévariant testdata</div></td>
+        <td>TC-10 varianten vergelijken</td>
+        <td><span class="badge badge-warn">Aanmaken bij backlog item 10</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+</div><!-- .page -->
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+function toggleFase(header) {
+  const body = header.nextElementSibling;
+  const ch = header.querySelector('.fase-chevron');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  ch.style.transform = open ? '' : 'rotate(180deg)';
+}
+function toggleStap(e, stap) {
+  if (e.target.classList.contains('detail-tab')) return;
+  stap.classList.toggle('open');
+}
+document.querySelectorAll('.fase-body').forEach(b => b.style.display = 'block');
+document.querySelectorAll('.fase-chevron').forEach(c => c.style.transform = 'rotate(180deg)');
+</script>
+</body>
+</html>

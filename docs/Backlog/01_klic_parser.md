@@ -16,10 +16,14 @@ Parseer het IMKL 2.0 GML-bestand uit de reeds opgeslagen KLIC ZIP (`KLICUpload.b
 - Uitpakken KLIC ZIP naar tijdelijke map
 - Detecteren en parsen van IMKL 2.0 GML-bestanden via `lxml`
 - Per leiding extraheren: beheerder, leidingtype, geometrie (LineString of Polygon als WKT, RD New), diepte indien aanwezig
-- Detectie sleufloze leidingen: mantelbuis zonder diepte + PDF-bijlage aanwezig → `sleufloze_techniek=True`
+- Detectie sleufloze leidingen via materiaalregel (primair): PE/HPE/HDPE/PE100/PE80 → `sleufloze_techniek=True`; staal → `mogelijk_sleufloze_techniek=True`; PVC/beton/asbestcement → altijd False
+- Detectie sleufloze leidingen via bijlage-heuristiek (aanvullend): leidingtype bevat "mantelbuis" EN diepte_m IS NULL EN PDF-bijlage aanwezig → `sleufloze_techniek=True`
+- **EV-detectie:** `EisVoorzorgsmaatregel`-element in IMKL parsen → `ev_verplicht=True`, contactgegevens netbeheerder opslaan in `ev_contactgegevens`
+- **EV-waarschuwing:** brondata-pagina toont prominent WAARSCHUWING-blok als er EV-leidingen aanwezig zijn (contactgegevens netbeheerder zichtbaar)
+- **BOB uit vrije tekstvelden:** `label` en `toelichting` per leiding opslaan; regex-extractie van dieptepatronen (`+/-2.58 -NAP`, `diepte gem. -2.6m tov NAP`) → `diepte_m` vullen met `diepte_bron="tekstveld_onzeker"` als er geen gestructureerde diepte is
 - Opslaan als `KLICLeiding`-records gekoppeld aan `project_id`
 - `KLICUpload.verwerkt = True` na succesvolle verwerking
-- Tonen van leidingen op brondata-pagina (tabel: beheerder, leidingtype, aantal, sleufloze_techniek)
+- Tonen van leidingen op brondata-pagina (tabel: beheerder, leidingtype, aantal, sleufloze_techniek, ev_verplicht)
 - DXF generator uitbreiden: `KLICLeiding`-records tekenen als LWPolyline op de juiste NLCS-laag
 - POST-route om verwerking handmatig te triggeren
 - Waarschuwing tonen als alle dieptes ontbreken
@@ -62,12 +66,35 @@ SPANNING_TO_LAYER = {
 }
 ```
 
-**Sleufloze leiding detectie:**
+**Sleufloze leiding detectie (gelaagde logica):**
 ```python
-# sleufloze_techniek=True als:
-# 1. leidingtype bevat "mantelbuis" OF thema bevat "mantelbuis"
-# 2. EN diepte_m IS NULL
-# 3. EN er is een PDF-bijlage gelinkt in hetzelfde GML-feature
+# STAP 1 — materiaalregel (primair, algemeen geldend):
+# materiaal bevat PE / HPE / HDPE / PE100 / PE80  → sleufloze_techniek=True
+# materiaal bevat "staal"                          → mogelijk_sleufloze_techniek=True
+# materiaal bevat PVC / beton / asbestcement       → sleufloze_techniek=False (nooit overschrijven)
+
+# STAP 2 — bijlage-heuristiek (aanvullend, voor gevallen zonder materiaalinfo):
+# leidingtype bevat "mantelbuis" OF thema bevat "mantelbuis"
+# EN diepte_m IS NULL
+# EN er is een PDF-bijlage gelinkt in hetzelfde GML-feature
+# → sleufloze_techniek=True (alleen als stap 1 geen False heeft gezet)
+```
+
+**EV-detectie:**
+```python
+# IMKL-element: EisVoorzorgsmaatregel
+# Aanwezig → ev_verplicht=True, ev_contactgegevens=<naam + tel/email netbeheerder>
+# Contactgegevens zijn verplicht aanwezig in het IMKL-element per KLIC-specificatie
+```
+
+**BOB uit vrije tekstvelden:**
+```python
+# label en toelichting per leiding opslaan (ruwe tekst)
+# Regex-patronen voor diepte-extractie:
+#   r"([+-]?\d+[.,]\d+)\s*m?\s*[Nn][Aa][Pp]"
+#   r"diepte\s+gem\.\s+([+-]?\d+[.,]\d+)"
+# Bij match: diepte_m = float(gevonden_waarde), diepte_bron = "tekstveld_onzeker"
+# Nooit overschrijven als er al een gestructureerde diepte is
 ```
 
 **DXF integratie:** Nieuwe functie `_draw_klic_leidingen(msp, project, db)` in `app/documents/dxf_generator.py`.
@@ -84,19 +111,25 @@ Toevoegen aan `app/project/models.py`:
 class KLICLeiding(Base):
     __tablename__ = "klic_leidingen"
 
-    id                 = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    project_id         = Column(String, ForeignKey("projects.id"), nullable=False)
-    klic_upload_id     = Column(String, ForeignKey("klic_uploads.id"), nullable=False)
-    beheerder          = Column(String)
-    leidingtype        = Column(String)
-    thema              = Column(String)
-    dxf_laag           = Column(String)
-    geometrie_wkt      = Column(Text)
-    diepte_m           = Column(Float)
-    diepte_override_m  = Column(Float)
-    sleufloze_techniek = Column(Boolean, default=False)
-    bron_pdf_url       = Column(String)
-    imkl_feature_id    = Column(String)
+    id                        = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    project_id                = Column(String, ForeignKey("projects.id"), nullable=False)
+    klic_upload_id            = Column(String, ForeignKey("klic_uploads.id"), nullable=False)
+    beheerder                 = Column(String)
+    leidingtype               = Column(String)
+    thema                     = Column(String)
+    dxf_laag                  = Column(String)
+    geometrie_wkt             = Column(Text)
+    diepte_m                  = Column(Float)
+    diepte_bron               = Column(String)      # "imkl" | "tekstveld_onzeker" | None
+    diepte_override_m         = Column(Float)
+    sleufloze_techniek        = Column(Boolean, default=False)
+    mogelijk_sleufloze        = Column(Boolean, default=False)   # staal: onzeker
+    bron_pdf_url              = Column(String)
+    imkl_feature_id           = Column(String)
+    label_tekst               = Column(Text)        # ruwe label-waarde uit IMKL
+    toelichting_tekst         = Column(Text)        # ruwe toelichting-waarde uit IMKL
+    ev_verplicht              = Column(Boolean, default=False)
+    ev_contactgegevens        = Column(String)      # naam + tel/email netbeheerder
 ```
 
 ### Uitbreiding: `KLICUpload`
@@ -146,6 +179,14 @@ TC-klic-M  POST verwerken met niet-bestaande upload_id → 404
 TC-klic-N  Brondata-pagina toont tabel met beheerders na verwerking
 TC-klic-O  Verwerking twee keer aanroepen → geen duplicaten (oude records verwijderd)
 TC-klic-P  ZIP zonder GML → verwerk_fout beschrijvend, verwerkt=False, geen crash
+TC-klic-Q  HDD11 KLIC of mock met EV-leiding → ev_verplicht=True, ev_contactgegevens niet leeg
+TC-klic-R  Brondata-pagina met EV-leidingen → WAARSCHUWING-blok zichtbaar, bevat "EV" en contactgegevens
+TC-klic-S  Brondata-pagina zonder EV-leidingen → geen WAARSCHUWING-blok
+TC-klic-T  KLIC leiding materiaal="PE100" → sleufloze_techniek=True
+TC-klic-U  KLIC leiding materiaal="PVC" → sleufloze_techniek=False, mogelijk_sleufloze=False
+TC-klic-V  KLIC leiding materiaal="Staal" → sleufloze_techniek=False, mogelijk_sleufloze=True
+TC-klic-W  Label bevat "+/-2.58 -NAP" → diepte_m=2.58, diepte_bron="tekstveld_onzeker"
+TC-klic-X  Label zonder dieptepatroon → diepte_m=None (geen crash)
 ```
 
 ---
