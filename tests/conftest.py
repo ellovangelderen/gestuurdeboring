@@ -2,6 +2,15 @@
 import os
 
 import pytest
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip tests gemarkeerd met @pytest.mark.external als SKIP_EXTERNAL_CALLS=1."""
+    if os.environ.get("SKIP_EXTERNAL_CALLS", "0") == "1":
+        skip_extern = pytest.mark.skip(reason="SKIP_EXTERNAL_CALLS=1 — externe aanroepen overgeslagen")
+        for item in items:
+            if item.get_closest_marker("external"):
+                item.add_marker(skip_extern)
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

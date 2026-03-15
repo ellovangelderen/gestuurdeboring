@@ -11,6 +11,7 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.core.dependencies import fetch_project, get_workspace_id
 from app.core.models import Workspace
+from app.geo.ahn5 import haal_maaiveld_op
 from app.geo.coords import rd_to_wgs84
 from app.project.models import (
     Berekening,
@@ -301,21 +302,101 @@ def maaiveld_opslaan(
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Sla handmatige maaiveldwaarden op. Zet bron op 'handmatig'. AHN5-referentiewaarden blijven bewaard."""
     project = fetch_project(project_id, db)
     if project.maaiveld_override:
-        project.maaiveld_override.MVin_NAP_m = MVin_NAP_m
-        project.maaiveld_override.MVuit_NAP_m = MVuit_NAP_m
-        project.maaiveld_override.bron = "handmatig"
+        mv = project.maaiveld_override
+        mv.MVin_NAP_m = MVin_NAP_m
+        mv.MVuit_NAP_m = MVuit_NAP_m
+        mv.bron = "handmatig"
+        mv.MVin_bron = "handmatig"
+        mv.MVuit_bron = "handmatig"
+        # MVin_ahn5_m en MVuit_ahn5_m blijven ongewijzigd (override-principe)
     else:
         mv = MaaiveldOverride(
             project_id=project_id,
             MVin_NAP_m=MVin_NAP_m,
             MVuit_NAP_m=MVuit_NAP_m,
             bron="handmatig",
+            MVin_bron="handmatig",
+            MVuit_bron="handmatig",
         )
         db.add(mv)
     db.commit()
     return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
+
+
+@router.post("/projecten/{project_id}/maaiveld/ahn5")
+def maaiveld_ahn5_ophalen(
+    project_id: str,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Roep AHN5 WCS aan voor intree- en uittree-punt. Sla resultaat op. Retourneert altijd HTTP 200."""
+    project = fetch_project(project_id, db)
+
+    intree = next((p for p in project.trace_punten if p.type == "intree"), None)
+    uittree = next((p for p in project.trace_punten if p.type == "uittree"), None)
+
+    if intree is None and uittree is None:
+        return JSONResponse({
+            "status": "fout",
+            "melding": "Geen intree- of uittree-punt gevonden — sla eerst het tracé op",
+        })
+
+    mv_in: float | None = None
+    mv_uit: float | None = None
+
+    if intree is not None:
+        mv_in = haal_maaiveld_op(intree.RD_x, intree.RD_y)
+    if uittree is not None:
+        mv_uit = haal_maaiveld_op(uittree.RD_x, uittree.RD_y)
+
+    if mv_in is None and mv_uit is None:
+        return JSONResponse({
+            "status": "fout",
+            "melding": "AHN5 service niet bereikbaar — vul handmatig in",
+        })
+
+    # Bepaal bron per punt
+    in_bron  = "ahn5" if mv_in  is not None else "niet_beschikbaar"
+    uit_bron = "ahn5" if mv_uit is not None else "niet_beschikbaar"
+
+    # Gebruik bestaande waarden als AHN5 gedeeltelijk mislukt
+    mv = project.maaiveld_override
+    if mv is None:
+        mv = MaaiveldOverride(project_id=project_id)
+        db.add(mv)
+
+    if mv_in is not None:
+        mv.MVin_NAP_m = mv_in
+        mv.MVin_ahn5_m = mv_in
+    if mv_uit is not None:
+        mv.MVuit_NAP_m = mv_uit
+        mv.MVuit_ahn5_m = mv_uit
+
+    mv.MVin_bron  = in_bron
+    mv.MVuit_bron = uit_bron
+    mv.bron = "ahn5"
+    db.commit()
+
+    status = "ok" if (mv_in is not None and mv_uit is not None) else "partial"
+    response: dict = {
+        "status": status,
+        "MVin_NAP_m": mv_in,
+        "MVuit_NAP_m": mv_uit,
+        "MVin_bron": in_bron,
+        "MVuit_bron": uit_bron,
+    }
+    if status == "partial":
+        ontbrekend = []
+        if mv_in is None:
+            ontbrekend.append("intree")
+        if mv_uit is None:
+            ontbrekend.append("uittree")
+        response["melding"] = f"AHN5 niet beschikbaar voor: {', '.join(ontbrekend)}"
+
+    return JSONResponse(response)
 
 
 @router.post("/projecten/{project_id}/klic")

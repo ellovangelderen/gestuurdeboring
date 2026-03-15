@@ -62,18 +62,55 @@
 
 <!-- Maaiveld -->
 <section class="card">
-  <h2>Maaiveld (handmatig)</h2>
-  <p class="info">AHN5 automatisch ophalen komt in backlog item 2.</p>
+  <h2>Maaiveld</h2>
+
+  <!-- AHN5 ophalen -->
+  {% set mv = project.maaiveld_override %}
+  <div class="ahn5-sectie">
+    <form method="post" action="/api/v1/projecten/{{ project.id }}/maaiveld/ahn5" id="ahn5-form">
+      <button type="submit" class="btn btn-secondary">Ophalen via AHN5</button>
+    </form>
+    {% if mv %}
+      <div class="ahn5-status">
+        <span class="ahn5-badge ahn5-badge--in
+          {% if mv.MVin_bron == 'ahn5' %}ahn5-badge--ahn5
+          {% elif mv.MVin_bron == 'niet_beschikbaar' %}ahn5-badge--fout
+          {% else %}ahn5-badge--handmatig{% endif %}">
+          MVin:
+          {% if mv.MVin_bron == 'ahn5' %}AHN5 {{ mv.override_datum.strftime('%d-%m-%Y') }}
+          {% elif mv.MVin_bron == 'niet_beschikbaar' %}Niet beschikbaar
+          {% else %}Handmatig {{ mv.override_datum.strftime('%d-%m-%Y') }}{% endif %}
+        </span>
+        <span class="ahn5-badge ahn5-badge--uit
+          {% if mv.MVuit_bron == 'ahn5' %}ahn5-badge--ahn5
+          {% elif mv.MVuit_bron == 'niet_beschikbaar' %}ahn5-badge--fout
+          {% else %}ahn5-badge--handmatig{% endif %}">
+          MVuit:
+          {% if mv.MVuit_bron == 'ahn5' %}AHN5 {{ mv.override_datum.strftime('%d-%m-%Y') }}
+          {% elif mv.MVuit_bron == 'niet_beschikbaar' %}Niet beschikbaar
+          {% else %}Handmatig {{ mv.override_datum.strftime('%d-%m-%Y') }}{% endif %}
+        </span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Handmatig formulier — altijd zichtbaar (override-principe) -->
   <form method="post" action="/api/v1/projecten/{{ project.id }}/maaiveld">
     <label>MVin — maaiveld intrede (m NAP)
       <input type="number" name="MVin_NAP_m" step="0.01"
-             value="{{ project.maaiveld_override.MVin_NAP_m if project.maaiveld_override else '' }}"
+             value="{{ mv.MVin_NAP_m if mv else '' }}"
              placeholder="bijv. 1.01" required>
+      {% if mv and mv.MVin_ahn5_m is not none and mv.MVin_bron == 'handmatig' %}
+        <span class="ahn5-hint">AHN5-referentie: {{ mv.MVin_ahn5_m }} m NAP</span>
+      {% endif %}
     </label>
     <label>MVuit — maaiveld uittrede (m NAP)
       <input type="number" name="MVuit_NAP_m" step="0.01"
-             value="{{ project.maaiveld_override.MVuit_NAP_m if project.maaiveld_override else '' }}"
+             value="{{ mv.MVuit_NAP_m if mv else '' }}"
              placeholder="bijv. 1.27" required>
+      {% if mv and mv.MVuit_ahn5_m is not none and mv.MVuit_bron == 'handmatig' %}
+        <span class="ahn5-hint">AHN5-referentie: {{ mv.MVuit_ahn5_m }} m NAP</span>
+      {% endif %}
     </label>
     <button type="submit" class="btn btn-primary">Opslaan</button>
   </form>

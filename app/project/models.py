@@ -93,6 +93,11 @@ class MaaiveldOverride(Base):
     MVuit_NAP_m = Column(Float)
     bron = Column(String, default="handmatig")
     override_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    # AHN5 uitbreiding (backlog item 2)
+    MVin_bron    = Column(String, default="handmatig")   # "handmatig" | "ahn5" | "niet_beschikbaar"
+    MVuit_bron   = Column(String, default="handmatig")
+    MVin_ahn5_m  = Column(Float, nullable=True)           # AHN5-referentiewaarde, nooit gewist
+    MVuit_ahn5_m = Column(Float, nullable=True)
 
     project = relationship("Project", back_populates="maaiveld_override")
 
