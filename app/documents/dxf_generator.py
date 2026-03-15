@@ -1,8 +1,10 @@
-"""DXF generator — skeleton. Laagnamen exact conform HDD28 Velsen-Noord."""
+"""DXF generator. Laagnamen exact conform HDD28 Velsen-Noord."""
 import io
+from typing import Optional
 
 import ezdxf
 from ezdxf.enums import TextEntityAlignment
+from sqlalchemy.orm import Session
 
 from app.project.models import Project
 
@@ -131,7 +133,51 @@ def _draw_titelblok(msp, project: Project) -> None:
         )
 
 
-def generate_dxf(project: Project) -> bytes:
+def _draw_klic_leidingen(msp, project: Project, db: Session) -> None:
+    """Tekent KLIC leidingen als LWPolyline op de juiste NLCS-laag."""
+    from shapely import from_wkt
+    from shapely.geometry import LineString, MultiLineString, Polygon
+    from app.project.models import KLICLeiding, KLICUpload
+
+    # Gebruik meest recente verwerkte upload
+    upload = (
+        db.query(KLICUpload)
+        .filter_by(project_id=project.id, verwerkt=True)
+        .order_by(KLICUpload.upload_datum.desc())
+        .first()
+    )
+    if not upload:
+        return
+
+    leidingen = db.query(KLICLeiding).filter_by(klic_upload_id=upload.id).all()
+    for leiding in leidingen:
+        if not leiding.geometrie_wkt or not leiding.dxf_laag:
+            continue
+        try:
+            geom = from_wkt(leiding.geometrie_wkt)
+        except Exception:
+            continue
+
+        if geom is None or geom.is_empty:
+            continue
+
+        layer = leiding.dxf_laag
+        if isinstance(geom, LineString):
+            coords = list(geom.coords)
+            if len(coords) >= 2:
+                msp.add_lwpolyline(coords, dxfattribs={"layer": layer})
+        elif isinstance(geom, MultiLineString):
+            for part in geom.geoms:
+                coords = list(part.coords)
+                if len(coords) >= 2:
+                    msp.add_lwpolyline(coords, dxfattribs={"layer": layer})
+        elif isinstance(geom, Polygon):
+            coords = list(geom.exterior.coords)
+            if len(coords) >= 2:
+                msp.add_lwpolyline(coords, dxfattribs={"layer": layer, "closed": True})
+
+
+def generate_dxf(project: Project, db: Optional[Session] = None) -> bytes:
     """Genereer DXF R2013 bytes voor een project."""
     doc = ezdxf.new("R2013")
     msp = doc.modelspace()
@@ -141,6 +187,8 @@ def generate_dxf(project: Project) -> bytes:
     _draw_boorgat(msp, project)
     _draw_sensorpunten(msp, project)
     _draw_titelblok(msp, project)
+    if db is not None:
+        _draw_klic_leidingen(msp, project, db)
 
     buf = io.StringIO()
     doc.write(buf)

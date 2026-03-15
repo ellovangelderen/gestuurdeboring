@@ -2,7 +2,7 @@ import math
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -39,6 +39,8 @@ class Project(Base):
                                      uselist=False, cascade="all, delete-orphan")
     klic_uploads = relationship("KLICUpload", back_populates="project",
                                 cascade="all, delete-orphan")
+    klic_leidingen = relationship("KLICLeiding", back_populates="project",
+                                  cascade="all, delete-orphan")
     doorsneden = relationship("Doorsnede", back_populates="project",
                               order_by="Doorsnede.volgorde", cascade="all, delete-orphan")
     berekening = relationship("Berekening", back_populates="project",
@@ -105,7 +107,15 @@ class KLICUpload(Base):
     upload_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     verwerkt = Column(Boolean, default=False)
 
-    project = relationship("Project", back_populates="klic_uploads")
+    # Velden ingevuld na verwerking
+    aantal_leidingen  = Column(Integer)
+    aantal_beheerders = Column(Integer)
+    verwerk_fout      = Column(String)
+    verwerkt_op       = Column(DateTime)
+
+    project  = relationship("Project", back_populates="klic_uploads")
+    leidingen = relationship("KLICLeiding", back_populates="klic_upload",
+                             cascade="all, delete-orphan")
 
 
 class Doorsnede(Base):
@@ -136,3 +146,24 @@ class Berekening(Base):
     override_datum = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="berekening")
+
+
+class KLICLeiding(Base):
+    __tablename__ = "klic_leidingen"
+
+    id                 = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    project_id         = Column(String, ForeignKey("projects.id"), nullable=False)
+    klic_upload_id     = Column(String, ForeignKey("klic_uploads.id"), nullable=False)
+    beheerder          = Column(String)
+    leidingtype        = Column(String)
+    thema              = Column(String)
+    dxf_laag           = Column(String)
+    geometrie_wkt      = Column(Text)
+    diepte_m           = Column(Float)
+    diepte_override_m  = Column(Float)
+    sleufloze_techniek = Column(Boolean, default=False)
+    bron_pdf_url       = Column(String)
+    imkl_feature_id    = Column(String)
+
+    project    = relationship("Project", back_populates="klic_leidingen")
+    klic_upload = relationship("KLICUpload", back_populates="leidingen")

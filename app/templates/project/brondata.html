@@ -6,15 +6,54 @@
 <!-- KLIC upload -->
 <section class="card">
   <h2>KLIC upload</h2>
-  {% if project.klic_uploads %}
-    <p>✓ Geüpload: <strong>{{ project.klic_uploads[-1].bestandsnaam }}</strong>
-       ({{ project.klic_uploads[-1].upload_datum.strftime('%d-%m-%Y') }})</p>
-    <p class="info">Skeleton: bestand opgeslagen, nog niet geparsed (backlog item 1).</p>
+  {% if laatste_upload %}
+    <p>Geüpload: <strong>{{ laatste_upload.bestandsnaam }}</strong>
+       ({{ laatste_upload.upload_datum.strftime('%d-%m-%Y') }})</p>
+    {% if laatste_upload.verwerkt %}
+      <p class="success">Verwerkt op {{ laatste_upload.verwerkt_op.strftime('%d-%m-%Y %H:%M') }} —
+         {{ laatste_upload.aantal_leidingen }} leidingen,
+         {{ laatste_upload.aantal_beheerders }} beheerders.</p>
+      {% if diepte_waarschuwing %}
+        <p class="warning"><strong>Waarschuwing:</strong> Geen dieptegegevens beschikbaar in deze KLIC-levering.
+          Dieptes zijn onbetrouwbaar — gebruik altijd handmatige controle bij conflictcheck.</p>
+      {% endif %}
+      {% if klic_samenvatting %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Beheerder</th>
+              <th>Leidingtype</th>
+              <th>Aantal</th>
+              <th>Sleufloze techniek</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rij in klic_samenvatting %}
+              <tr>
+                <td>{{ rij.beheerder }}</td>
+                <td>{{ rij.leidingtype }}</td>
+                <td>{{ rij.aantal }}</td>
+                <td>{% if rij.sleufloze %}Ja{% else %}Nee{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    {% elif laatste_upload.verwerk_fout %}
+      <p class="error">Verwerkingsfout: {{ laatste_upload.verwerk_fout }}</p>
+      <form method="post" action="/api/v1/projecten/{{ project.id }}/klic/{{ laatste_upload.id }}/verwerken">
+        <button type="submit" class="btn btn-secondary">Opnieuw verwerken</button>
+      </form>
+    {% else %}
+      <form method="post" action="/api/v1/projecten/{{ project.id }}/klic/{{ laatste_upload.id }}/verwerken">
+        <button type="submit" class="btn btn-primary">KLIC verwerken (parseer leidingen)</button>
+      </form>
+    {% endif %}
   {% else %}
     <p>Nog geen KLIC bestand geüpload.</p>
   {% endif %}
   <form method="post" action="/api/v1/projecten/{{ project.id }}/klic" enctype="multipart/form-data">
-    <label>KLIC ZIP bestand
+    <label>Nieuw KLIC ZIP bestand uploaden
       <input type="file" name="klic_zip" accept=".zip" required>
     </label>
     <button type="submit" class="btn btn-primary">Uploaden</button>

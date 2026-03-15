@@ -3,7 +3,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.geo.coords import rd_to_wgs84
 from app.project.models import (
     Berekening,
     Doorsnede,
+    KLICLeiding,
     KLICUpload,
     MaaiveldOverride,
     Project,
@@ -249,8 +250,46 @@ def brondata_form(
     db: Session = Depends(get_db),
 ):
     project = fetch_project(project_id, db)
+
+    # Bouw leidingen-samenvatting per (beheerder, leidingtype)
+    klic_samenvatting: list[dict] = []
+    diepte_waarschuwing = False
+    laatste_upload = None
+    if project.klic_uploads:
+        laatste_upload = sorted(project.klic_uploads, key=lambda u: u.upload_datum)[-1]
+        if laatste_upload.verwerkt:
+            leidingen = (
+                db.query(KLICLeiding)
+                .filter_by(klic_upload_id=laatste_upload.id)
+                .all()
+            )
+            # Aggregeer per (beheerder, leidingtype)
+            agg: dict[tuple, dict] = {}
+            for l in leidingen:
+                key = (l.beheerder or "", l.leidingtype or "")
+                if key not in agg:
+                    agg[key] = {"beheerder": key[0], "leidingtype": key[1],
+                                "aantal": 0, "sleufloze": False}
+                agg[key]["aantal"] += 1
+                if l.sleufloze_techniek:
+                    agg[key]["sleufloze"] = True
+            klic_samenvatting = sorted(agg.values(), key=lambda r: (r["beheerder"], r["leidingtype"]))
+
+            # Diepte waarschuwing als alle leidingen geen diepte hebben
+            total = len(leidingen)
+            met_diepte = sum(1 for l in leidingen if l.diepte_m is not None)
+            diepte_waarschuwing = total > 0 and met_diepte == 0
+
     return templates.TemplateResponse(
-        "project/brondata.html", {"request": request, "project": project, "user": user}
+        "project/brondata.html",
+        {
+            "request": request,
+            "project": project,
+            "user": user,
+            "klic_samenvatting": klic_samenvatting,
+            "diepte_waarschuwing": diepte_waarschuwing,
+            "laatste_upload": laatste_upload,
+        },
     )
 
 
@@ -305,6 +344,71 @@ async def klic_upload(
     db.add(upload)
     db.commit()
     return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
+
+
+@router.post("/projecten/{project_id}/klic/{upload_id}/verwerken")
+def klic_verwerken(
+    project_id: str,
+    upload_id: str,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Trigger KLIC parsing synchroon. Redirect naar brondata na verwerking."""
+    fetch_project(project_id, db)
+    upload = db.get(KLICUpload, upload_id)
+    if not upload or upload.project_id != project_id:
+        raise HTTPException(status_code=404, detail="KLIC upload niet gevonden")
+
+    from app.geo.klic_parser import verwerk_klic_zip
+    verwerk_klic_zip(upload.bestandspad, project_id, upload_id, db)
+    return RedirectResponse(f"/api/v1/projecten/{project_id}/brondata", status_code=303)
+
+
+@router.get("/projecten/{project_id}/klic/status")
+def klic_status(
+    project_id: str,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """JSON status van de meest recente KLIC upload voor dit project."""
+    fetch_project(project_id, db)
+    upload = (
+        db.query(KLICUpload)
+        .filter_by(project_id=project_id)
+        .order_by(KLICUpload.upload_datum.desc())
+        .first()
+    )
+    if not upload:
+        return JSONResponse({"verwerkt": False, "aantal_leidingen": 0,
+                             "aantal_beheerders": 0, "diepte_waarschuwing": False,
+                             "sleufloze_count": 0})
+
+    sleufloze_count = (
+        db.query(KLICLeiding)
+        .filter_by(klic_upload_id=upload.id, sleufloze_techniek=True)
+        .count()
+    )
+
+    diepte_waarschuwing = False
+    if upload.verwerkt:
+        total = db.query(KLICLeiding).filter_by(klic_upload_id=upload.id).count()
+        met_diepte = (
+            db.query(KLICLeiding)
+            .filter(
+                KLICLeiding.klic_upload_id == upload.id,
+                KLICLeiding.diepte_m.isnot(None),
+            )
+            .count()
+        )
+        diepte_waarschuwing = total > 0 and met_diepte == 0
+
+    return JSONResponse({
+        "verwerkt": upload.verwerkt,
+        "aantal_leidingen": upload.aantal_leidingen or 0,
+        "aantal_beheerders": upload.aantal_beheerders or 0,
+        "diepte_waarschuwing": diepte_waarschuwing,
+        "sleufloze_count": sleufloze_count,
+    })
 
 
 @router.post("/projecten/{project_id}/doorsneden")
