@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ project.naam }} — HDD Platform{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ project.naam }}</h1>
+  <span class="badge badge-{{ project.status }}">{{ project.status }}</span>
+</div>
+
+<div class="project-meta">
+  <dl>
+    <dt>Opdrachtgever</dt><dd>{{ project.opdrachtgever or '—' }}</dd>
+    <dt>Ordernummer</dt><dd>{{ project.ordernummer or '—' }}</dd>
+    <dt>Leiding</dt><dd>{{ project.materiaal }} SDR{{ project.SDR }} Ø{{ project.De_mm|int }}mm</dd>
+    <dt>Wanddikte (dn)</dt><dd>{{ project.dn_effectief }}mm {% if not project.dn_mm %}(auto){% else %}(handmatig){% endif %}</dd>
+    <dt>Binnendiameter (Di)</dt><dd>{{ project.Di_mm }}mm</dd>
+    <dt>Ruimer (Dg)</dt><dd>{{ project.Dg_mm|int }}mm</dd>
+    <dt>Intreehoek</dt><dd>{{ project.intreehoek_gr }}° ({{ project.intreehoek_pct }}%)</dd>
+    <dt>Uittreehoek</dt><dd>{{ project.uittreehoek_gr }}° ({{ project.uittreehoek_pct }}%)</dd>
+  </dl>
+</div>
+
+<h2>Voortgang</h2>
+<ul class="stappen">
+  <li class="{{ 'ok' if project.trace_punten else 'leeg' }}">
+    <a href="/projecten/{{ project.id }}/trace">Tracé invoeren</a>
+    {% if project.trace_punten %}✓ {{ project.trace_punten|length }} punten{% else %}→ Nog niet ingevuld{% endif %}
+  </li>
+  <li class="{{ 'ok' if project.maaiveld_override else 'leeg' }}">
+    <a href="/projecten/{{ project.id }}/brondata">Brondata (maaiveld, KLIC, doorsneden)</a>
+    {% if project.maaiveld_override %}✓ MVin={{ project.maaiveld_override.MVin_NAP_m }}m, MVuit={{ project.maaiveld_override.MVuit_NAP_m }}m{% else %}→ Nog niet ingevuld{% endif %}
+  </li>
+  <li class="{{ 'ok' if project.project_eisenprofiel else 'leeg' }}">
+    <a href="/projecten/{{ project.id }}/eisen">Eisenprofiel selecteren</a>
+    {% if project.project_eisenprofiel %}✓ {{ project.project_eisenprofiel.eisenprofiel.naam }}{% else %}→ Nog niet geselecteerd{% endif %}
+  </li>
+  <li class="ok">
+    <a href="/projecten/{{ project.id }}/review">Review — kaart + profiel</a>
+  </li>
+  <li class="ok">
+    <a href="/projecten/{{ project.id }}/output">Output downloaden (DXF + PDF)</a>
+  </li>
+</ul>
+
+<hr>
+<h2>Project bewerken</h2>
+<form method="post" action="/projecten/{{ project.id }}/update">
+  <fieldset>
+    <legend>Projectgegevens</legend>
+    <label>Naam *
+      <input type="text" name="naam" value="{{ project.naam }}" required>
+    </label>
+    <label>Opdrachtgever
+      <input type="text" name="opdrachtgever" value="{{ project.opdrachtgever or '' }}">
+    </label>
+    <label>Ordernummer
+      <input type="text" name="ordernummer" value="{{ project.ordernummer or '' }}">
+    </label>
+  </fieldset>
+  <fieldset>
+    <legend>Leidingparameters</legend>
+    <label>Materiaal <input type="text" name="materiaal" value="{{ project.materiaal }}"></label>
+    <label>SDR <input type="number" name="SDR" value="{{ project.SDR }}" min="1"></label>
+    <label>De (mm) <input type="number" name="De_mm" value="{{ project.De_mm }}" step="0.1"></label>
+    <label>dn (mm) (leeg = auto) <input type="number" name="dn_mm" value="{{ project.dn_mm or '' }}" step="0.01" placeholder="auto"></label>
+    <label>Medium
+      <select name="medium">
+        {% for m in ['Drukloos','Gas LD','Water','Elektra LS','Elektra MS','Elektra HS','Data/Glasvezel'] %}
+        <option value="{{ m }}" {% if project.medium == m %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Db (mm) <input type="number" name="Db_mm" value="{{ project.Db_mm }}" step="0.1"></label>
+    <label>Dp (mm) <input type="number" name="Dp_mm" value="{{ project.Dp_mm }}" step="0.1"></label>
+    <label>Dg (mm) <input type="number" name="Dg_mm" value="{{ project.Dg_mm }}" step="0.1"></label>
+    <label>Intreehoek (°) <input type="number" name="intreehoek_gr" value="{{ project.intreehoek_gr }}" step="0.1"></label>
+    <label>Uittreehoek (°) <input type="number" name="uittreehoek_gr" value="{{ project.uittreehoek_gr }}" step="0.1"></label>
+  </fieldset>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Opslaan</button>
+  </div>
+</form>
+{% endblock %}

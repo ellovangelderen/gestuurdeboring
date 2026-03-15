@@ -49,3 +49,16 @@ logs/
 
 # Brondata (KLIC, DWG, PDFs — te groot voor git, gebruik S3/cloud storage)
 docs/input data/
+
+# Database
+*.db
+
+# SSL certificaten (lokaal gegenereerd)
+ssl/
+
+# Uploads (gebruikersbestanden)
+uploads/
+
+# Grote testdata bestanden
+docs/input_data_14maart/
+docs/input\ data/

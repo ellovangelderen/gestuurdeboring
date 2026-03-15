@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A2 landscape;
+      margin: 15mm;
+    }
+    body { font-family: Arial, sans-serif; font-size: 8pt; color: #000; }
+    h1 { font-size: 12pt; margin: 0 0 4mm; }
+    h2 { font-size: 10pt; margin: 4mm 0 2mm; border-bottom: 0.5pt solid #000; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 4mm; }
+    th, td { border: 0.5pt solid #ccc; padding: 1.5mm; text-align: left; }
+    th { background: #f0f0f0; font-weight: bold; }
+    .titelblok { border: 1pt solid #000; padding: 3mm; margin-bottom: 5mm; }
+    .titelblok dl { display: grid; grid-template-columns: 35mm 1fr; gap: 1mm 3mm; }
+    .titelblok dt { font-weight: bold; }
+    .gps-table td { font-family: monospace; }
+    .doorsnede-svg { text-align: center; margin: 4mm 0; }
+    .opmerkingen { border: 0.5pt solid #999; padding: 2mm; font-size: 7pt; margin-top: 4mm; }
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+    .profiel-blok { border: 0.5pt solid #ccc; padding: 2mm; }
+    .revisietabel th { background: #ddd; }
+  </style>
+</head>
+<body>
+
+<!-- Titelblok -->
+<div class="titelblok">
+  <h1>{{ project.naam }}</h1>
+  <dl>
+    <dt>Opdrachtgever</dt><dd>{{ project.opdrachtgever or '—' }}</dd>
+    <dt>Ordernummer</dt>  <dd>{{ project.ordernummer or '—' }}</dd>
+    <dt>Leiding</dt>      <dd>{{ project.materiaal }} SDR{{ project.SDR }} Ø{{ project.De_mm|int }}mm · {{ project.medium }}</dd>
+    <dt>Datum</dt>        <dd>{{ datum }}</dd>
+    <dt>Getekend</dt>     <dd>M.Luijben</dd>
+    <dt>Akkoord</dt>      <dd>M.Visser</dd>
+    <dt>Schaal</dt>       <dd>Zie per onderdeel</dd>
+  </dl>
+
+  <!-- Revisietabel -->
+  <table class="revisietabel" style="width: auto; margin-top: 2mm;">
+    <thead><tr><th>Rev.</th><th>Datum</th><th>Omschrijving</th><th>Getekend</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>{{ datum }}</td><td>Eerste uitgifte</td><td>M.Luijben</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="layout">
+  <!-- Linker kolom: GPS + doorsnede -->
+  <div>
+    <h2>GPS sensorpunten (RD New EPSG:28992) — schaal 1:4000</h2>
+    <table class="gps-table">
+      <thead><tr><th>Label</th><th>RD X (m)</th><th>RD Y (m)</th></tr></thead>
+      <tbody>
+        {% for p in punten %}
+        <tr>
+          <td>{{ p.label }}</td>
+          <td>{{ p.RD_x }}</td>
+          <td>{{ p.RD_y }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>Intree- en uittreehoeken</h2>
+    <table>
+      <tr><th>Intreehoek</th><td>{{ project.intreehoek_gr }}°&nbsp;({{ intreehoek_pct }}%)</td></tr>
+      <tr><th>Uittreehoek</th><td>{{ project.uittreehoek_gr }}°&nbsp;({{ uittreehoek_pct }}%)</td></tr>
+    </table>
+
+    <h2>Doorsnede boorgat</h2>
+    <div class="doorsnede-svg">
+      {% set svg_r_boorgat = 60 %}
+      {% set svg_r_buis = (r_buis_mm / r_boorgat_mm * svg_r_boorgat) | round | int %}
+      <svg width="180" height="180" viewBox="0 0 180 180">
+        <circle cx="90" cy="90" r="{{ svg_r_boorgat }}" fill="none" stroke="#444" stroke-width="2"/>
+        <circle cx="90" cy="90" r="{{ svg_r_buis }}" fill="#e8f4ff" stroke="#0055aa" stroke-width="1.5"/>
+        <text x="90" y="155" text-anchor="middle" font-size="8">Dg={{ project.Dg_mm|int }}mm</text>
+        <text x="90" y="165" text-anchor="middle" font-size="8">De={{ project.De_mm|int }}mm</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Rechter kolom: lengteprofiel + doorsneden tabel -->
+  <div>
+    <h2>Lengteprofiel (schematisch)</h2>
+    <div class="profiel-blok">
+      {% if project.maaiveld_override %}
+      <p>Maaiveld intrede: <strong>{{ project.maaiveld_override.MVin_NAP_m }} m NAP</strong></p>
+      <p>Maaiveld uittrede: <strong>{{ project.maaiveld_override.MVuit_NAP_m }} m NAP</strong></p>
+      {% else %}
+      <p><em>Maaiveld nog niet ingevuld.</em></p>
+      {% endif %}
+      <p>Leidingparameters: De={{ project.De_mm }}mm · dn={{ project.dn_effectief }}mm · Di={{ project.Di_mm }}mm</p>
+      {% if project.berekening %}
+      <p>Intrekkracht (Ttot): {{ "{:,.0f}".format(project.berekening.Ttot_N) }} N (override Sigma)</p>
+      {% endif %}
+    </div>
+
+    {% if doorsneden %}
+    <h2>Doorsneden</h2>
+    <table>
+      <thead><tr><th>#</th><th>Afstand (m)</th><th>NAP (m)</th><th>Grondtype</th><th>GWS (m)</th></tr></thead>
+      <tbody>
+        {% for d in doorsneden %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ d.afstand_m }}</td>
+          <td>{{ d.NAP_m }}</td>
+          <td>{{ d.grondtype }}</td>
+          <td>{{ d.GWS_m or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if project.project_eisenprofiel %}
+    <h2>Eisenprofiel</h2>
+    <table>
+      <tr><th>Beheerder</th><td>{{ project.project_eisenprofiel.eisenprofiel.naam }}</td></tr>
+      <tr><th>Dekking weg</th><td>{{ project.project_eisenprofiel.eisenprofiel.dekking_weg_m }} m</td></tr>
+      <tr><th>Dekking water</th><td>{{ project.project_eisenprofiel.eisenprofiel.dekking_water_m }} m</td></tr>
+      <tr><th>Rmin</th><td>{{ project.project_eisenprofiel.eisenprofiel.Rmin_m }} m</td></tr>
+      <tr><th>Norm</th><td>{{ project.project_eisenprofiel.eisenprofiel.versie_datum }}</td></tr>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- KLIC disclaimer -->
+<div class="opmerkingen">
+  <strong>OPMERKINGEN:</strong><br>
+  1. KLIC: De dieptes van kabels en leidingen in de ondergrond zijn indicatief en niet betrouwbaar als harde waarde. Alle leidingen dienen ter plaatse te worden opgezocht conform CROW 96b.<br>
+  2. CROW 96b: Veilig werken nabij kabels en leidingen — grondroerder is verantwoordelijk voor toepassing van de richtlijn.<br>
+  3. Meting: Sensorpunten bepaald via walk-over meetsysteem tijdens uitvoering.<br>
+  4. DWG is leidend; PDF is afgeleid document.
+</div>
+
+</body>
+</html>

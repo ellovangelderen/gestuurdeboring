@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Output — {{ project.naam }}{% endblock %}
+{% block content %}
+<h1>Output downloaden — {{ project.naam }}</h1>
+
+<div class="output-cards">
+  <div class="card">
+    <h2>DXF tekening</h2>
+    <p>Laagnamen conform NLCS · R2013 · Direct te openen in AutoCAD Map 3D</p>
+    <a href="/projecten/{{ project.id }}/dxf" class="btn btn-primary btn-lg">⬇ Download DXF</a>
+  </div>
+
+  <div class="card">
+    <h2>PDF tekening</h2>
+    <p>Situatietekening + lengteprofiel + doorsnede + titelblok · A2 landscape</p>
+    <a href="/projecten/{{ project.id }}/pdf" class="btn btn-primary btn-lg">⬇ Download PDF</a>
+  </div>
+</div>
+
+<h2>Wat zit erin?</h2>
+<ul>
+  <li>Bovenaanzicht 1:4000 (schematisch)</li>
+  <li>Situatietekening 1:250 met tracé A→B</li>
+  <li>Lengteprofiel op NAP met sensorpunt maatvoering</li>
+  <li>Doorsnede boorgat (Dg={{ project.Dg_mm|int }}mm, De={{ project.De_mm|int }}mm)</li>
+  <li>GPS punten tabel (RD-coördinaten)</li>
+  <li>Titelblok + logos</li>
+  <li>KLIC disclaimer</li>
+</ul>
+
+<p class="info">
+  <strong>Skeleton:</strong> KLIC leidingen als placeholder (geen echte parsing).
+  Boorprofiel als rechte lijn (geen booggeometrie). Dit komt in de backlog.
+</p>
+
+<div class="form-actions">
+  <a href="/projecten/{{ project.id }}/review" class="btn btn-secondary">← Terug naar review</a>
+  <a href="/" class="btn btn-secondary">Naar projectenlijst</a>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Eisenprofiel — {{ project.naam }}{% endblock %}
+{% block content %}
+<h1>Eisenprofiel selecteren — {{ project.naam }}</h1>
+
+<form method="post" action="/projecten/{{ project.id }}/eisen">
+  <table class="table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Beheerder</th>
+        <th>Dekking weg (m)</th>
+        <th>Dekking water (m)</th>
+        <th>Rmin (m)</th>
+        <th>Norm</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ep in eisenprofielen %}
+      <tr>
+        <td>
+          <input type="radio" name="eisenprofiel_id" value="{{ ep.id }}"
+            {% if project.project_eisenprofiel and project.project_eisenprofiel.eisenprofiel_id == ep.id %}checked{% endif %}
+            required>
+        </td>
+        <td>{{ ep.naam }}</td>
+        <td>{{ ep.dekking_weg_m }}</td>
+        <td>{{ ep.dekking_water_m }}</td>
+        <td>{{ ep.Rmin_m }}</td>
+        <td>{{ ep.versie_datum }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Eisenprofiel opslaan</button>
+    <a href="/projecten/{{ project.id }}" class="btn btn-secondary">Terug</a>
+  </div>
+</form>
+{% endblock %}

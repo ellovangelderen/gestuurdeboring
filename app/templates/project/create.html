@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Nieuw project — HDD Platform{% endblock %}
+{% block content %}
+<h1>Nieuw project aanmaken</h1>
+
+<form method="post" action="/projecten/nieuw">
+  <fieldset>
+    <legend>Projectgegevens</legend>
+    <label>Naam *
+      <input type="text" name="naam" required placeholder="bijv. HDD11 Haarlem Kennemerplein">
+    </label>
+    <label>Opdrachtgever
+      <input type="text" name="opdrachtgever" placeholder="bijv. Liander">
+    </label>
+    <label>Ordernummer
+      <input type="text" name="ordernummer" placeholder="bijv. 3D25V700">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Leidingparameters</legend>
+    <label>Materiaal
+      <input type="text" name="materiaal" value="PE100">
+    </label>
+    <label>SDR
+      <input type="number" name="SDR" value="11" min="1" step="1">
+    </label>
+    <label>De (mm) — buitendiameter
+      <input type="number" name="De_mm" value="160" min="10" step="0.1">
+    </label>
+    <label>dn (mm) — wanddikte (leeg = auto: De/SDR)
+      <input type="number" name="dn_mm" step="0.01" placeholder="auto">
+    </label>
+    <label>Medium
+      <select name="medium">
+        <option value="Drukloos">Drukloos</option>
+        <option value="Gas LD">Gas LD</option>
+        <option value="Water">Water</option>
+        <option value="Elektra LS">Elektra LS</option>
+        <option value="Elektra MS">Elektra MS</option>
+        <option value="Elektra HS">Elektra HS</option>
+        <option value="Data/Glasvezel">Data/Glasvezel</option>
+      </select>
+    </label>
+    <label>Db (mm) — boorstang
+      <input type="number" name="Db_mm" value="60" min="1" step="0.1">
+    </label>
+    <label>Dp (mm) — pilotboorkop
+      <input type="number" name="Dp_mm" value="110" min="1" step="0.1">
+    </label>
+    <label>Dg (mm) — ruimer
+      <input type="number" name="Dg_mm" value="240" min="1" step="0.1">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Hoeken</legend>
+    <label>Intreehoek (°)
+      <input type="number" name="intreehoek_gr" value="18" min="0" max="45" step="0.1">
+    </label>
+    <label>Uittreehoek (°)
+      <input type="number" name="uittreehoek_gr" value="22" min="0" max="45" step="0.1">
+    </label>
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Project aanmaken</button>
+    <a href="/" class="btn btn-secondary">Annuleren</a>
+  </div>
+</form>
+{% endblock %}

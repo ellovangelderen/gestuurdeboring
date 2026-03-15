@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Brondata — {{ project.naam }}{% endblock %}
+{% block content %}
+<h1>Brondata — {{ project.naam }}</h1>
+
+<!-- KLIC upload -->
+<section class="card">
+  <h2>KLIC upload</h2>
+  {% if project.klic_uploads %}
+    <p>✓ Geüpload: <strong>{{ project.klic_uploads[-1].bestandsnaam }}</strong>
+       ({{ project.klic_uploads[-1].upload_datum.strftime('%d-%m-%Y') }})</p>
+    <p class="info">Skeleton: bestand opgeslagen, nog niet geparsed (backlog item 1).</p>
+  {% else %}
+    <p>Nog geen KLIC bestand geüpload.</p>
+  {% endif %}
+  <form method="post" action="/projecten/{{ project.id }}/klic" enctype="multipart/form-data">
+    <label>KLIC ZIP bestand
+      <input type="file" name="klic_zip" accept=".zip" required>
+    </label>
+    <button type="submit" class="btn btn-primary">Uploaden</button>
+  </form>
+</section>
+
+<!-- Maaiveld -->
+<section class="card">
+  <h2>Maaiveld (handmatig)</h2>
+  <p class="info">AHN5 automatisch ophalen komt in backlog item 2.</p>
+  <form method="post" action="/projecten/{{ project.id }}/maaiveld">
+    <label>MVin — maaiveld intrede (m NAP)
+      <input type="number" name="MVin_NAP_m" step="0.01"
+             value="{{ project.maaiveld_override.MVin_NAP_m if project.maaiveld_override else '' }}"
+             placeholder="bijv. 1.01" required>
+    </label>
+    <label>MVuit — maaiveld uittrede (m NAP)
+      <input type="number" name="MVuit_NAP_m" step="0.01"
+             value="{{ project.maaiveld_override.MVuit_NAP_m if project.maaiveld_override else '' }}"
+             placeholder="bijv. 1.27" required>
+    </label>
+    <button type="submit" class="btn btn-primary">Opslaan</button>
+  </form>
+</section>
+
+<!-- Doorsneden -->
+<section class="card" x-data="doorsneden()">
+  <h2>Doorsneden (handmatig)</h2>
+  <p class="info">GEF/CPT parser komt in backlog item 9.</p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th><th>Afstand (m)</th><th>NAP (m)</th><th>Grondtype</th><th>GWS (m)</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <template x-for="(ds, i) in rijen" :key="i">
+        <tr>
+          <td x-text="i+1"></td>
+          <td><input type="number" x-model="ds.afstand" step="0.1" class="input-sm"></td>
+          <td><input type="number" x-model="ds.nap" step="0.01" class="input-sm"></td>
+          <td>
+            <select x-model="ds.grondtype" class="select-sm">
+              <option>Zand</option><option>Klei</option><option>Veen</option>
+            </select>
+          </td>
+          <td><input type="number" x-model="ds.gws" step="0.01" class="input-sm" placeholder="opt."></td>
+          <td><button type="button" @click="rijen.splice(i,1)" class="btn btn-danger btn-sm">✕</button></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+
+  <button type="button" @click="rijen.push({afstand:'',nap:'',grondtype:'Zand',gws:''})" class="btn btn-secondary">+ Rij</button>
+
+  <form method="post" action="/projecten/{{ project.id }}/doorsneden" @submit="prepareSubmit">
+    <input type="hidden" name="afstand_list" x-bind:value="rijen.map(r=>r.afstand).join(',')">
+    <input type="hidden" name="NAP_list" x-bind:value="rijen.map(r=>r.nap).join(',')">
+    <input type="hidden" name="grondtype_list" x-bind:value="rijen.map(r=>r.grondtype).join(',')">
+    <input type="hidden" name="GWS_list" x-bind:value="rijen.map(r=>r.gws||'').join(',')">
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Doorsneden opslaan</button>
+    </div>
+  </form>
+</section>
+
+<!-- Intrekkracht -->
+<section class="card">
+  <h2>Intrekkracht (handmatig override)</h2>
+  <p class="info">NEN 3651 berekening komt in backlog item 11.</p>
+  <form method="post" action="/projecten/{{ project.id }}/intrekkracht">
+    <label>Ttot (N) — totale intrekkracht uit Sigma
+      <input type="number" name="Ttot_N" step="1"
+             value="{{ project.berekening.Ttot_N if project.berekening else '' }}"
+             placeholder="bijv. 30106" required>
+    </label>
+    <button type="submit" class="btn btn-primary">Opslaan</button>
+  </form>
+</section>
+
+<a href="/projecten/{{ project.id }}" class="btn btn-secondary">← Terug naar project</a>
+
+<script>
+function doorsneden() {
+  return {
+    rijen: {{ project.doorsneden | map(attribute='afstand_m') | list | tojson }}.map((a, i) => ({
+      afstand: a,
+      nap: {{ project.doorsneden | map(attribute='NAP_m') | list | tojson }}[i],
+      grondtype: {{ project.doorsneden | map(attribute='grondtype') | list | tojson }}[i],
+      gws: {{ project.doorsneden | map(attribute='GWS_m') | list | tojson }}[i] || '',
+    })),
+    prepareSubmit() {},
+  };
+}
+</script>
+{% endblock %}
