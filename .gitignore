@@ -59,6 +59,10 @@ ssl/
 # Uploads (gebruikersbestanden)
 uploads/
 
+# OAuth / credentials
+gcp-oauth.keys.json
+*.keys.json
+
 # Grote testdata bestanden
 docs/input_data_14maart/
 docs/input\ data/
