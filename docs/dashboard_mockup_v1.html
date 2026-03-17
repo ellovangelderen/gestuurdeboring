@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HDD Platform — Dashboard mockup v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; font-size: 13px; }
+
+  /* ── Header ── */
+  .topbar { background: #1a1a2e; color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+  .topbar-logo { font-weight: 700; font-size: 15px; letter-spacing: 0.5px; color: #60a5fa; }
+  .topbar-logo span { color: white; }
+  .topbar-user { font-size: 12px; color: #94a3b8; }
+
+  /* ── Stats bar ── */
+  .stats-bar { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 24px; display: flex; gap: 32px; align-items: center; }
+  .stat { text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-num.red { color: #dc2626; }
+  .stat-num.orange { color: #ea580c; }
+  .stat-num.blue { color: #2563eb; }
+  .stat-num.gray { color: #64748b; }
+  .stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-divider { width: 1px; height: 36px; background: #e2e8f0; }
+
+  .stats-bar-right { margin-left: auto; display: flex; gap: 10px; }
+  .btn { padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .btn-primary { background: #2563eb; color: white; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-outline { background: white; color: #475569; border: 1px solid #cbd5e1; }
+  .btn-outline:hover { background: #f8fafc; }
+
+  /* ── Filters ── */
+  .filter-bar { padding: 12px 24px; display: flex; align-items: center; gap: 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .filter-tabs { display: flex; gap: 4px; }
+  .tab { padding: 5px 12px; border-radius: 16px; border: 1px solid transparent; cursor: pointer; font-size: 12px; font-weight: 500; color: #64748b; background: white; border-color: #e2e8f0; }
+  .tab.active { background: #1a1a2e; color: white; border-color: #1a1a2e; }
+  .filter-spacer { flex: 1; }
+  .search-box { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; width: 200px; background: white; }
+  .sort-label { font-size: 11px; color: #94a3b8; }
+
+  /* ── Table ── */
+  .table-wrap { padding: 16px 24px; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  thead th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; cursor: pointer; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8fafc; }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+
+  /* ── Order cel ── */
+  .order-nr { font-weight: 700; font-size: 13px; color: #1a1a2e; }
+  .order-loc { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+
+  /* ── Klant badge ── */
+  .klant { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; background: #e0f2fe; color: #0369a1; letter-spacing: 0.5px; }
+  .klant.klant-3D { background: #dbeafe; color: #1d4ed8; }
+  .klant.klant-RD { background: #fce7f3; color: #be185d; }
+  .klant.klant-TM { background: #d1fae5; color: #065f46; }
+  .klant.klant-KB { background: #fef3c7; color: #92400e; }
+  .klant.klant-BT { background: #ede9fe; color: #5b21b6; }
+  .klant.klant-QG { background: #fee2e2; color: #991b1b; }
+  .klant.klant-MM { background: #f0fdf4; color: #14532d; }
+  .klant.klant-RD { background: #fdf2f8; color: #9d174d; }
+  .klant.klant-HS { background: #fff7ed; color: #9a3412; }
+  .klant.klant-VB { background: #f5f3ff; color: #4c1d95; }
+
+  /* ── Type badge ── */
+  .type-wrap { display: flex; gap: 4px; flex-wrap: wrap; }
+  .type { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .type-B { background: #1a1a2e; color: white; }
+  .type-N { background: #64748b; color: white; }
+  .type-Z { background: #7c3aed; color: white; }
+  .type-W { background: #d97706; color: white; }
+  .type-C { background: #0891b2; color: white; }
+  .type-cnt { font-size: 10px; color: #94a3b8; margin-left: 2px; }
+
+  /* ── Status badge ── */
+  .status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+  .status-ontvangen { background: #f1f5f9; color: #475569; }
+  .status-ontvangen::before { background: #94a3b8; }
+  .status-uitvoering { background: #dbeafe; color: #1d4ed8; }
+  .status-uitvoering::before { background: #3b82f6; }
+  .status-akkoord { background: #fff7ed; color: #c2410c; }
+  .status-akkoord::before { background: #f97316; }
+  .status-geleverd { background: #dcfce7; color: #15803d; }
+  .status-geleverd::before { background: #22c55e; }
+  .status-afgerond { background: #f0fdf4; color: #166534; }
+  .status-afgerond::before { background: #16a34a; }
+  .status-geannuleerd { background: #fef2f2; color: #b91c1c; }
+  .status-geannuleerd::before { background: #ef4444; }
+
+  /* ── Deadline ── */
+  .deadline { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .deadline-over { color: #dc2626; }
+  .deadline-urgent { color: #ea580c; }
+  .deadline-ok { color: #16a34a; }
+  .deadline-geleverd { color: #94a3b8; font-weight: 400; }
+  .deadline-sub { font-size: 10px; font-weight: 400; color: #94a3b8; display: block; margin-top: 1px; }
+
+  /* ── KLIC ── */
+  .klic-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #16a34a; font-weight: 600; }
+  .klic-missing { font-size: 11px; color: #94a3b8; }
+  .klic-nr { font-size: 10px; color: #64748b; display: block; font-family: monospace; }
+
+  /* ── EV ── */
+  .ev-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+  .ev-none { color: #cbd5e1; font-size: 11px; }
+
+  /* ── Vergunning ── */
+  .permit { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .permit-P { background: #fce7f3; color: #be185d; }
+  .permit-R { background: #fee2e2; color: #991b1b; }
+  .permit-W { background: #dbeafe; color: #1e40af; }
+  .permit-geen { color: #e2e8f0; }
+
+  /* ── PRIO ── */
+  .prio { display: inline-block; font-size: 14px; }
+
+  /* ── Tekenaar ── */
+  .avatar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 10px; font-weight: 700; background: #e0f2fe; color: #0369a1; }
+
+  /* ── Actions ── */
+  .actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.1s; }
+  tr:hover .actions { opacity: 1; }
+  .action-btn { padding: 3px 8px; border-radius: 4px; border: 1px solid #e2e8f0; background: white; font-size: 11px; cursor: pointer; color: #475569; }
+  .action-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+
+  /* ── Vraag-callouts ── */
+  .questions-panel { margin: 0 24px 16px; }
+  .questions-title { font-size: 11px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .questions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .q-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; border-left: 3px solid #7c3aed; }
+  .q-card.decided { border-left-color: #16a34a; background: #f0fdf4; }
+  .q-card.strategy { border-left-color: #2563eb; background: #eff6ff; }
+  .q-num { font-size: 10px; font-weight: 700; color: #7c3aed; text-transform: uppercase; margin-bottom: 4px; }
+  .q-num.decided { color: #16a34a; }
+  .q-num.strategy { color: #2563eb; }
+  .q-text { font-size: 12px; color: #1a1a2e; line-height: 1.5; font-weight: 600; }
+  .q-sub { font-size: 11px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+  .q-options { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-opt { padding: 2px 8px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 11px; color: #64748b; cursor: pointer; }
+  .q-opt:hover { border-color: #7c3aed; color: #7c3aed; }
+  .q-opt.preferred { border-color: #7c3aed; background: #f5f3ff; color: #7c3aed; font-weight: 600; }
+  .q-opt.decided { border-color: #16a34a; background: #dcfce7; color: #15803d; font-weight: 700; }
+  .decided-check { font-size: 13px; margin-right: 4px; }
+  /* ── Migratie strategie ── */
+  .migration-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 16px; border-left: 3px solid #2563eb; }
+  .migration-phases { display: flex; gap: 0; margin-top: 10px; }
+  .phase { flex: 1; padding: 10px 12px; background: white; border: 1px solid #e2e8f0; position: relative; }
+  .phase:first-child { border-radius: 6px 0 0 6px; }
+  .phase:last-child { border-radius: 0 6px 6px 0; }
+  .phase-num { font-size: 10px; font-weight: 700; color: #2563eb; text-transform: uppercase; }
+  .phase-title { font-size: 12px; font-weight: 700; margin: 3px 0; color: #1a1a2e; }
+  .phase-sub { font-size: 11px; color: #64748b; line-height: 1.4; }
+  .phase-arrow { display: flex; align-items: center; padding: 0 4px; color: #94a3b8; font-size: 16px; }
+
+  /* ── Design note ── */
+  .design-note { background: #fefce8; border: 1px solid #fde047; border-radius: 6px; padding: 8px 12px; margin: 0 24px 12px; font-size: 11px; color: #713f12; display: flex; gap: 8px; align-items: flex-start; }
+  .design-note strong { display: block; margin-bottom: 2px; }
+
+  /* ── Multi-boring indicator ── */
+  .sub-row { background: #fafafa; }
+  .sub-indicator { padding-left: 24px !important; }
+  .sub-line { display: inline-block; width: 12px; height: 1px; background: #cbd5e1; vertical-align: middle; margin-right: 6px; }
+
+  /* ── Lege staat ── */
+  .col-nr { width: 200px; }
+  .col-klant { width: 60px; }
+  .col-type { width: 80px; }
+  .col-deadline { width: 110px; }
+  .col-status { width: 150px; }
+  .col-klic { width: 110px; }
+  .col-ev { width: 55px; }
+  .col-permit { width: 60px; }
+  .col-note { width: 55px; }
+  .col-tekenaar { width: 65px; }
+  .col-actions { width: 100px; }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-logo">HDD <span>Platform</span></div>
+  <div class="topbar-user">martien · GestuurdeBoringTekening.nl</div>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-num red">4</div>
+    <div class="stat-label">Over deadline</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-num orange">7</div>
+    <div class="stat-label">Deadline &lt; 5 dagen</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-num blue">40</div>
+    <div class="stat-label">In uitvoering</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-num gray">194</div>
+    <div class="stat-label">Wacht op akkoord</div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat">
+    <div class="stat-num gray">365</div>
+    <div class="stat-label">Totaal orders</div>
+  </div>
+  <div class="stats-bar-right">
+    <button class="btn btn-outline">↓ Exporteer</button>
+    <button class="btn btn-primary">+ Nieuwe order</button>
+  </div>
+</div>
+
+<!-- Afstemming panel -->
+<div style="padding: 16px 24px 0;">
+  <div class="questions-title">
+    <span style="background:#7c3aed;color:white;padding:1px 8px;border-radius:4px;">?</span>
+    Afstemming met Martien — open vragen + besluiten
+  </div>
+</div>
+<div class="questions-panel">
+  <div class="questions-grid">
+
+    <!-- BESLOTEN -->
+    <div class="q-card decided">
+      <div class="q-num decided"><span class="decided-check">✓</span> Besloten — Startpagina</div>
+      <div class="q-text">Dashboard is het beginscherm na inloggen.</div>
+      <div class="q-sub">Dit vervangt de huidige projectenlijst als startpunt. Na inloggen ziet Martien direct zijn actieve orders, deadlines en EV-waarschuwingen — net als de Excel nu is.</div>
+      <div class="q-options">
+        <span class="q-opt decided">✓ Dashboard als startscherm</span>
+      </div>
+    </div>
+
+    <!-- OPEN VRAAG 2 -->
+    <div class="q-card">
+      <div class="q-num">Open vraag — Type Z en C</div>
+      <div class="q-text">Wat is een "Zijdelings" (Z) en "Combi" (C) boring precies?</div>
+      <div class="q-sub">We zien B (Boring), N (Nano), W (Werkplan) — maar Z en C zijn onduidelijk. Is Z een lichtere variant, of een andere techniek? Heeft Z een eigen tekenproces in het platform nodig, of is het hetzelfde als B?</div>
+      <div class="q-options">
+        <span class="q-opt">Z = aparte workflow</span>
+        <span class="q-opt preferred">Z = zelfde als B, kleiner</span>
+        <span class="q-opt">Anders →</span>
+      </div>
+    </div>
+
+    <!-- OPEN VRAAG 3 -->
+    <div class="q-card">
+      <div class="q-num">Open vraag — Tekenaar per order</div>
+      <div class="q-text">Wil je bijhouden wie de tekenaar is per order (Nid, Iza, Lucas, Martien)?</div>
+      <div class="q-sub">De Excel-Revisie-sheet houdt dit bij. Als het platform meerdere mensen ondersteunt, kunnen we een "toegewezen aan"-kolom toevoegen. Maakt het filteren per tekenaar ook mogelijk.</div>
+      <div class="q-options">
+        <span class="q-opt preferred">Ja, per order toewijzen</span>
+        <span class="q-opt">Nee, niet nodig</span>
+      </div>
+    </div>
+
+    <!-- OPEN VRAAG 4 -->
+    <div class="q-card">
+      <div class="q-num">Open vraag — PRIO vlag</div>
+      <div class="q-text">Wil je PRIO als aparte knop, of blijft het een vrije notitie?</div>
+      <div class="q-sub">In de Excel staat "PRIO" als tekst in de Note-kolom. Een aparte vlag (⭐ in het dashboard) maakt filteren op prioriteitsorders makkelijker en voorkomt dat het verloren gaat in een notitietekst.</div>
+      <div class="q-options">
+        <span class="q-opt preferred">Aparte PRIO-vlag ⭐</span>
+        <span class="q-opt">Vrije notitie volstaat</span>
+      </div>
+    </div>
+
+    <!-- OPEN VRAAG 5 -->
+    <div class="q-card">
+      <div class="q-num">Open vraag — Meerdere boringen per order</div>
+      <div class="q-text">3D26V822 heeft HDD29 én BZ2 — elk een eigen KLIC. Hoe wil je dit in het platform?</div>
+      <div class="q-sub">In de Excel zijn het aparte rijen met hetzelfde ordernummer. In het platform kan dat <strong>één order met sub-boringen</strong> zijn (één project, twee tekeningen), of <strong>twee aparte projecten</strong> die gelinkt zijn via het ordernummer.</div>
+      <div class="q-options">
+        <span class="q-opt preferred">Één order, sub-boringen</span>
+        <span class="q-opt">Aparte projecten</span>
+      </div>
+    </div>
+
+    <!-- MIGRATIE STRATEGIE — blauw, voorstel -->
+    <div class="q-card strategy">
+      <div class="q-num strategy">Voorstel migratiestrategie</div>
+      <div class="q-text">Schaduw draaien — Excel en platform naast elkaar tot Martien klaar is.</div>
+      <div class="q-sub">Martien houdt zijn Excel bij tijdens de schaduwperiode. Op het moment van cutover migreren we alleen de <strong>nog openstaande orders</strong> (niet Delivered/Done). De Excel blijft het archief voor historische orders.</div>
+    </div>
+
+  </div>
+
+  <!-- Migratie fasen uitklappen -->
+  <div class="migration-box" style="margin-top: 12px;">
+    <div style="font-size:12px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">Migratiestrategie in 4 stappen — voorstel ter bespreking</div>
+    <div style="font-size:11px;color:#3b82f6;margin-bottom:10px;">Op het moment dat Martien zegt "ik ben er klaar voor" voeren we stap 3 uit. Tot die tijd: schaduw draaien.</div>
+    <div class="migration-phases">
+      <div class="phase">
+        <div class="phase-num">Stap 1 — Nu</div>
+        <div class="phase-title">Klantcodes migreren</div>
+        <div class="phase-sub">22 unieke klantcodes uit de Excel als seed-data in het platform. Martien heeft meteen een dropdown bij "Nieuwe order".</div>
+      </div>
+      <div class="phase-arrow">→</div>
+      <div class="phase">
+        <div class="phase-num">Stap 2 — Schaduw</div>
+        <div class="phase-title">Parallel draaien</div>
+        <div class="phase-sub">Nieuwe orders óók in het platform aanmaken. Excel blijft leidend. Martien went aan het dashboard zonder druk.</div>
+      </div>
+      <div class="phase-arrow">→</div>
+      <div class="phase">
+        <div class="phase-num">Stap 3 — Cutover</div>
+        <div class="phase-title">Open orders importeren</div>
+        <div class="phase-sub">Op een afgesproken datum: alle orders met status <em>Ontvangen</em> of <em>In uitvoering</em> worden ingeladen via een migratiescript. PDOK-coördinaten worden automatisch geparsed als tracé-startpunt.</div>
+      </div>
+      <div class="phase-arrow">→</div>
+      <div class="phase">
+        <div class="phase-num">Stap 4 — Pensioen</div>
+        <div class="phase-title">Excel = archief</div>
+        <div class="phase-sub">Nieuwe orders gaan direct in het platform. De Excel blijft beschikbaar als archief voor Delivered/Done orders. Geen gedwongen overgang.</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:#1d4ed8;">
+      <strong>Vraag voor Martien:</strong> Wanneer wil je de cutover doen? Na welk moment voel je dat het platform goed genoeg is om de Excel los te laten voor nieuwe orders?
+    </div>
+  </div>
+</div>
+
+<!-- Design note -->
+<div class="design-note">
+  <span style="font-size:16px;">💡</span>
+  <div>
+    <strong>Ontwerp-aanname: PDOK-URL → automatisch</strong>
+    In de Excel plakt Martien handmatig een PDOK-link per order. Het platform kan die link <em>automatisch genereren</em> zodra RD-coördinaten zijn ingevoerd. Dat spaart een handeling per order. De link wordt dan een knopje in de tabel (kaartje openen). Is dat de bedoeling?
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+  <div class="filter-tabs">
+    <div class="tab">Alles <span style="color:#94a3b8;font-weight:400">(365)</span></div>
+    <div class="tab active">Actief <span style="color:inherit;font-weight:400">(51)</span></div>
+    <div class="tab">Wacht akkoord <span style="color:#94a3b8;font-weight:400">(194)</span></div>
+    <div class="tab">Geleverd <span style="color:#94a3b8;font-weight:400">(112)</span></div>
+  </div>
+  <div class="filter-spacer"></div>
+  <span class="sort-label">Sorteer:</span>
+  <select style="font-size:12px;border:1px solid #e2e8f0;border-radius:5px;padding:4px 8px;background:white;color:#475569;">
+    <option>Deadline (oplopend)</option>
+    <option>Datum ontvangen</option>
+    <option>Klant</option>
+    <option>Status</option>
+  </select>
+  <input class="search-box" type="text" placeholder="🔍  Zoek op ordernummer, locatie, klant…">
+</div>
+
+<!-- Tabel -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="col-nr">Order</th>
+        <th class="col-klant">Klant</th>
+        <th class="col-type">Type</th>
+        <th class="col-deadline">Deadline</th>
+        <th class="col-status">Status</th>
+        <th class="col-klic">KLIC</th>
+        <th class="col-ev">EV</th>
+        <th class="col-permit">Vergn.</th>
+        <th class="col-note" title="Notitie / PRIO">!</th>
+        <th class="col-tekenaar">Teken.</th>
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- OVER DEADLINE — In progress -->
+      <tr style="background:#fff5f5;">
+        <td>
+          <div class="order-nr">RD25V346</div>
+          <div class="order-loc">Hoofddorp, Van Heuven Goedhartlaan</div>
+        </td>
+        <td><span class="klant klant-RD">RD</span></td>
+        <td><div class="type-wrap"><span class="type type-W">W</span></div></td>
+        <td>
+          <div class="deadline deadline-over">⚠ 3 dagen over</div>
+          <span class="deadline-sub">was 13 mrt 2026</span>
+        </td>
+        <td><span class="status status-uitvoering">In uitvoering</span></td>
+        <td><span class="klic-missing">—</span></td>
+        <td><span class="ev-none">—</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td><span class="prio" title="PRIO">⭐</span></td>
+        <td><span class="avatar" title="Martien">ML</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- OVER DEADLINE — Waiting met EV -->
+      <tr style="background:#fff5f5;">
+        <td>
+          <div class="order-nr">MM26V103</div>
+          <div class="order-loc">Zwaagdijk-West, Zwaagdijk</div>
+        </td>
+        <td><span class="klant">MM</span></td>
+        <td><div class="type-wrap"><span class="type type-Z">Z</span></div></td>
+        <td>
+          <div class="deadline deadline-over">⚠ 3 dagen over</div>
+          <span class="deadline-sub">was 13 mrt 2026</span>
+        </td>
+        <td><span class="status status-uitvoering">In uitvoering</span></td>
+        <td>
+          <span class="klic-ok">✓ <span>Geladen</span></span>
+          <span class="klic-nr">26O0036016</span>
+        </td>
+        <td><span class="ev-badge">⚡ 2 EV</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td></td>
+        <td><span class="avatar" style="background:#fce7f3;color:#be185d;" title="Iza">IZ</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- URGENT — Velsen-Noord met 2 sub-boringen -->
+      <tr>
+        <td>
+          <div class="order-nr">3D26V822</div>
+          <div class="order-loc">Velsen-Noord — HDD29 + BZ2</div>
+        </td>
+        <td><span class="klant klant-3D">3D</span></td>
+        <td>
+          <div class="type-wrap">
+            <span class="type type-B">B</span>
+            <span class="type type-Z">Z</span>
+          </div>
+        </td>
+        <td>
+          <div class="deadline deadline-urgent">1 dag</div>
+          <span class="deadline-sub">17 mrt 2026</span>
+        </td>
+        <td><span class="status status-uitvoering">In uitvoering</span></td>
+        <td>
+          <span class="klic-ok">✓ <span>2 KLIC</span></span>
+          <span class="klic-nr">26O0042028 + 030</span>
+        </td>
+        <td><span class="ev-badge">⚡ 3 EV</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td><span class="prio" title="PRIO">⭐</span></td>
+        <td><span class="avatar" title="Martien">ML</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- URGENT — Delivered, permit P, EV -->
+      <tr>
+        <td>
+          <div class="order-nr">RD26V405</div>
+          <div class="order-loc">Den Hoorn, Pontweg N501 (HDD3)</div>
+        </td>
+        <td><span class="klant klant-RD">RD</span></td>
+        <td><div class="type-wrap"><span class="type type-B">B</span> <span class="type-cnt">×2</span></div></td>
+        <td>
+          <div class="deadline deadline-geleverd">Geleverd</div>
+          <span class="deadline-sub">26 feb 2026</span>
+        </td>
+        <td><span class="status status-geleverd">Geleverd</span></td>
+        <td>
+          <span class="klic-ok">✓ <span>Geladen</span></span>
+          <span class="klic-nr">26O0033415</span>
+        </td>
+        <td><span class="ev-badge">⚡ 2 EV</span></td>
+        <td><span class="permit permit-P" title="Provincie">P</span></td>
+        <td><span class="prio" title="PRIO">⭐</span></td>
+        <td><span class="avatar" style="background:#d1fae5;color:#065f46;" title="Nid">ND</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- In uitvoering, N-type -->
+      <tr>
+        <td>
+          <div class="order-nr">BT26V204</div>
+          <div class="order-loc">Zwolle, Gasthuisdijk</div>
+        </td>
+        <td><span class="klant klant-BT">BT</span></td>
+        <td><div class="type-wrap"><span class="type type-N">N</span></div></td>
+        <td>
+          <div class="deadline deadline-urgent">8 dagen</div>
+          <span class="deadline-sub">24 mrt 2026</span>
+        </td>
+        <td><span class="status status-uitvoering">In uitvoering</span></td>
+        <td>
+          <span class="klic-ok">✓ <span>Geladen</span></span>
+          <span class="klic-nr">26O0036029</span>
+        </td>
+        <td><span class="ev-badge">⚡ 1 EV</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td></td>
+        <td><span class="avatar" style="background:#ede9fe;color:#5b21b6;" title="Lucas">LC</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- Wacht op akkoord, geleverd -->
+      <tr>
+        <td>
+          <div class="order-nr">QG26V305</div>
+          <div class="order-loc">Haarlem, Roordastraat</div>
+        </td>
+        <td><span class="klant klant-QG">QG</span></td>
+        <td><div class="type-wrap"><span class="type type-Z">Z</span></div></td>
+        <td>
+          <div class="deadline deadline-geleverd">Geleverd</div>
+          <span class="deadline-sub">6 mrt 2026</span>
+        </td>
+        <td><span class="status status-akkoord">Wacht op akkoord</span></td>
+        <td>
+          <span class="klic-ok">✓ <span>Geladen</span></span>
+          <span class="klic-nr">—</span>
+        </td>
+        <td><span class="ev-badge">⚡ 1 EV</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td></td>
+        <td><span class="avatar" title="Martien">ML</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- Order received, geen KLIC -->
+      <tr>
+        <td>
+          <div class="order-nr">HS26V009</div>
+          <div class="order-loc">Nijbroek, Middendijk</div>
+        </td>
+        <td><span class="klant klant-HS">HS</span></td>
+        <td><div class="type-wrap"><span class="type type-B">B</span></div></td>
+        <td>
+          <div class="deadline deadline-ok">18 dagen</div>
+          <span class="deadline-sub">3 apr 2026</span>
+        </td>
+        <td><span class="status status-ontvangen">Ontvangen</span></td>
+        <td><span class="klic-missing">Wacht op KLIC</span></td>
+        <td><span class="ev-none">—</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td></td>
+        <td><span class="avatar" title="Niet toegewezen" style="background:#f1f5f9;color:#94a3b8;">?</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- Order received, permit P -->
+      <tr>
+        <td>
+          <div class="order-nr">TM26V230</div>
+          <div class="order-loc">Markelo, W. Göttelaan N753</div>
+        </td>
+        <td><span class="klant klant-TM">TM</span></td>
+        <td><div class="type-wrap"><span class="type type-N">N</span></div></td>
+        <td>
+          <div class="deadline deadline-ok">22 dagen</div>
+          <span class="deadline-sub">7 apr 2026</span>
+        </td>
+        <td><span class="status status-ontvangen">Ontvangen</span></td>
+        <td><span class="klic-missing">Wacht op KLIC</span></td>
+        <td><span class="ev-none">—</span></td>
+        <td><span class="permit permit-P" title="Provincie">P</span></td>
+        <td></td>
+        <td><span class="avatar" title="Niet toegewezen" style="background:#f1f5f9;color:#94a3b8;">?</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button><button class="action-btn">Status ↓</button></div></td>
+      </tr>
+
+      <!-- Geannuleerd -->
+      <tr style="opacity:0.5;">
+        <td>
+          <div class="order-nr">3D26V818</div>
+          <div class="order-loc">Nijkerk</div>
+        </td>
+        <td><span class="klant klant-3D">3D</span></td>
+        <td><div class="type-wrap"><span class="type type-B">B</span> <span class="type-cnt">×2</span></div></td>
+        <td>
+          <div class="deadline deadline-geleverd">—</div>
+          <span class="deadline-sub">20 mrt 2026</span>
+        </td>
+        <td><span class="status status-geannuleerd">Geannuleerd</span></td>
+        <td><span class="klic-missing">—</span></td>
+        <td><span class="ev-none">—</span></td>
+        <td><span class="permit permit-geen">—</span></td>
+        <td></td>
+        <td><span class="avatar" title="Martien">ML</span></td>
+        <td><div class="actions"><button class="action-btn">Open</button></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- Legenda -->
+  <div style="margin-top:14px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+    <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Type tekening:</div>
+    <span><span class="type type-B" style="padding:1px 6px;font-size:10px;">B</span> <span style="font-size:11px;color:#64748b;">Boring</span></span>
+    <span><span class="type type-N" style="padding:1px 6px;font-size:10px;">N</span> <span style="font-size:11px;color:#64748b;">Nano</span></span>
+    <span><span class="type type-Z" style="padding:1px 6px;font-size:10px;">Z</span> <span style="font-size:11px;color:#64748b;">Zijdelings <em style="color:#e09000;">← vraag 2</em></span></span>
+    <span><span class="type type-W" style="padding:1px 6px;font-size:10px;">W</span> <span style="font-size:11px;color:#64748b;">Werkplan</span></span>
+    <span><span class="type type-C" style="padding:1px 6px;font-size:10px;">C</span> <span style="font-size:11px;color:#64748b;">Combi <em style="color:#e09000;">← vraag 2</em></span></span>
+
+    <div style="margin-left:16px;font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Vergunning:</div>
+    <span><span class="permit permit-P" style="font-size:10px;">P</span> <span style="font-size:11px;color:#64748b;">Provincie</span></span>
+    <span><span class="permit permit-R" style="font-size:10px;">R</span> <span style="font-size:11px;color:#64748b;">Rijk (RWS)</span></span>
+    <span><span class="permit permit-W" style="font-size:10px;">W</span> <span style="font-size:11px;color:#64748b;">Waterschap</span></span>
+    <span style="font-size:11px;color:#e09000;">S = ? ← vraag voor Martien</span>
+  </div>
+</div>
+
+<div style="padding:16px 24px;font-size:11px;color:#94a3b8;text-align:center;">
+  HDD Platform — Dashboard mockup v2 · 16 maart 2026 · ter bespreking met Martien · Besloten: dashboard = startscherm · Open: vragen 2–5 + cutover-datum
+</div>
+
+</body>
+</html>
