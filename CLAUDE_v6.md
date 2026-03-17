@@ -73,6 +73,7 @@ Model Agent → Architect Agent (jij) → Builder Agent → Release Agent
 | 15 | Dinoloket sonderingen REST API | ★★★ Martien | Handmatig Dinoloket |
 | 16 | GEF/CPT parser + Robertson classificatie | OPTIONEEL | Handmatig grondtype |
 | 17 | Intrekkrachtberekening NEN 3651 (Sigma-transparant) | OPTIONEEL | Handmatig Sigma |
+| 18 | As-Built revisietekeningen | ★★★ Martien | Handmatig revisie in AutoCAD |
 
 Noten:
 - Item 0: MOET EERST. Alles hangt af van het nieuwe datamodel.
@@ -564,6 +565,8 @@ BOB-bronnen per prioriteit: (1) GWSW via `apps.gwsw.nl`, (2) gemeente-specifieke
 
 **RDNAP altijd.** Coördinaten altijd in RD New EPSG:28992, 2 decimalen. Kaart is oriëntatie, coördinaten zijn primaire invoer.
 
+**Coördinateninvoer — kaart-klik primair.** Martien wil coördinaten invoeren door op de kaart te klikken, niet handmatig typen. Kaart toont BGT, DKK, KLIC als lagen. Klik → WGS84 → RD-conversie → 2 decimalen (cm-nauwkeurig). Handmatig typen blijft als fallback. Dit verandert de UI van het tracé-invoerscherm fundamenteel t.o.v. de walking skeleton.
+
 **Werkplan structuur (gevalideerd op 5 werkplannen, 16-03-2026).** 6 genummerde hoofdstukken (niet 7) + bijlagen A t/m G. Twee formaatversies:
 - Formaat A (oud, pre-2025): 2.1 Locatie · 2.2 Historie · 2.3 Infrastructuur (beheerder erin)
 - Formaat B (huidig): 2.1 · 2.2 · 2.3 Infrastructuur · 2.3 Geotechniek · 2.4 Overige — let op: dubbele 2.3 en dubbele 6.4 zijn typefouten in het levende sjabloon; generator gebruikt correcte nummering.
@@ -649,6 +652,11 @@ Eén meldingnummer kan meerdere versies hebben:
 - Versie 1: oriëntatiemelding (ontwerp ter voorbereiding)
 - Versie 2: hermelding na wijziging
 De engineer kiest bewust welke versie per boring geldt.
+
+**KLIC twee leveringsformaten.**
+- Formaat A: ZIP met meerdere XML bestanden per beheerder (bijv. HDD11 Haarlem: Levering_25O0136974_1.zip)
+- Formaat B: Enkel GML V2 bestand, alle features in één file (bijv. IJmuiden: GI_gebiedsinformatielevering_25O0063608_1_V2.xml — 2.7MB, 1952 features, 9 beheerders)
+Platform parser moet beide formaten ondersteunen. Beide gebruiken dezelfde IMKL namespace.
 
 **Orderbeheer — "wij zijn de bron".**
 Platform vervangt GSheets als systeem of record. Nid (Sopa Choychod) houdt de orderlijst bij. Volledige GSheets migratie (~2087 rijen, ~2454 orders). RD-coördinaten extractbaar uit PDOK-URLs in de GSheets.

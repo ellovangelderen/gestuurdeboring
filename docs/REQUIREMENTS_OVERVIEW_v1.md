@@ -124,6 +124,10 @@ Platform houdt de volgende statussen bij:
 - **Hoe nu**: Bestand opslaan in Drive-map, KLIC-nummer noteren in GSheets
 - **Hoe straks**: Upload in platform, automatisch verwerkt
 - **Koppeling**: KLIC zit op order-niveau. Meerdere KLICs per order mogelijk.
+- **Twee formaten**:
+  - Formaat A: ZIP met meerdere XML bestanden per beheerder (bijv. HDD11 Haarlem)
+  - Formaat B: Enkel GML V2 bestand, alles in één file (bijv. IJmuiden, 2.7MB, 1952 features)
+  - Platform accepteert beide formaten
 
 ### 2.2 KLIC versioning
 - **Wat**: Eén KLIC-meldingnummer kan meerdere versies hebben
@@ -162,10 +166,13 @@ Platform houdt de volgende statussen bij:
 ## 3. Locatie & kaart
 
 ### 3.1 Tracé invoeren
-- **Wat**: RD-coördinaten invoeren per punt (intrede, tussenpunten, uittrede)
-- **Primair**: Coördinaten zijn de echte invoer (niet de kaart)
-- **Kaart**: Leaflet kaart naast het formulier als oriëntatie
-- **Hoe nu**: Coördinaten handmatig invoeren, kaart in AutoCAD
+- **Wat**: Punten invoeren door op de kaart te klikken (intrede, tussenpunten, uittrede)
+- **Primair**: Klikken op de kaart → RD-coördinaten worden automatisch bepaald (2 decimalen = cm)
+- **Kaart**: Leaflet kaart met BGT, DKK, KLIC en overige bronnen als lagen
+- **Fallback**: Handmatig RD-coördinaten typen blijft mogelijk
+- **Hoe nu**: Coördinaten handmatig invoeren of aflezen uit AutoCAD
+- **Hoe straks**: Klik op de kaart, punt wordt geplaatst, coördinaten verschijnen automatisch. Lagen aan/uit zetten voor oriëntatie.
+- **Nauwkeurigheid**: 2 decimalen RD New (= centimeter-nauwkeurig)
 
 ### 3.2 PDOK link automatisch
 - **Wat**: Platform genereert automatisch een PDOK-link zodra coördinaten zijn ingevoerd
@@ -242,6 +249,15 @@ Parameters: booghoek (°), stand (1-10) → lengte volgt automatisch
 - **Per boring**: Elk een apart DXF-bestand
 - **Bestandsnaam**: {ordernummer}-{volgnummer}-rev.{revisie}.dxf
 
+### 5.1.1 Huidige status DXF (walking skeleton)
+- **Wat er nu is**: Boorlijn in bovenaanzicht, boorgat cirkels, sensorpunt labels, titelblok tekst, NLCS lagen aanwezig
+- **Wat er nog mist**:
+  - ❌ Ondergrond (BGT/KLIC lagen met geometrie)
+  - ❌ Lengteprofiel als aparte view/viewport
+  - ❌ Situatietekening met K&L
+  - ❌ Maatvoering details
+- **Prioriteit**: HOOG — DXF moet door Martien importeerbaar zijn in AutoCAD als werkbaar bestand
+
 ### 5.2 PDF tekening
 - **Formaat**: A2Z4 (landscape)
 - **Inhoud**:
@@ -255,6 +271,16 @@ Parameters: booghoek (°), stand (1-10) → lengte volgt automatisch
   - Logo's (Logo3D.jpg + opdrachtgever logo)
   - OPMERKINGEN (KLIC-disclaimer, CROW 96b, walk-over meetsysteem)
 - **Per boring**: Elk een apart PDF-bestand
+
+### 5.2.1 Huidige status PDF (walking skeleton)
+- **Wat er nu is**: Titelblok, GPS punten tabel, hoeken, doorsnede boorgat (schematisch)
+- **Wat er nog mist (BLOCKER voor productiegebruik)**:
+  - ❌ Situatietekening (kaart met K&L, schaal 1:250)
+  - ❌ Lengteprofiel NAP (grafisch, niet alleen tekst)
+  - ❌ Bovenaanzicht (schaal 1:2000 of 1:4000)
+  - ❌ Legenda
+- **Referentie**: 3D25V640-03 HDD7&8 IJmuiden Maxwellstraat-A2Z4.pdf — dit is hoe de output eruit moet zien
+- **Prioriteit**: HOOG — zonder deze elementen is de PDF niet bruikbaar voor vergunningsaanvraag
 
 ### 5.3 Werkplan (automatisch gegenereerd)
 - **Wat**: Automatisch werkplan genereren op basis van projectgegevens
@@ -430,7 +456,18 @@ Deze personen staan in het "Akkoord" veld op de tekening. Ze zijn geen platformg
 
 ---
 
-## 16. Wat het platform NIET doet
+## 17. As-Built tekeningen (toekomst)
+
+### 17.1 Revisietekening na uitvoering
+- **Wat**: Na de boring is de werkelijke positie vaak anders dan het ontwerp. Een revisietekening (As-Built) legt de werkelijke situatie vast.
+- **Hoe nu**: Handmatig revisie maken in AutoCAD op basis van meetgegevens
+- **Hoe straks**: Platform genereert revisietekening op basis van ingevoerde werkelijke meetpunten
+- **Status**: Later — eerst het ontwerpproces volledig werkend
+- **Jouw input nodig?**: Ja, voorbeeld van As-Built tekening aanleveren
+
+---
+
+## 18. Wat het platform NIET doet
 
 - Offerte of calculatie genereren (behalve Sigma via type C)
 - Projectmanagement (geen Jira/Asana)
@@ -450,6 +487,8 @@ Graag per onderdeel aangeven:
 4. Specifiek: klopt de status-workflow (1.5)?
 5. Specifiek: missen er klantcodes?
 6. Specifiek: zijn er meer boringtypen dan B/N/Z/C?
+7. Specifiek: kaart-klik invoer — welke lagen wil je standaard zien op de kaart? (BGT, DKK, KLIC, luchtfoto?)
+8. Specifiek: kun je een voorbeeld As-Built revisietekening aanleveren?
 
 ---
 

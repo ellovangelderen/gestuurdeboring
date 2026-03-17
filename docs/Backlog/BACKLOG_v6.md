@@ -105,6 +105,9 @@ TC-werkplan-D  PDF generatie zonder errors
 - PRIO-vlag
 - Tekenaar avatar
 - Export naar CSV
+- Kaart-klik coördinateninvoer: klik op kaart → RD-coördinaten (primaire invoermethode)
+- Kaartlagen: BGT, DKK, KLIC, luchtfoto als schakelbare lagen
+- Handmatige RD-invoer als fallback
 
 **Acceptatiecriteria:**
 - Na login → cockpit als eerste scherm
@@ -133,6 +136,7 @@ TC-cockpit-E  CSV export bevat alle zichtbare orders
 
 **Scope:**
 - IMKL 2.0 XML parsing
+- Twee KLIC formaten ondersteunen: ZIP met meerdere XMLs (Formaat A) én enkel GML V2 bestand (Formaat B)
 - Leidingen extraheren met beheerder, type, geometrie
 - Diepte uit gestructureerde en vrije tekstvelden
 - Sleufloze techniek detectie (materiaalregel + bijlage-heuristiek)
@@ -150,6 +154,8 @@ TC-klic-A  HDD11 ZIP → 11 beheerders, 1127 leidingen
 TC-klic-B  KL1049 → PDF-bijlage boogzinker gedetecteerd
 TC-klic-C  EV-leidingen → ev_verplicht=True + contactgegevens
 TC-klic-D  Diepte uit tekstveld → diepte_bron="tekstveld_onzeker"
+TC-klic-E  IJmuiden GML V2 (enkel bestand) → 9 beheerders, 1952 features
+TC-klic-F  HDD11 ZIP (meerdere XMLs) → 11 beheerders, 1127 leidingen
 ```
 
 ---
@@ -314,6 +320,10 @@ TC-bz-C  DXF → 1 ARC op BOORLIJN, geen horizontaal segment
 **Scope:**
 - Boorprofiel geometrie met ARC-segmenten
 - Automatische hoekberekening
+- Grafisch lengteprofiel in DXF als aparte view
+- Grafisch lengteprofiel in PDF (NAP, schaal 1:250)
+- Bovenaanzicht in PDF (schaal 1:2000 of 1:4000)
+- Situatietekening met K&L in PDF (schaal 1:250)
 
 **Acceptatiecriteria:**
 - Boorprofiel correct gegenereerd met ARCs
@@ -511,6 +521,33 @@ TC-nen3651-B  Grenswaarde overschreden → waarschuwing
 
 ---
 
+### Backlog 18 — As-Built revisietekeningen
+
+**Waarde:** ★★★ Martien
+**Vervangt:** Handmatig revisie maken in AutoCAD
+**Afhankelijk van:** Backlog 9 (boorprofiel geometrie)
+**Status:** Todo
+
+**Scope:**
+- Werkelijke meetpunten invoeren na uitvoering boring
+- Platform vergelijkt ontwerp vs. werkelijkheid
+- Revisietekening (As-Built) genereren als DXF + PDF
+- Revisienummer ophogen in bestandsnaam
+
+**Acceptatiecriteria:**
+- Werkelijke punten invoerbaar naast ontwerppunten
+- As-Built DXF toont beide profielen (ontwerp + werkelijk)
+- Revisienummer correct in bestandsnaam en titelblok
+
+**Testcases (eerste opzet):**
+```
+TC-asbuilt-A  Werkelijke punten invoeren → opgeslagen naast ontwerp
+TC-asbuilt-B  As-Built DXF → ontwerp (grijs) + werkelijk (kleur) zichtbaar
+TC-asbuilt-C  Bestandsnaam = {ordernummer}-{volgnummer}-rev.2.dxf
+```
+
+---
+
 ## Afhankelijkheidsdiagram
 
 ```
@@ -522,7 +559,8 @@ Walking Skeleton (DONE)
   │                               │                  ├── [6] Sleufloze
   │                               │                  └── [7] Conflictcheck
   │                               ├─ [8] Boogzinker
-  │                               ├─ [9] Boorprofiel ── [12] Tracévarianten
+  │                               ├─ [9] Boorprofiel ─┬─ [12] Tracévarianten
+  │                               │                   └─ [18] As-Built
   │                               ├─ [10] AHN5 + PDOK
   │                               ├─ [11] Topotijdreis
   │                               ├─ [14] Vergunningscheck
