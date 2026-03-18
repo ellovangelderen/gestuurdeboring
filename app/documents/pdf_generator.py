@@ -59,119 +59,192 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         return ""
 
     # SVG viewBox
-    margin = 20
-    z_min = profiel.diepte_NAP_m - 5
-    z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 5
+    margin_left = 45   # ruimte voor NAP labels
+    margin_right = 15
+    margin_top = 25
+    margin_bot = 35    # ruimte voor afstandslabels
     svg_width = 1200
-    svg_height = 400
+    svg_height = 450
 
-    # Scale factors
+    z_min = profiel.diepte_NAP_m - 2
+    z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 2
     x_range = L_totaal if L_totaal > 0 else 1.0
     z_range = z_max - z_min if (z_max - z_min) > 0 else 1.0
-    sx = (svg_width - 2 * margin) / x_range
-    sz = (svg_height - 2 * margin) / z_range
+    sx = (svg_width - margin_left - margin_right) / x_range
+    sz = (svg_height - margin_top - margin_bot) / z_range
 
     def tx(x: float) -> float:
-        return margin + x * sx
+        return margin_left + x * sx
 
     def tz(z: float) -> float:
-        # SVG y-as is omgekeerd (naar beneden)
-        return margin + (z_max - z) * sz
+        return margin_top + (z_max - z) * sz
 
-    paths = []
+    svg_parts = []
 
-    # Maaiveldlijn (bruin/groen)
-    paths.append(
-        f'<line x1="{tx(0):.1f}" y1="{tz(mv.MVin_NAP_m):.1f}" '
-        f'x2="{tx(L_totaal):.1f}" y2="{tz(mv.MVuit_NAP_m):.1f}" '
-        f'stroke="#5a8a3c" stroke-width="3" stroke-dasharray="8,4"/>'
+    # ── NAP grid (per 1m) ──
+    import math as _m
+    z_start_nap = int(_m.floor(z_min))
+    z_end_nap = int(_m.ceil(z_max))
+    for nap in range(z_start_nap, z_end_nap + 1):
+        y_pos = tz(nap)
+        is_zero = nap == 0
+        svg_parts.append(
+            f'<line x1="{margin_left:.0f}" y1="{y_pos:.1f}" '
+            f'x2="{svg_width - margin_right:.0f}" y2="{y_pos:.1f}" '
+            f'stroke="{"#999" if is_zero else "#e0e0e0"}" stroke-width="{"1" if is_zero else "0.5"}"/>'
+        )
+        svg_parts.append(
+            f'<text x="{margin_left - 4:.0f}" y="{y_pos + 4:.1f}" '
+            f'font-size="10" text-anchor="end" fill="#666" font-weight="{"bold" if is_zero else "normal"}">{nap:+d}</text>'
+        )
+    # NAP label
+    svg_parts.append(
+        f'<text x="8" y="{margin_top + 10}" font-size="9" fill="#999" '
+        f'transform="rotate(-90, 8, {margin_top + 10})">m NAP</text>'
     )
 
-    # Boorlijn segmenten
-    boorlijn_parts = []
+    # ── Maaiveldlijn (groen, gestreept) ──
+    svg_parts.append(
+        f'<line x1="{tx(0):.1f}" y1="{tz(mv.MVin_NAP_m):.1f}" '
+        f'x2="{tx(L_totaal):.1f}" y2="{tz(mv.MVuit_NAP_m):.1f}" '
+        f'stroke="#5a8a3c" stroke-width="2.5" stroke-dasharray="8,4"/>'
+    )
+
+    # ── Boorlijn (rood, dik, met ARCs) ──
     for seg in profiel.segmenten:
         if seg["type"] == "lijn":
             if seg.get("lengte", 0) < 0.001:
                 continue
-            boorlijn_parts.append(
+            svg_parts.append(
                 f'<line x1="{tx(seg["x_start"]):.1f}" y1="{tz(seg["z_start"]):.1f}" '
                 f'x2="{tx(seg["x_end"]):.1f}" y2="{tz(seg["z_end"]):.1f}" '
                 f'stroke="#cc0000" stroke-width="3"/>'
             )
         elif seg["type"] == "arc":
-            # Discretiseer boog naar SVG polyline
             pts = arc_punten(
                 seg["cx"], seg["cz"], seg["radius"],
-                seg["start_hoek_rad"], seg["eind_hoek_rad"], n=40,
+                seg["start_hoek_rad"], seg["eind_hoek_rad"], n=60,
             )
             svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in pts)
-            boorlijn_parts.append(
+            svg_parts.append(
                 f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3"/>'
             )
 
-    paths.extend(boorlijn_parts)
+    # ── Sensorpunt labels langs de boorlijn ──
+    # Bereken positie per sensorpunt op het profiel (projectie op x-as)
+    from app.geo.profiel import trace_totale_afstand as _tta
+    trace_coords = [(p.RD_x, p.RD_y) for p in punten]
+    cumul_dist = [0.0]
+    for i in range(1, len(trace_coords)):
+        d = _m.sqrt((trace_coords[i][0] - trace_coords[i-1][0])**2 +
+                     (trace_coords[i][1] - trace_coords[i-1][1])**2)
+        cumul_dist.append(cumul_dist[-1] + d)
 
-    # Labels
-    labels = []
-    labels.append(
-        f'<text x="{tx(0) - 2:.1f}" y="{tz(mv.MVin_NAP_m) - 4:.1f}" '
-        f'font-size="12" text-anchor="end" fill="#333" font-weight="bold">MV {mv.MVin_NAP_m:+.2f}</text>'
+    for i, p in enumerate(punten):
+        x_pos = cumul_dist[i] if i < len(cumul_dist) else 0
+        # Bereken z op de boorlijn via lineaire interpolatie van maaiveld
+        # (sensorpunten zitten op maaiveld, niet op de boorlijn)
+        t = x_pos / L_totaal if L_totaal > 0 else 0
+        z_mv = mv.MVin_NAP_m + t * (mv.MVuit_NAP_m - mv.MVin_NAP_m)
+
+        px = tx(x_pos)
+        py_mv = tz(z_mv)
+
+        # Verticale lijn van maaiveld naar beneden (sensorpunt marker)
+        svg_parts.append(
+            f'<line x1="{px:.1f}" y1="{py_mv:.1f}" x2="{px:.1f}" y2="{py_mv + 8:.1f}" '
+            f'stroke="#333" stroke-width="1"/>'
+        )
+        # Label boven maaiveld
+        if p.label:
+            svg_parts.append(
+                f'<text x="{px:.1f}" y="{py_mv - 6:.1f}" '
+                f'font-size="10" text-anchor="middle" fill="#cc0000" font-weight="bold">{p.label}</text>'
+            )
+
+    # ── Afstandslabels onder het profiel ──
+    afstand_y = svg_height - 8
+    for i, p in enumerate(punten):
+        x_pos = cumul_dist[i] if i < len(cumul_dist) else 0
+        px = tx(x_pos)
+        if p.label:
+            svg_parts.append(
+                f'<text x="{px:.1f}" y="{afstand_y:.1f}" '
+                f'font-size="8" text-anchor="middle" fill="#666">{x_pos:.0f}m</text>'
+            )
+
+    # ── Doorsnede-nummers ──
+    for d in boring.doorsneden:
+        dx = tx(d.afstand_m)
+        dz = tz(d.NAP_m)
+        # Cirkel met nummer
+        svg_parts.append(
+            f'<circle cx="{dx:.1f}" cy="{dz:.1f}" r="8" fill="#fff" stroke="#333" stroke-width="1"/>'
+        )
+        svg_parts.append(
+            f'<text x="{dx:.1f}" y="{dz + 3.5:.1f}" font-size="9" text-anchor="middle" '
+            f'fill="#333" font-weight="bold">{d.volgorde + 1}</text>'
+        )
+
+    # ── MV labels links en rechts ──
+    svg_parts.append(
+        f'<text x="{tx(0) - 2:.0f}" y="{tz(mv.MVin_NAP_m) + 4:.1f}" '
+        f'font-size="11" text-anchor="end" fill="#5a8a3c" font-weight="bold">MV {mv.MVin_NAP_m:+.2f}</text>'
     )
-    labels.append(
-        f'<text x="{tx(L_totaal) + 2:.1f}" y="{tz(mv.MVuit_NAP_m) - 4:.1f}" '
-        f'font-size="12" text-anchor="start" fill="#333" font-weight="bold">MV {mv.MVuit_NAP_m:+.2f}</text>'
+    svg_parts.append(
+        f'<text x="{tx(L_totaal) + 2:.0f}" y="{tz(mv.MVuit_NAP_m) + 4:.1f}" '
+        f'font-size="11" text-anchor="start" fill="#5a8a3c" font-weight="bold">MV {mv.MVuit_NAP_m:+.2f}</text>'
     )
-    # Diepte label met boog-specifieke info
+
+    # ── Hoeklabels bij intree en uittree ──
+    if not (boring.type == "Z" and boring.booghoek_gr):
+        svg_parts.append(
+            f'<text x="{tx(15):.0f}" y="{tz(mv.MVin_NAP_m) + 20:.1f}" '
+            f'font-size="10" fill="#333">{boring.intreehoek_gr or 18}° intree</text>'
+        )
+        svg_parts.append(
+            f'<text x="{tx(L_totaal - 15):.0f}" y="{tz(mv.MVuit_NAP_m) + 20:.1f}" '
+            f'font-size="10" text-anchor="end" fill="#333">{boring.uittreehoek_gr or 22}° uittree</text>'
+        )
+
+    # ── Diepte + Rv label ──
     if boring.type == "Z" and boring.booghoek_gr:
         booglengte_str = ""
         for seg in profiel.segmenten:
             if seg["type"] == "arc" and "booglengte" in seg:
                 booglengte_str = f" | Booglengte={seg['booglengte']:.1f}m"
                 break
-        labels.append(
-            f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
-            f'font-size="11" text-anchor="middle" fill="#333">'
-            f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Booghoek={boring.booghoek_gr:.1f}{booglengte_str}</text>'
-        )
+        diepte_label = f"Diepte {profiel.diepte_NAP_m:+.2f} NAP | Booghoek={boring.booghoek_gr:.1f}°{booglengte_str}"
     else:
-        labels.append(
-            f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
-            f'font-size="11" text-anchor="middle" fill="#333">'
-            f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Rv={profiel.Rv_m:.0f}m</text>'
-        )
-    labels.append(
-        f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(z_max) + 12:.1f}" '
-        f'font-size="14" text-anchor="middle" fill="#000" font-weight="bold">'
-        f'L = {L_totaal:.1f} m</text>'
+        diepte_label = f"Diepte {profiel.diepte_NAP_m:+.2f} NAP | Rv={profiel.Rv_m:.0f}m"
+
+    svg_parts.append(
+        f'<text x="{tx(L_totaal / 2):.0f}" y="{tz(profiel.diepte_NAP_m) + 16:.1f}" '
+        f'font-size="11" text-anchor="middle" fill="#333">{diepte_label}</text>'
     )
 
-    # NAP schaal (links)
-    # Teken een paar referentielijnen
-    nap_lines = []
-    import math as _m
-    step = max(1, int(_m.ceil(z_range / 5)))
-    z_start_nap = int(_m.floor(z_min))
-    z_end_nap = int(_m.ceil(z_max))
-    for nap in range(z_start_nap, z_end_nap + 1, step):
-        y_pos = tz(nap)
-        nap_lines.append(
-            f'<line x1="{margin - 5:.1f}" y1="{y_pos:.1f}" '
-            f'x2="{svg_width - margin:.1f}" y2="{y_pos:.1f}" '
-            f'stroke="#ddd" stroke-width="0.5"/>'
-        )
-        nap_lines.append(
-            f'<text x="{margin - 7:.1f}" y="{y_pos + 3:.1f}" '
-            f'font-size="10" text-anchor="end" fill="#999">{nap:+d}</text>'
-        )
+    # ── L totaal label bovenaan ──
+    svg_parts.append(
+        f'<text x="{tx(L_totaal / 2):.0f}" y="{margin_top - 6:.0f}" '
+        f'font-size="13" text-anchor="middle" fill="#000" font-weight="bold">L = {L_totaal:.1f} m</text>'
+    )
+
+    # ── A INTREDE / B UITTREDE labels ──
+    svg_parts.append(
+        f'<text x="{tx(0):.0f}" y="{margin_top - 6:.0f}" '
+        f'font-size="9" text-anchor="middle" fill="#333">A INTREDE</text>'
+    )
+    svg_parts.append(
+        f'<text x="{tx(L_totaal):.0f}" y="{margin_top - 6:.0f}" '
+        f'font-size="9" text-anchor="middle" fill="#333">B UITTREDE</text>'
+    )
 
     svg = (
         f'<svg width="{svg_width}" height="{svg_height}" '
         f'viewBox="0 0 {svg_width} {svg_height}" '
-        f'xmlns="http://www.w3.org/2000/svg" style="background:#fafafa; border:0.5pt solid #ccc;">\n'
+        f'xmlns="http://www.w3.org/2000/svg" style="background:#fff;">\n'
     )
-    svg += "\n".join(nap_lines) + "\n"
-    svg += "\n".join(paths) + "\n"
-    svg += "\n".join(labels) + "\n"
+    svg += "\n".join(svg_parts) + "\n"
     svg += "</svg>"
     return svg
 
