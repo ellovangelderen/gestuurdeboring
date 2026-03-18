@@ -497,11 +497,16 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
             pass
 
     # Logo's
-    _logos_dir = Path(__file__).parent.parent / "static" / "logos"
+    _logos_dir = Path(__file__).parent.parent.parent / "static" / "logos"
     gbt_logo_url = ""
     gbt_logo_path = _logos_dir / "gbt_logo.svg"
     if gbt_logo_path.exists():
-        gbt_logo_url = _svg_to_png_data_uri(gbt_logo_path.read_text())
+        try:
+            import cairosvg as _cairo
+            png_bytes = _cairo.svg2png(bytestring=gbt_logo_path.read_bytes(), output_width=400)
+            gbt_logo_url = _bytes_to_tmpfile(png_bytes, ".png")
+        except Exception:
+            pass
 
     # Klant logo (boorbedrijf)
     klant_logo_url = ""
