@@ -9,98 +9,68 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 7pt; color: #000; }
-
-    /* Hoofd-tabel als layout */
     .hoofdtabel { width: 408mm; border-collapse: collapse; border: 0.5pt solid #000; }
     .hoofdtabel td { vertical-align: top; border: 0.5pt solid #000; }
-
-    .zone-title { font-size: 7pt; font-weight: bold; text-transform: uppercase; margin-bottom: 2mm; }
-    .mono { font-family: 'Courier New', monospace; font-size: 6pt; line-height: 1.6; }
-
+    .zone-title { font-size: 7pt; font-weight: bold; text-transform: uppercase; margin-bottom: 1.5mm; }
+    .mono { font-family: 'Courier New', monospace; font-size: 6pt; line-height: 1.5; }
     table.data { border-collapse: collapse; width: 100%; }
     table.data th, table.data td { border: 0.3pt solid #999; padding: 0.5mm 1mm; font-size: 6pt; text-align: left; }
     table.data th { background: #f0f0f0; font-weight: bold; }
-
-    .ev-warning { border: 1.5pt solid #dc3545; background: #fff5f5; padding: 1.5mm; margin: 2mm 0; font-size: 6.5pt; }
-    .profiel-blok svg { width: 100%; height: auto; }
-    .situatie-img { width: 100%; height: auto; display: block; }
+    .ev-warning { border: 1.5pt solid #dc3545; background: #fff5f5; padding: 1.5mm; margin: 1.5mm 0; font-size: 6.5pt; }
+    img.fill { width: 100%; display: block; }
   </style>
 </head>
 <body>
 
 <table class="hoofdtabel">
-
-  <!-- ═══ BOVENSTE RIJ ═══ -->
   <tr>
-
-    <!-- ZONE 1: Links-boven — Bovenaanzicht + GPS + Doorsnede -->
+    <!-- ═══ ZONE 1: Links-boven ═══ -->
     <td style="width: 95mm; height: 150mm; padding: 2mm;">
       <div class="zone-title">Bovenaanzicht, schaal 1:4000</div>
-
-      {% if bovenaanzicht_svg %}
-      <div style="margin-bottom: 2mm;">{{ bovenaanzicht_svg | safe }}</div>
+      {% if bovenaanzicht_url %}
+      <img src="{{ bovenaanzicht_url }}" class="fill" style="max-height: 75mm;">
       {% endif %}
 
-      <div class="zone-title">GPS punten boorlijn:</div>
+      <div class="zone-title" style="margin-top: 1.5mm;">GPS punten boorlijn:</div>
       <div class="mono">
-        {% for p in punten %}
-        {{ p.label }}: {{ p.RD_x }}, {{ p.RD_y }}<br>
-        {% endfor %}
+        {% for p in punten %}{{ p.label }}: {{ p.RD_x }}, {{ p.RD_y }}<br>{% endfor %}
       </div>
 
       {% if not is_boogzinker %}
-      <div style="margin-top: 1mm; font-size: 6pt;">
+      <div style="font-size: 6pt; margin-top: 1mm;">
         Intreehoek {{ boring.intreehoek_gr }}° (={{ intreehoek_pct }}%)<br>
         Uittreehoek {{ boring.uittreehoek_gr }}° (={{ uittreehoek_pct }}%)
       </div>
       {% else %}
-      <div style="margin-top: 1mm; font-size: 6pt;">
-        Booghoek {{ boring.booghoek_gr }}° · Stand {{ boring.stand or '-' }}
-      </div>
+      <div style="font-size: 6pt; margin-top: 1mm;">Booghoek {{ boring.booghoek_gr }}° · Stand {{ boring.stand or '-' }}</div>
       {% endif %}
 
-      <div class="zone-title" style="margin-top: 2mm;">Doorsnede boorgat</div>
-      <div style="text-align: center;">
-        {% set svg_r_boorgat = 35 %}
-        {% set svg_r_buis = (r_buis_mm / r_boorgat_mm * svg_r_boorgat) | round | int %}
-        <svg width="100" height="95" viewBox="0 0 100 95">
-          <circle cx="50" cy="40" r="{{ svg_r_boorgat }}" fill="none" stroke="#444" stroke-width="1.5" stroke-dasharray="3,2"/>
-          <circle cx="50" cy="40" r="{{ svg_r_buis }}" fill="#e8f4ff" stroke="#0055aa" stroke-width="1"/>
-          <text x="50" y="82" text-anchor="middle" font-size="5.5">Ruimer Ø{{ boring.Dg_mm|int }}mm</text>
-          <text x="50" y="90" text-anchor="middle" font-size="5.5">1×Ø{{ boring.De_mm|int }} {{ boring.materiaal }} SDR{{ boring.SDR }}</text>
-        </svg>
+      <div class="zone-title" style="margin-top: 1.5mm;">Doorsnede boorgat</div>
+      <div style="text-align: center; font-size: 6pt;">
+        Pilotboring Ø{{ boring.De_mm|int }}mm · Ruimer Ø{{ boring.Dg_mm|int }}mm<br>
+        Aanboring 1×Ø{{ boring.De_mm|int }} {{ boring.materiaal }} SDR{{ boring.SDR }}
       </div>
     </td>
 
-    <!-- ZONE 2: Rechts-boven — Situatietekening -->
+    <!-- ═══ ZONE 2: Rechts-boven — Situatietekening ═══ -->
     <td style="padding: 0; height: 150mm;">
       {% if kaart_url %}
-      <div style="position: relative;">
-        <img src="{{ kaart_url }}" class="situatie-img">
-        <div style="position: absolute; top: 1mm; left: 2mm; font-size: 7pt; font-weight: bold; background: rgba(255,255,255,0.85); padding: 0.5mm 2mm;">
-          SITUATIE, SCHAAL 1:250
-        </div>
+      <img src="{{ kaart_url }}" class="fill" style="height: 150mm; object-fit: cover;">
+      <div style="margin-top: -148mm; margin-left: 2mm; font-size: 7pt; font-weight: bold; background: rgba(255,255,255,0.85); padding: 0.5mm 2mm; display: inline-block;">
+        SITUATIE, SCHAAL 1:250
       </div>
       {% else %}
       <div style="padding: 2mm;">
-        <div class="zone-title">Situatie, schaal 1:250</div>
-        {% if bovenaanzicht_svg %}
-        {{ bovenaanzicht_svg | safe }}
-        {% else %}
-        <p style="color: #999;">Geen tracédata.</p>
-        {% endif %}
+        <div class="zone-title">Situatie</div>
+        <p style="color: #999;">Geen kaartdata beschikbaar.</p>
       </div>
       {% endif %}
     </td>
-
   </tr>
 
-  <!-- ═══ ONDERSTE RIJ ═══ -->
   <tr>
-
-    <!-- ZONE 3: Links-onder — Legenda + Doorsneden + Params -->
+    <!-- ═══ ZONE 3: Links-onder ═══ -->
     <td style="width: 95mm; padding: 2mm;">
-
       {% if doorsneden %}
       <div class="zone-title">Doorsneden</div>
       <table class="data" style="margin-bottom: 2mm;">
@@ -114,16 +84,16 @@
       {% endif %}
 
       <div class="zone-title">Legenda</div>
-      <svg width="85mm" height="22mm" viewBox="0 0 240 62">
-        <line x1="3" y1="8" x2="20" y2="8" stroke="#BE9600" stroke-width="2"/><text x="24" y="11" font-size="7">Laagspanning</text>
-        <line x1="3" y1="20" x2="20" y2="20" stroke="#00823C" stroke-width="2"/><text x="24" y="23" font-size="7">Middenspanning</text>
-        <line x1="3" y1="32" x2="20" y2="32" stroke="#DC0000" stroke-width="2"/><text x="24" y="35" font-size="7">Hoogspanning</text>
-        <line x1="125" y1="8" x2="142" y2="8" stroke="#A05000" stroke-width="2"/><text x="146" y="11" font-size="7">Gas</text>
-        <line x1="125" y1="20" x2="142" y2="20" stroke="#0055AA" stroke-width="2"/><text x="146" y="23" font-size="7">Water</text>
-        <line x1="125" y1="32" x2="142" y2="32" stroke="#7030A0" stroke-width="2"/><text x="146" y="35" font-size="7">Riool</text>
-        <line x1="3" y1="47" x2="20" y2="47" stroke="#CC0000" stroke-width="3"/><text x="24" y="50" font-size="7" font-weight="bold">Boorlijn</text>
-        <line x1="125" y1="47" x2="142" y2="47" stroke="#5a8a3c" stroke-width="2" stroke-dasharray="3,2"/><text x="146" y="50" font-size="7">Maaiveld</text>
-      </svg>
+      <table style="border-collapse: collapse; font-size: 6pt; margin-bottom: 2mm;">
+        <tr><td style="padding: 0.5mm 1mm;"><span style="color: #BE9600;">━━</span> Laagspanning</td>
+            <td style="padding: 0.5mm 1mm;"><span style="color: #A05000;">━━</span> Gas</td></tr>
+        <tr><td style="padding: 0.5mm 1mm;"><span style="color: #00823C;">━━</span> Middenspanning</td>
+            <td style="padding: 0.5mm 1mm;"><span style="color: #0055AA;">━━</span> Water</td></tr>
+        <tr><td style="padding: 0.5mm 1mm;"><span style="color: #DC0000;">━━</span> Hoogspanning</td>
+            <td style="padding: 0.5mm 1mm;"><span style="color: #7030A0;">━━</span> Riool</td></tr>
+        <tr><td style="padding: 0.5mm 1mm;"><strong style="color: #CC0000;">━━</strong> <strong>Boorlijn</strong></td>
+            <td style="padding: 0.5mm 1mm;"><span style="color: #5a8a3c;">- - -</span> Maaiveld</td></tr>
+      </table>
 
       {% if has_ev_zones %}
       <div class="ev-warning">
@@ -132,7 +102,7 @@
       </div>
       {% endif %}
 
-      <div style="font-size: 6pt; margin-top: 2mm; line-height: 1.5;">
+      <div style="font-size: 6pt; line-height: 1.4; margin-top: 1mm;">
         {% if boring.maaiveld_override %}
         MV intrede: {{ boring.maaiveld_override.MVin_NAP_m }} m NAP<br>
         MV uittrede: {{ boring.maaiveld_override.MVuit_NAP_m }} m NAP<br>
@@ -143,14 +113,12 @@
       </div>
     </td>
 
-    <!-- ZONE 4: Rechts-onder — Lengteprofiel + Titelblok -->
+    <!-- ═══ ZONE 4: Rechts-onder — Lengteprofiel + Titelblok ═══ -->
     <td style="padding: 0;">
-
-      <!-- Lengteprofiel -->
       <div style="padding: 2mm; border-bottom: 0.5pt solid #000;">
         <div class="zone-title">Lengteprofiel, schaal 1:250</div>
-        {% if lengteprofiel_svg %}
-        <div class="profiel-blok">{{ lengteprofiel_svg | safe }}</div>
+        {% if lengteprofiel_url %}
+        <img src="{{ lengteprofiel_url }}" class="fill">
         {% else %}
         <p style="color: #999;">Geen profieldata.</p>
         {% endif %}
@@ -166,42 +134,17 @@
             3. Sensorpunten via walk-over meetsysteem.<br>
             4. DWG is leidend; PDF is afgeleid document.
           </td>
-          <td style="padding: 2mm; vertical-align: top;">
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;"><strong>Project</strong></td>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;">{{ order.ordernummer or '' }} {{ order.locatie or '' }}</td>
-              </tr>
-              <tr>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;"><strong>Opdr.gever</strong></td>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;">{{ order.opdrachtgever or '—' }}</td>
-              </tr>
-              <tr>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;"><strong>Getekend</strong></td>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;">M. Luijben</td>
-              </tr>
-              <tr>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;"><strong>Akkoord</strong></td>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;">{{ order.akkoord_contact or '—' }}</td>
-              </tr>
-              <tr>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;"><strong>Datum</strong></td>
-                <td style="font-size: 6pt; padding: 0.5mm; border-bottom: 0.3pt solid #ccc;">{{ datum }}</td>
-              </tr>
-              <tr>
-                <td style="font-size: 6pt; padding: 0.5mm;"><strong>Ordernr.</strong></td>
-                <td style="font-size: 6pt; padding: 0.5mm;">{{ order.ordernummer or '' }}-{{ '%02d'|format(boring.volgnummer) }}</td>
-              </tr>
-            </table>
-            <table class="data" style="margin-top: 1mm; font-size: 5.5pt;">
-              <thead><tr><th>Rev.</th><th>Datum</th><th>Getekend</th><th>Wijziging</th></tr></thead>
-              <tbody><tr><td>0</td><td>{{ datum }}</td><td>M.Luijben</td><td>Eerste uitgifte</td></tr></tbody>
-            </table>
+          <td style="padding: 2mm; font-size: 6pt; vertical-align: top;">
+            <strong>{{ order.ordernummer or '' }} — {{ order.locatie or '' }}</strong><br>
+            Opdr: {{ order.opdrachtgever or '—' }}<br>
+            {{ boring.materiaal }} SDR{{ boring.SDR }} Ø{{ boring.De_mm|int }}mm<br>
+            Getekend: M. Luijben · Akkoord: {{ order.akkoord_contact or '—' }}<br>
+            Datum: {{ datum }} · Nr: {{ order.ordernummer or '' }}-{{ '%02d'|format(boring.volgnummer) }}<br>
+            <span style="font-size: 5pt;">Rev 0 · {{ datum }} · Eerste uitgifte</span>
           </td>
         </tr>
       </table>
     </td>
-
   </tr>
 </table>
 

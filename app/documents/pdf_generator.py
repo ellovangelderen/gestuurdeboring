@@ -332,16 +332,49 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         from app.order.models import EVZone
         ev_zones = db.query(EVZone).filter_by(order_id=order.id).all()
 
-    # Lengteprofiel en bovenaanzicht SVG
+    # WeasyPrint rendert inline SVG niet betrouwbaar in table cells.
+    # Oplossing: alle visuele elementen opslaan als tijdelijke bestanden.
+    import tempfile
+    import os
+    tmpfiles = []
+
+    def _svg_to_tmpfile(svg_str: str, width: int = 800) -> str:
+        """Sla SVG op als tijdelijk .svg bestand, return file:// URL."""
+        if not svg_str:
+            return ""
+        try:
+            f = tempfile.NamedTemporaryFile(suffix=".svg", delete=False, mode="w")
+            f.write(svg_str)
+            f.flush()
+            tmpfiles.append(f.name)
+            return f"file://{f.name}"
+        except Exception:
+            return ""
+
+    def _bytes_to_tmpfile(data: bytes, suffix: str = ".jpg") -> str:
+        """Sla bytes op als tijdelijk bestand, return file:// URL."""
+        try:
+            f = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            f.write(data)
+            f.flush()
+            tmpfiles.append(f.name)
+            return f"file://{f.name}"
+        except Exception:
+            return ""
+
+    # Genereer SVG's
     lengteprofiel_svg = _generate_lengteprofiel_svg(boring)
     bovenaanzicht_svg = _generate_bovenaanzicht_svg(boring)
 
-    # Kaartachtergrond als tijdelijk bestand (WeasyPrint ondersteunt geen data URIs voor img)
-    kaart_file_url = ""
-    _kaart_tmpfile = None
+    # Sla op als bestanden
+    lengteprofiel_url = _svg_to_tmpfile(lengteprofiel_svg)
+    bovenaanzicht_url = _svg_to_tmpfile(bovenaanzicht_svg)
+
+    # Kaartachtergrond (OSM tiles)
+    kaart_url = ""
     if boring.trace_punten and len(boring.trace_punten) >= 2:
         try:
-            import tempfile
+            import base64 as _b64
             from app.geo.coords import rd_to_wgs84
             xs = [p.RD_x for p in boring.trace_punten]
             ys = [p.RD_y for p in boring.trace_punten]
@@ -350,12 +383,8 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
             lat_c, lon_c = rd_to_wgs84(cx, cy)
             b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=16, tiles_x=4, tiles_y=3)
             if b64:
-                import base64
-                img_bytes = base64.b64decode(b64.split(",", 1)[1])
-                _kaart_tmpfile = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-                _kaart_tmpfile.write(img_bytes)
-                _kaart_tmpfile.flush()
-                kaart_file_url = f"file://{_kaart_tmpfile.name}"
+                img_bytes = _b64.b64decode(b64.split(",", 1)[1])
+                kaart_url = _bytes_to_tmpfile(img_bytes, ".jpg")
         except Exception:
             pass
 
@@ -371,9 +400,9 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         "uittreehoek_pct": _hoek_pct(boring.uittreehoek_gr) if boring.type != "Z" else 0,
         "ev_zones": ev_zones,
         "has_ev_zones": len(ev_zones) > 0,
-        "lengteprofiel_svg": lengteprofiel_svg,
-        "bovenaanzicht_svg": bovenaanzicht_svg,
-        "kaart_url": kaart_file_url,
+        "lengteprofiel_url": lengteprofiel_url,
+        "bovenaanzicht_url": bovenaanzicht_url,
+        "kaart_url": kaart_url,
         "is_boogzinker": boring.type == "Z",
     }
 
@@ -381,11 +410,10 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     html_str = template.render(**context)
     pdf_bytes = HTML(string=html_str, base_url=str(_template_dir)).write_pdf()
 
-    # Cleanup tijdelijk kaartbestand
-    if _kaart_tmpfile:
-        import os
+    # Cleanup alle tijdelijke bestanden
+    for f in tmpfiles:
         try:
-            os.unlink(_kaart_tmpfile.name)
+            os.unlink(f)
         except OSError:
             pass
 
