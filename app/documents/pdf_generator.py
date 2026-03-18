@@ -62,8 +62,8 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     margin = 20
     z_min = profiel.diepte_NAP_m - 5
     z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 5
-    svg_width = 600
-    svg_height = 300
+    svg_width = 1200
+    svg_height = 400
 
     # Scale factors
     x_range = L_totaal if L_totaal > 0 else 1.0
@@ -84,7 +84,7 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     paths.append(
         f'<line x1="{tx(0):.1f}" y1="{tz(mv.MVin_NAP_m):.1f}" '
         f'x2="{tx(L_totaal):.1f}" y2="{tz(mv.MVuit_NAP_m):.1f}" '
-        f'stroke="#5a8a3c" stroke-width="2" stroke-dasharray="6,3"/>'
+        f'stroke="#5a8a3c" stroke-width="3" stroke-dasharray="8,4"/>'
     )
 
     # Boorlijn segmenten
@@ -96,7 +96,7 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
             boorlijn_parts.append(
                 f'<line x1="{tx(seg["x_start"]):.1f}" y1="{tz(seg["z_start"]):.1f}" '
                 f'x2="{tx(seg["x_end"]):.1f}" y2="{tz(seg["z_end"]):.1f}" '
-                f'stroke="#cc0000" stroke-width="1.5"/>'
+                f'stroke="#cc0000" stroke-width="3"/>'
             )
         elif seg["type"] == "arc":
             # Discretiseer boog naar SVG polyline
@@ -106,7 +106,7 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
             )
             svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in pts)
             boorlijn_parts.append(
-                f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="1.5"/>'
+                f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3"/>'
             )
 
     paths.extend(boorlijn_parts)
@@ -115,11 +115,11 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     labels = []
     labels.append(
         f'<text x="{tx(0) - 2:.1f}" y="{tz(mv.MVin_NAP_m) - 4:.1f}" '
-        f'font-size="7" text-anchor="end" fill="#333">MV {mv.MVin_NAP_m:+.2f}</text>'
+        f'font-size="12" text-anchor="end" fill="#333" font-weight="bold">MV {mv.MVin_NAP_m:+.2f}</text>'
     )
     labels.append(
         f'<text x="{tx(L_totaal) + 2:.1f}" y="{tz(mv.MVuit_NAP_m) - 4:.1f}" '
-        f'font-size="7" text-anchor="start" fill="#333">MV {mv.MVuit_NAP_m:+.2f}</text>'
+        f'font-size="12" text-anchor="start" fill="#333" font-weight="bold">MV {mv.MVuit_NAP_m:+.2f}</text>'
     )
     # Diepte label met boog-specifieke info
     if boring.type == "Z" and boring.booghoek_gr:
@@ -130,18 +130,18 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
                 break
         labels.append(
             f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
-            f'font-size="7" text-anchor="middle" fill="#333">'
+            f'font-size="11" text-anchor="middle" fill="#333">'
             f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Booghoek={boring.booghoek_gr:.1f}{booglengte_str}</text>'
         )
     else:
         labels.append(
             f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
-            f'font-size="7" text-anchor="middle" fill="#333">'
+            f'font-size="11" text-anchor="middle" fill="#333">'
             f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Rv={profiel.Rv_m:.0f}m</text>'
         )
     labels.append(
         f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(z_max) + 12:.1f}" '
-        f'font-size="8" text-anchor="middle" fill="#000" font-weight="bold">'
+        f'font-size="14" text-anchor="middle" fill="#000" font-weight="bold">'
         f'L = {L_totaal:.1f} m</text>'
     )
 
@@ -161,7 +161,7 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         )
         nap_lines.append(
             f'<text x="{margin - 7:.1f}" y="{y_pos + 3:.1f}" '
-            f'font-size="6" text-anchor="end" fill="#999">{nap:+d}</text>'
+            f'font-size="10" text-anchor="end" fill="#999">{nap:+d}</text>'
         )
 
     svg = (
@@ -385,25 +385,71 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         try:
             import base64 as _b64
             from app.geo.coords import rd_to_wgs84
+            from PIL import Image, ImageDraw
+
             xs = [p.RD_x for p in boring.trace_punten]
             ys = [p.RD_y for p in boring.trace_punten]
             cx = (min(xs) + max(xs)) / 2
             cy = (min(ys) + max(ys)) / 2
             lat_c, lon_c = rd_to_wgs84(cx, cy)
-            # Zoom bepalen op basis van tracélengte
+
+            # Zoom: zo dicht mogelijk op het tracé
             trace_span = max(max(xs) - min(xs), max(ys) - min(ys))
-            if trace_span < 100:
+            if trace_span < 50:
+                zm = 19
+            elif trace_span < 200:
+                zm = 19
+            elif trace_span < 500:
                 zm = 18
-            elif trace_span < 300:
-                zm = 17
-            elif trace_span < 800:
-                zm = 16
             else:
-                zm = 15
-            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=zm, tiles_x=5, tiles_y=3)
+                zm = 17
+
+            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=zm, tiles_x=9, tiles_y=3)
             if b64:
                 img_bytes = _b64.b64decode(b64.split(",", 1)[1])
-                kaart_url = _bytes_to_tmpfile(img_bytes, ".jpg")
+
+                # Teken tracé als rode lijn over de kaart
+                import io as _io
+                img = Image.open(_io.BytesIO(img_bytes))
+                draw = ImageDraw.Draw(img)
+                img_w, img_h = img.size
+
+                # Converteer RD coords naar pixel coords op de tile-image
+                # Center van de image = (lat_c, lon_c) = pixel (img_w/2, img_h/2)
+                # Schaal: bij zoom z, 1 pixel ≈ (40075016.686 * cos(lat) / (256 * 2^z)) meter
+                import math as _m
+                meters_per_pixel = 40075016.686 * _m.cos(_m.radians(lat_c)) / (256.0 * (2 ** zm))
+
+                trace_pixels = []
+                for p in boring.trace_punten:
+                    # Afstand in meters van center
+                    dx_m = p.RD_x - cx
+                    dy_m = p.RD_y - cy
+                    px = img_w / 2 + dx_m / meters_per_pixel
+                    py = img_h / 2 - dy_m / meters_per_pixel  # y is omgekeerd
+                    trace_pixels.append((int(px), int(py)))
+
+                # Teken rode lijn (dik, goed zichtbaar)
+                if len(trace_pixels) >= 2:
+                    draw.line(trace_pixels, fill=(204, 0, 0), width=6)
+
+                # Teken punten + labels (groter)
+                from PIL import ImageFont
+                try:
+                    font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 18)
+                except Exception:
+                    font = ImageFont.load_default()
+                for i, p in enumerate(boring.trace_punten):
+                    px, py = trace_pixels[i]
+                    draw.ellipse([px-7, py-7, px+7, py+7], fill=(204, 0, 0), outline=(255, 255, 255))
+                    if p.label:
+                        # Witte achtergrond voor leesbaarheid
+                        draw.rectangle([px+10, py-20, px+10+len(p.label)*12, py-2], fill=(255, 255, 255, 200))
+                        draw.text((px+10, py-20), p.label, fill=(204, 0, 0), font=font)
+
+                buf = _io.BytesIO()
+                img.save(buf, format="JPEG", quality=90)
+                kaart_url = _bytes_to_tmpfile(buf.getvalue(), ".jpg")
         except Exception:
             pass
 
