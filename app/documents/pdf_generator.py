@@ -161,37 +161,55 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         f'stroke="#5a8a3c" stroke-width="2.5" stroke-dasharray="8,4"/>'
     )
 
-    # ── Boorlijn (rood, dik, met ARCs — geclipt op maaiveld) ──
-    # Clip grens: lineair geïnterpoleerd maaiveld op elke x
-    def mv_at_x(x):
-        t = x / L_totaal if L_totaal > 0 else 0
-        return mv.MVin_NAP_m + t * (mv.MVuit_NAP_m - mv.MVin_NAP_m)
+    # ── Boorlijn (rood, dik) ──
+    # Visuele benadering: vloeiende curve van maaiveld naar diepte
+    # Bij grote Rv steken de geometrische bogen boven maaiveld uit.
+    # We tekenen de boorlijn als: maaiveld → schuine lijn → boog → horizontaal → boog → schuine lijn → maaiveld
+    # met de bogen begrensd op maaiveld.
+    import math as _math
 
-    boorlijn_punten = []  # verzamel alle punten voor één polyline
-    for seg in profiel.segmenten:
-        if seg["type"] == "lijn":
-            if seg.get("lengte", 0) < 0.001:
-                continue
-            # Clip lijn op maaiveld
-            x_s, z_s = seg["x_start"], min(seg["z_start"], mv_at_x(seg["x_start"]))
-            x_e, z_e = seg["x_end"], min(seg["z_end"], mv_at_x(seg["x_end"]))
-            boorlijn_punten.append((x_s, z_s))
-            boorlijn_punten.append((x_e, z_e))
-        elif seg["type"] == "arc":
-            pts = arc_punten(
-                seg["cx"], seg["cz"], seg["radius"],
-                seg["start_hoek_rad"], seg["eind_hoek_rad"], n=80,
-            )
-            for x, z in pts:
-                # Clip: als boog boven maaiveld uitsteekt, clip op maaiveld
-                z_clipped = min(z, mv_at_x(x))
-                boorlijn_punten.append((x, z_clipped))
+    diepte = profiel.diepte_NAP_m
+    alpha_in = _math.radians(boring.intreehoek_gr or 18.0)
+    alpha_uit = _math.radians(boring.uittreehoek_gr or 22.0)
 
-    if boorlijn_punten:
-        svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in boorlijn_punten)
-        svg_parts.append(
-            f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3"/>'
-        )
+    # Horizontale afstand van de schuine lijnen (van maaiveld tot diepte)
+    dz_in = mv.MVin_NAP_m - diepte
+    dz_uit = mv.MVuit_NAP_m - diepte
+    x_intree_end = dz_in / _math.tan(alpha_in) if alpha_in > 0.01 else 20.0
+    x_uittree_start = L_totaal - (dz_uit / _math.tan(alpha_uit) if alpha_uit > 0.01 else 20.0)
+
+    # Beperk zodat er een horizontaal segment overblijft
+    x_intree_end = min(x_intree_end, L_totaal * 0.4)
+    x_uittree_start = max(x_uittree_start, L_totaal * 0.6)
+
+    # Bouw punten: maaiveld → curve intree → horizontaal → curve uittree → maaiveld
+    n_curve = 30
+    boorlijn_punten = []
+
+    # Intree: van (0, MV_in) naar (x_intree_end, diepte) als vloeiende curve
+    for i in range(n_curve + 1):
+        t = i / n_curve
+        x = x_intree_end * t
+        # Sinusoïdale interpolatie voor vloeiende S-curve
+        s = (1 - _math.cos(t * _math.pi)) / 2  # 0→1 smooth
+        z = mv.MVin_NAP_m + s * (diepte - mv.MVin_NAP_m)
+        boorlijn_punten.append((x, z))
+
+    # Horizontaal segment
+    boorlijn_punten.append((x_uittree_start, diepte))
+
+    # Uittree: van (x_uittree_start, diepte) naar (L_totaal, MV_uit) als vloeiende curve
+    for i in range(n_curve + 1):
+        t = i / n_curve
+        x = x_uittree_start + (L_totaal - x_uittree_start) * t
+        s = (1 - _math.cos(t * _math.pi)) / 2
+        z = diepte + s * (mv.MVuit_NAP_m - diepte)
+        boorlijn_punten.append((x, z))
+
+    svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in boorlijn_punten)
+    svg_parts.append(
+        f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3.5"/>'
+    )
 
     # ── Sensorpunt labels langs de boorlijn ──
     # Bereken positie per sensorpunt op het profiel (projectie op x-as)
