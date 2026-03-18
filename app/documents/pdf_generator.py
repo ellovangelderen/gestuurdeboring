@@ -534,8 +534,52 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
 
     # Converteer SVG's naar PNG data URIs (of file fallback)
     lengteprofiel_url = _svg_to_png_data_uri(lengteprofiel_svg)
-    bovenaanzicht_url = _svg_to_png_data_uri(bovenaanzicht_svg)
     doorsnede_url = _svg_to_png_data_uri(doorsnede_svg)
+
+    # Overzichtskaart (bovenaanzicht): kleine OSM kaart op lagere zoom met tracé
+    bovenaanzicht_url = ""
+    if boring.trace_punten and len(boring.trace_punten) >= 2:
+        try:
+            import io as _io2
+            import math as _m2
+            import base64 as _b64_2
+            from app.geo.coords import rd_to_wgs84 as _rd2wgs
+            from PIL import Image as _Img, ImageDraw as _Draw
+
+            _xs = [p.RD_x for p in boring.trace_punten]
+            _ys = [p.RD_y for p in boring.trace_punten]
+            _cx2 = (min(_xs) + max(_xs)) / 2
+            _cy2 = (min(_ys) + max(_ys)) / 2
+            _lat2, _lon2 = _rd2wgs(_cx2, _cy2)
+
+            # Zoom 15 voor overzicht (meer uitgezoomd)
+            _zm2 = 15
+            _b64_ov = _fetch_map_image_b64(_lat2, _lon2, zoom=_zm2, tiles_x=3, tiles_y=3)
+            if _b64_ov:
+                _img_bytes2 = _b64_2.b64decode(_b64_ov.split(",", 1)[1])
+                _img2 = _Img.open(_io2.BytesIO(_img_bytes2))
+                _draw2 = _Draw.Draw(_img2)
+                _iw2, _ih2 = _img2.size
+                _mpp2 = 40075016.686 * _m2.cos(_m2.radians(_lat2)) / (256.0 * (2 ** _zm2))
+
+                # Teken tracé
+                _tpx2 = []
+                for p in boring.trace_punten:
+                    px = int(_iw2 / 2 + (p.RD_x - _cx2) / _mpp2)
+                    py = int(_ih2 / 2 - (p.RD_y - _cy2) / _mpp2)
+                    _tpx2.append((px, py))
+                if len(_tpx2) >= 2:
+                    _draw2.line(_tpx2, fill=(204, 0, 0), width=4)
+                for px, py in _tpx2:
+                    _draw2.ellipse([px-4, py-4, px+4, py+4], fill=(204, 0, 0))
+
+                _buf2 = _io2.BytesIO()
+                _img2.save(_buf2, format="JPEG", quality=85)
+                bovenaanzicht_url = _bytes_to_tmpfile(_buf2.getvalue(), ".jpg")
+        except Exception:
+            pass
+    if not bovenaanzicht_url:
+        bovenaanzicht_url = _svg_to_png_data_uri(bovenaanzicht_svg)
 
     # Kaartachtergrond (OSM tiles)
     kaart_url = ""
