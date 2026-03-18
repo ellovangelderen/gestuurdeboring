@@ -39,8 +39,8 @@ TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_eng
 # Importeer alle modellen zodat tabellen bekend zijn
 import app.core.models  # noqa: F401
 import app.project.models  # noqa: F401
+import app.order.models  # noqa: F401
 import app.rules.models  # noqa: F401
-# KLICLeiding is gedefinieerd in app.project.models — al geïmporteerd hierboven
 
 
 @pytest.fixture(autouse=True)

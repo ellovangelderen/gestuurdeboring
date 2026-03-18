@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Orders — HDD Platform{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Orders</h1>
+  <a href="/orders/nieuw" class="btn btn-primary">+ Nieuwe order</a>
+</div>
+
+{% if orders %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Ordernummer</th>
+      <th>Locatie</th>
+      <th>Klant</th>
+      <th>Type</th>
+      <th>Status</th>
+      <th>Tekenaar</th>
+      <th>Prio</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for o in orders %}
+    <tr>
+      <td><a href="/orders/{{ o.id }}">{{ o.ordernummer }}</a></td>
+      <td>{{ o.locatie or '—' }}</td>
+      <td>{{ o.klantcode or '—' }}</td>
+      <td>
+        {% for b in o.boringen|sort(attribute='volgnummer') %}
+          {% if b.type == 'B' %}
+            <span class="badge" style="background:#212529;color:#fff;">B</span>
+          {% elif b.type == 'N' %}
+            <span class="badge" style="background:#6c757d;color:#fff;">N</span>
+          {% elif b.type == 'Z' %}
+            <span class="badge" style="background:#6f42c1;color:#fff;">Z</span>
+          {% elif b.type == 'C' %}
+            <span class="badge" style="background:#20c997;color:#fff;">C</span>
+          {% endif %}
+        {% endfor %}
+      </td>
+      <td>
+        <span class="badge badge-status badge-status-{{ o.status }}">
+          <span class="status-dot"></span>
+          {{ statuses.get(o.status, o.status) }}
+        </span>
+      </td>
+      <td>{{ o.tekenaar or '—' }}</td>
+      <td>{% if o.prio %}<strong style="color:#dc3545;">PRIO</strong>{% endif %}</td>
+      <td><a href="/orders/{{ o.id }}">Open &rarr;</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Nog geen orders. <a href="/orders/nieuw">Maak de eerste order aan.</a></p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ order.ordernummer }} — HDD Platform{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ order.ordernummer }}</h1>
+  <span class="badge badge-status badge-status-{{ order.status }}">
+    <span class="status-dot"></span>
+    {{ statuses.get(order.status, order.status) }}
+  </span>
+  {% if order.prio %}<strong style="color:#dc3545;margin-left:8px;">PRIO</strong>{% endif %}
+</div>
+
+<div class="project-meta">
+  <dl>
+    <dt>Locatie</dt><dd>{{ order.locatie or '—' }}</dd>
+    <dt>Klant</dt><dd>{{ order.klantcode or '—' }}{% if order.opdrachtgever %} — {{ order.opdrachtgever }}{% endif %}</dd>
+    <dt>Vergunning</dt><dd>{{ order.vergunning or '—' }}</dd>
+    <dt>Tekenaar</dt><dd>{{ order.tekenaar or '—' }}</dd>
+    <dt>Akkoord contact</dt><dd>{{ order.akkoord_contact or '—' }}</dd>
+    <dt>Ontvangen</dt><dd>{{ order.ontvangen_op.strftime('%d-%m-%Y') }}</dd>
+    <dt>Deadline</dt><dd>{{ order.deadline.strftime('%d-%m-%Y') if order.deadline else '—' }}</dd>
+  </dl>
+</div>
+
+<h2>Boringen ({{ boringen|length }})</h2>
+{% if boringen %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Type</th>
+      <th>Naam</th>
+      <th>Status</th>
+      <th>Acties</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for b in boringen %}
+    <tr>
+      <td>{{ b.volgnummer }}</td>
+      <td>
+        {% if b.type == 'B' %}
+          <span class="badge" style="background:#212529;color:#fff;">B</span>
+        {% elif b.type == 'N' %}
+          <span class="badge" style="background:#6c757d;color:#fff;">N</span>
+        {% elif b.type == 'Z' %}
+          <span class="badge" style="background:#6f42c1;color:#fff;">Z</span>
+        {% elif b.type == 'C' %}
+          <span class="badge" style="background:#20c997;color:#fff;">C</span>
+        {% endif %}
+      </td>
+      <td>{{ b.naam or '—' }}</td>
+      <td>
+        <span class="badge badge-{{ b.status }}">{{ b.status }}</span>
+      </td>
+      <td>
+        <a href="/orders/{{ order.id }}/boringen/{{ b.volgnummer }}" class="btn btn-sm btn-secondary">Details</a>
+        <a href="/orders/{{ order.id }}/boringen/{{ b.volgnummer }}/trace" class="btn btn-sm btn-secondary">Trace</a>
+        <a href="/orders/{{ order.id }}/boringen/{{ b.volgnummer }}/brondata" class="btn btn-sm btn-secondary">Brondata</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Geen boringen bij deze order.</p>
+{% endif %}
+
+<hr>
+<h2>Order bewerken</h2>
+<form method="post" action="/orders/{{ order.id }}/update">
+  <fieldset>
+    <legend>Ordergegevens</legend>
+    <label>Ordernummer *
+      <input type="text" name="ordernummer" value="{{ order.ordernummer }}" required>
+    </label>
+    <label>Locatie
+      <input type="text" name="locatie" value="{{ order.locatie or '' }}">
+    </label>
+    <label>Klantcode
+      <select name="klantcode">
+        <option value="">— Selecteer —</option>
+        {% for kc in klantcodes %}
+        <option value="{{ kc.code }}" {% if order.klantcode == kc.code %}selected{% endif %}>{{ kc.code }} — {{ kc.naam }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Opdrachtgever
+      <input type="text" name="opdrachtgever" value="{{ order.opdrachtgever or '' }}">
+    </label>
+    <label>Vergunning
+      <select name="vergunning">
+        {% for v in vergunning_types %}
+        <option value="{{ v.value }}" {% if order.vergunning == v.value %}selected{% endif %}>{{ v.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tekenaar
+      <input type="text" name="tekenaar" value="{{ order.tekenaar or '' }}">
+    </label>
+    <label>Akkoord contactpersoon
+      <input type="text" name="akkoord_contact" value="{{ order.akkoord_contact or '' }}">
+    </label>
+    <label>Status
+      <select name="status">
+        {% for s in statuses.items() %}
+        <option value="{{ s[0] }}" {% if order.status == s[0] %}selected{% endif %}>{{ s[1] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Notitie
+      <textarea name="notitie" rows="3" style="display:block;width:100%;max-width:400px;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:14px;font-weight:normal;margin-top:3px;">{{ order.notitie or '' }}</textarea>
+    </label>
+    <label>
+      <input type="checkbox" name="prio" {% if order.prio %}checked{% endif %} style="width:auto;display:inline;">
+      Prioriteit
+    </label>
+  </fieldset>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Opslaan</button>
+  </div>
+</form>
+
+<div style="margin-top:16px;">
+  <a href="/orders/" class="btn btn-secondary">&larr; Terug naar orders</a>
+</div>
+{% endblock %}

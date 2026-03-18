@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Nieuwe order — HDD Platform{% endblock %}
+{% block content %}
+<h1>Nieuwe order aanmaken</h1>
+
+<form method="post" action="/orders/nieuw">
+  <fieldset>
+    <legend>Ordergegevens</legend>
+    <label>Ordernummer *
+      <input type="text" name="ordernummer" required placeholder="bijv. 3D25V700">
+    </label>
+    <label>Locatie
+      <input type="text" name="locatie" placeholder="bijv. Haarlem Kennemerplein">
+    </label>
+    <label>Klantcode
+      <select name="klantcode" id="klantcode" onchange="updateContact()">
+        <option value="">— Selecteer —</option>
+        {% for kc in klantcodes %}
+        <option value="{{ kc.code }}" data-contact="{{ kc.akkoord_contact }}">{{ kc.code }} — {{ kc.naam }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Opdrachtgever
+      <input type="text" name="opdrachtgever" placeholder="bijv. Liander">
+    </label>
+    <label>Vergunning
+      <select name="vergunning">
+        {% for v in vergunning_types %}
+        <option value="{{ v.value }}">{{ v.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Tekenaar
+      <input type="text" name="tekenaar" value="martien">
+    </label>
+    <label>Akkoord contactpersoon
+      <input type="text" name="akkoord_contact" id="akkoord_contact" placeholder="Wordt automatisch ingevuld bij klantcode">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Boringen toevoegen</legend>
+    <div style="display:flex;gap:16px;align-items:end;margin-bottom:12px;">
+      <label style="margin-bottom:0;">Type 1
+        <select name="type_1">
+          <option value="">— Geen —</option>
+          {% for bt in boring_types %}
+          <option value="{{ bt.value }}" {% if bt.value == 'B' %}selected{% endif %}>{{ bt.value }} — {{ bt.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label style="margin-bottom:0;">Aantal
+        <input type="number" name="aantal_1" value="1" min="0" max="20" style="width:80px;">
+      </label>
+    </div>
+    <div style="display:flex;gap:16px;align-items:end;">
+      <label style="margin-bottom:0;">Type 2 (optioneel)
+        <select name="type_2">
+          <option value="">— Geen —</option>
+          {% for bt in boring_types %}
+          <option value="{{ bt.value }}">{{ bt.value }} — {{ bt.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label style="margin-bottom:0;">Aantal
+        <input type="number" name="aantal_2" value="0" min="0" max="20" style="width:80px;">
+      </label>
+    </div>
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Order aanmaken</button>
+    <a href="/orders/" class="btn btn-secondary">Annuleren</a>
+  </div>
+</form>
+
+<script>
+function updateContact() {
+  const sel = document.getElementById('klantcode');
+  const opt = sel.options[sel.selectedIndex];
+  const contact = opt.getAttribute('data-contact') || '';
+  document.getElementById('akkoord_contact').value = contact;
+}
+</script>
+{% endblock %}

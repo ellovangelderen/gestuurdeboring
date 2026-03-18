@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Boring {{ boring.volgnummer }} — {{ order.ordernummer }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>
+    {{ order.ordernummer }} — Boring {{ boring.volgnummer }}
+    {% if boring.type == 'B' %}
+      <span class="badge" style="background:#212529;color:#fff;">B — Gestuurde boring</span>
+    {% elif boring.type == 'N' %}
+      <span class="badge" style="background:#6c757d;color:#fff;">N — Nano boring</span>
+    {% elif boring.type == 'Z' %}
+      <span class="badge" style="background:#6f42c1;color:#fff;">Z — Boogzinker</span>
+    {% elif boring.type == 'C' %}
+      <span class="badge" style="background:#20c997;color:#fff;">C — Calculatie</span>
+    {% endif %}
+  </h1>
+</div>
+
+<div class="project-meta">
+  <dl>
+    <dt>Order</dt><dd><a href="/orders/{{ order.id }}">{{ order.ordernummer }}</a> — {{ order.locatie or '' }}</dd>
+    <dt>Naam</dt><dd>{{ boring.naam or '—' }}</dd>
+    <dt>Status</dt><dd><span class="badge badge-{{ boring.status }}">{{ boring.status }}</span></dd>
+  </dl>
+</div>
+
+<!-- Voortgang -->
+<h2>Voortgang</h2>
+<ul class="stappen">
+  <li class="{{ 'ok' if boring.trace_punten else 'leeg' }}">
+    <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/trace">Trace invoeren</a>
+    {% if boring.trace_punten %} — {{ boring.trace_punten|length }} punten{% else %} — Nog niet ingevuld{% endif %}
+  </li>
+  <li class="{{ 'ok' if boring.maaiveld_override else 'leeg' }}">
+    <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata">Brondata (maaiveld, KLIC, doorsneden)</a>
+    {% if boring.maaiveld_override %} — MVin={{ boring.maaiveld_override.MVin_NAP_m }}m, MVuit={{ boring.maaiveld_override.MVuit_NAP_m }}m{% else %} — Nog niet ingevuld{% endif %}
+  </li>
+</ul>
+
+<!-- Leidingparameters bewerken -->
+{% if boring.type != 'C' %}
+<hr>
+<h2>Leidingparameters</h2>
+<form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/update">
+  <fieldset>
+    <legend>Leiding &amp; boring</legend>
+    <label>Naam (optioneel)
+      <input type="text" name="naam" value="{{ boring.naam or '' }}" placeholder="bijv. HDD29">
+    </label>
+    <label>Materiaal
+      <input type="text" name="materiaal" value="{{ boring.materiaal }}">
+    </label>
+    <label>SDR
+      <input type="number" name="SDR" value="{{ boring.SDR }}" min="1" step="1">
+    </label>
+    <label>De (mm) — buitendiameter
+      <input type="number" name="De_mm" value="{{ boring.De_mm }}" min="10" step="0.1">
+    </label>
+    <label>dn (mm) — wanddikte (leeg = auto: De/SDR)
+      <input type="number" name="dn_mm" step="0.01" value="{{ boring.dn_mm or '' }}" placeholder="auto">
+    </label>
+    <label>Medium
+      <select name="medium">
+        {% for m in ['Drukloos','Gas LD','Water','Elektra LS','Elektra MS','Elektra HS','Data/Glasvezel'] %}
+        <option value="{{ m }}" {% if boring.medium == m %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Db (mm) — boorstang
+      <input type="number" name="Db_mm" value="{{ boring.Db_mm }}" min="1" step="0.1">
+    </label>
+    <label>Dp (mm) — pilotboorkop
+      <input type="number" name="Dp_mm" value="{{ boring.Dp_mm }}" min="1" step="0.1">
+    </label>
+    <label>Dg (mm) — ruimer
+      <input type="number" name="Dg_mm" value="{{ boring.Dg_mm }}" min="1" step="0.1">
+    </label>
+  </fieldset>
+
+  {% if boring.type in ['B', 'N'] %}
+  <fieldset>
+    <legend>Hoeken</legend>
+    <label>Intreehoek (graden)
+      <input type="number" name="intreehoek_gr" value="{{ boring.intreehoek_gr }}" min="0" max="45" step="0.1">
+    </label>
+    <label>Uittreehoek (graden)
+      <input type="number" name="uittreehoek_gr" value="{{ boring.uittreehoek_gr }}" min="0" max="45" step="0.1">
+    </label>
+  </fieldset>
+  {% endif %}
+
+  {% if boring.type == 'Z' %}
+  <fieldset>
+    <legend>Boogzinker parameters</legend>
+    <label>Booghoek (graden)
+      <input type="number" name="booghoek_gr" value="{{ boring.booghoek_gr or '' }}" step="0.1">
+    </label>
+    <label>Stand
+      <input type="number" name="stand" value="{{ boring.stand or '' }}" step="1">
+    </label>
+  </fieldset>
+  {% endif %}
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Opslaan</button>
+  </div>
+</form>
+{% else %}
+<!-- Type C: Calculatie — alleen berekening -->
+<hr>
+<h2>Calculatie parameters</h2>
+<form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/update">
+  <fieldset>
+    <legend>Naam</legend>
+    <label>Naam (optioneel)
+      <input type="text" name="naam" value="{{ boring.naam or '' }}" placeholder="bijv. Sigma1">
+    </label>
+  </fieldset>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Opslaan</button>
+  </div>
+</form>
+{% endif %}
+
+<hr>
+<h2>Documenten</h2>
+<ul>
+  <li>
+    <a href="/api/v1/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/werkplan"
+       class="btn btn-primary">Werkplan genereren (.docx)</a>
+  </li>
+</ul>
+
+<div style="margin-top:16px;">
+  <a href="/orders/{{ order.id }}" class="btn btn-secondary">&larr; Terug naar order</a>
+</div>
+{% endblock %}

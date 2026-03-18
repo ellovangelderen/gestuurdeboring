@@ -45,13 +45,14 @@ def test_proj_d_naam_verplicht(client, workspace):
     assert resp.status_code in (422, 400)
 
 
-# TC-proj-E: Projectenlijst toont alle projecten van workspace
+# TC-proj-E: Legacy projectenlijst toont alle projecten van workspace
 def test_proj_e_lijst(client, workspace):
-    # Maak 2 projecten
+    # Maak 2 projecten via legacy route
     for naam in ["HDD11", "HDD28"]:
         client.post("/api/v1/projecten/nieuw", data={"naam": naam}, auth=AUTH, follow_redirects=True)
 
-    resp = client.get("/", auth=AUTH)
+    # Legacy lijst-route op /api/v1/
+    resp = client.get("/api/v1/", auth=AUTH)
     assert resp.status_code == 200
     assert "HDD11" in resp.text
     assert "HDD28" in resp.text

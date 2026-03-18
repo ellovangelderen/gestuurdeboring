@@ -14,19 +14,19 @@ def test_core_a_settings_laden():
 
 # TC-core-B: Auth correct wachtwoord → 200
 def test_core_b_auth_correct(client, workspace):
-    resp = client.get("/", auth=AUTH)
+    resp = client.get("/orders/", auth=AUTH)
     assert resp.status_code == 200
 
 
 # TC-core-C: Auth fout wachtwoord → 401
 def test_core_c_auth_fout(client):
-    resp = client.get("/", auth=("martien", "fout-wachtwoord"))
+    resp = client.get("/orders/", auth=("martien", "fout-wachtwoord"))
     assert resp.status_code == 401
 
 
 # TC-core-D: Test-user alleen in ENV=development
 def test_core_d_test_user_development(client, workspace):
-    resp = client.get("/", auth=("test", "test123"))
+    resp = client.get("/orders/", auth=("test", "test123"))
     assert resp.status_code == 200
 
 

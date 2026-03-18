@@ -28,14 +28,14 @@
 
 <!-- Titelblok -->
 <div class="titelblok">
-  <h1>{{ project.naam }}</h1>
+  <h1>{{ order.ordernummer or '' }} — {{ order.locatie or '' }}</h1>
   <dl>
-    <dt>Opdrachtgever</dt><dd>{{ project.opdrachtgever or '—' }}</dd>
-    <dt>Ordernummer</dt>  <dd>{{ project.ordernummer or '—' }}</dd>
-    <dt>Leiding</dt>      <dd>{{ project.materiaal }} SDR{{ project.SDR }} Ø{{ project.De_mm|int }}mm · {{ project.medium }}</dd>
+    <dt>Opdrachtgever</dt><dd>{{ order.opdrachtgever or '—' }}</dd>
+    <dt>Ordernummer</dt>  <dd>{{ order.ordernummer or '—' }}-{{ '%02d'|format(boring.volgnummer) }}</dd>
+    <dt>Leiding</dt>      <dd>{{ boring.materiaal }} SDR{{ boring.SDR }} Ø{{ boring.De_mm|int }}mm · {{ boring.medium }}</dd>
     <dt>Datum</dt>        <dd>{{ datum }}</dd>
     <dt>Getekend</dt>     <dd>M.Luijben</dd>
-    <dt>Akkoord</dt>      <dd>M.Visser</dd>
+    <dt>Akkoord</dt>      <dd>{{ order.akkoord_contact or '—' }}</dd>
     <dt>Schaal</dt>       <dd>Zie per onderdeel</dd>
   </dl>
 
@@ -67,8 +67,8 @@
 
     <h2>Intree- en uittreehoeken</h2>
     <table>
-      <tr><th>Intreehoek</th><td>{{ project.intreehoek_gr }}°&nbsp;({{ intreehoek_pct }}%)</td></tr>
-      <tr><th>Uittreehoek</th><td>{{ project.uittreehoek_gr }}°&nbsp;({{ uittreehoek_pct }}%)</td></tr>
+      <tr><th>Intreehoek</th><td>{{ boring.intreehoek_gr }}°&nbsp;({{ intreehoek_pct }}%)</td></tr>
+      <tr><th>Uittreehoek</th><td>{{ boring.uittreehoek_gr }}°&nbsp;({{ uittreehoek_pct }}%)</td></tr>
     </table>
 
     <h2>Doorsnede boorgat</h2>
@@ -78,8 +78,8 @@
       <svg width="180" height="180" viewBox="0 0 180 180">
         <circle cx="90" cy="90" r="{{ svg_r_boorgat }}" fill="none" stroke="#444" stroke-width="2"/>
         <circle cx="90" cy="90" r="{{ svg_r_buis }}" fill="#e8f4ff" stroke="#0055aa" stroke-width="1.5"/>
-        <text x="90" y="155" text-anchor="middle" font-size="8">Dg={{ project.Dg_mm|int }}mm</text>
-        <text x="90" y="165" text-anchor="middle" font-size="8">De={{ project.De_mm|int }}mm</text>
+        <text x="90" y="155" text-anchor="middle" font-size="8">Dg={{ boring.Dg_mm|int }}mm</text>
+        <text x="90" y="165" text-anchor="middle" font-size="8">De={{ boring.De_mm|int }}mm</text>
       </svg>
     </div>
   </div>
@@ -88,15 +88,15 @@
   <div>
     <h2>Lengteprofiel (schematisch)</h2>
     <div class="profiel-blok">
-      {% if project.maaiveld_override %}
-      <p>Maaiveld intrede: <strong>{{ project.maaiveld_override.MVin_NAP_m }} m NAP</strong></p>
-      <p>Maaiveld uittrede: <strong>{{ project.maaiveld_override.MVuit_NAP_m }} m NAP</strong></p>
+      {% if boring.maaiveld_override %}
+      <p>Maaiveld intrede: <strong>{{ boring.maaiveld_override.MVin_NAP_m }} m NAP</strong></p>
+      <p>Maaiveld uittrede: <strong>{{ boring.maaiveld_override.MVuit_NAP_m }} m NAP</strong></p>
       {% else %}
       <p><em>Maaiveld nog niet ingevuld.</em></p>
       {% endif %}
-      <p>Leidingparameters: De={{ project.De_mm }}mm · dn={{ project.dn_effectief }}mm · Di={{ project.Di_mm }}mm</p>
-      {% if project.berekening %}
-      <p>Intrekkracht (Ttot): {{ "{:,.0f}".format(project.berekening.Ttot_N) }} N (override Sigma)</p>
+      <p>Leidingparameters: De={{ boring.De_mm }}mm · dn={{ boring.dn_effectief }}mm · Di={{ boring.Di_mm }}mm</p>
+      {% if boring.berekening %}
+      <p>Intrekkracht (Ttot): {{ "{:,.0f}".format(boring.berekening.Ttot_N) }} N (override Sigma)</p>
       {% endif %}
     </div>
 
@@ -118,14 +118,14 @@
     </table>
     {% endif %}
 
-    {% if project.project_eisenprofiel %}
+    {% if False %}
     <h2>Eisenprofiel</h2>
     <table>
-      <tr><th>Beheerder</th><td>{{ project.project_eisenprofiel.eisenprofiel.naam }}</td></tr>
-      <tr><th>Dekking weg</th><td>{{ project.project_eisenprofiel.eisenprofiel.dekking_weg_m }} m</td></tr>
-      <tr><th>Dekking water</th><td>{{ project.project_eisenprofiel.eisenprofiel.dekking_water_m }} m</td></tr>
-      <tr><th>Rmin</th><td>{{ project.project_eisenprofiel.eisenprofiel.Rmin_m }} m</td></tr>
-      <tr><th>Norm</th><td>{{ project.project_eisenprofiel.eisenprofiel.versie_datum }}</td></tr>
+      <tr><th>Beheerder</th><td>{{ False.eisenprofiel.naam }}</td></tr>
+      <tr><th>Dekking weg</th><td>{{ False.eisenprofiel.dekking_weg_m }} m</td></tr>
+      <tr><th>Dekking water</th><td>{{ False.eisenprofiel.dekking_water_m }} m</td></tr>
+      <tr><th>Rmin</th><td>{{ False.eisenprofiel.Rmin_m }} m</td></tr>
+      <tr><th>Norm</th><td>{{ False.eisenprofiel.versie_datum }}</td></tr>
     </table>
     {% endif %}
   </div>

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Werkplan genereren - {{ order.ordernummer }}{% endblock %}
+
+{% block content %}
+<h1>Werkplan genereren</h1>
+<p>
+  <a href="/orders/{{ order.id }}">&larr; {{ order.ordernummer }}</a>
+  &raquo; Boring {{ boring.volgnummer }}
+  {% if boring.naam %}({{ boring.naam }}){% endif %}
+</p>
+
+<!-- Werkplan opties formulier -->
+<form method="POST" action="/api/v1/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/werkplan">
+  <fieldset>
+    <legend>Algemeen</legend>
+
+    <label for="auteur">Auteur</label>
+    <input type="text" id="auteur" name="auteur" value="Martien Luijben" style="width:300px">
+
+    <label for="opdrachtgever_naam">Opdrachtgever</label>
+    <input type="text" id="opdrachtgever_naam" name="opdrachtgever_naam"
+           value="{{ order.opdrachtgever or '' }}" style="width:300px">
+
+    <label for="hoofdaannemer">Hoofdaannemer</label>
+    <input type="text" id="hoofdaannemer" name="hoofdaannemer" value="" style="width:300px"
+           placeholder="bijv. Mook B.V., Combinatie DMMB">
+  </fieldset>
+
+  <fieldset>
+    <legend>Revisie</legend>
+
+    <label for="revisie">Revisienummer</label>
+    <input type="number" id="revisie" name="revisie" value="0" min="0" style="width:80px">
+
+    <label for="revisie_omschrijving">Omschrijving</label>
+    <input type="text" id="revisie_omschrijving" name="revisie_omschrijving"
+           value="Vergunningsaanvraag" style="width:300px">
+  </fieldset>
+
+  <fieldset>
+    <legend>Tekst generatie</legend>
+    <label style="display:inline-flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="gebruik_ai" name="gebruik_ai">
+      Gebruik Claude AI voor inleiding, locatie en kwel-teksten
+    </label>
+    <p style="color:#666; font-size:0.9em;">
+      Als je eigen tekst invult hieronder, wordt die altijd gebruikt (heeft voorrang op AI).
+    </p>
+
+    <label for="inleiding_tekst">Eigen inleiding (optioneel)</label>
+    <textarea id="inleiding_tekst" name="inleiding_tekst" rows="6" style="width:100%"
+              placeholder="Laat leeg voor AI-tekst of standaard template..."></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>Kwel</legend>
+    <label style="display:inline-flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="kwel_gebied" name="kwel_gebied">
+      Dit project ligt in een kwetsbaar kwelgebied
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Overzicht boring-data (uit database)</legend>
+    <table>
+      <tr><td><strong>Ordernummer</strong></td><td>{{ order.ordernummer }}</td></tr>
+      <tr><td><strong>Locatie</strong></td><td>{{ order.locatie or '-' }}</td></tr>
+      <tr><td><strong>Materiaal</strong></td><td>{{ boring.materiaal }} &Oslash;{{ boring.De_mm|int }} SDR{{ boring.SDR }}</td></tr>
+      <tr><td><strong>Medium</strong></td><td>{{ boring.medium }}</td></tr>
+      <tr><td><strong>Tracepunten</strong></td><td>{{ boring.trace_punten|length }} punten</td></tr>
+      <tr><td><strong>Doorsneden</strong></td><td>{{ boring.doorsneden|length }} stuks</td></tr>
+      <tr>
+        <td><strong>Intrekkracht</strong></td>
+        <td>
+          {% if boring.berekening and boring.berekening.Ttot_N %}
+            {{ "%.0f"|format(boring.berekening.Ttot_N) }} N
+          {% else %}
+            <span style="color:#cc0000">Niet ingevuld</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr><td><strong>Vergunning</strong></td><td>{{ order.vergunning }}</td></tr>
+    </table>
+  </fieldset>
+
+  <div style="margin-top:1em">
+    <button type="submit" style="padding:10px 24px; font-size:1.1em; cursor:pointer;">
+      Genereer Werkplan (.docx)
+    </button>
+  </div>
+</form>
+
+<hr>
+
+<!-- Afbeeldingen sectie -->
+<h2>Afbeeldingen voor werkplan</h2>
+<p style="color:#666; font-size:0.9em;">
+  Upload afbeeldingen per categorie. Deze worden automatisch in het werkplan opgenomen op de juiste plek.
+</p>
+
+{% set categorieen = [
+  ("luchtfoto", "Luchtfoto / Google Maps"),
+  ("topotijdreis_1", "Topotijdreis - periode 1"),
+  ("topotijdreis_2", "Topotijdreis - periode 2"),
+  ("topotijdreis_3", "Topotijdreis - periode 3"),
+  ("klic", "KLIC screenshot"),
+  ("rws", "Rijkswaterstaat beheergrenzen"),
+  ("overig", "Overig"),
+] %}
+
+{% for cat_key, cat_label in categorieen %}
+<div style="border:1px solid #ddd; padding:12px; margin-bottom:12px; border-radius:4px;">
+  <strong>{{ cat_label }}</strong>
+
+  {% set bestaande = [] %}
+  {% for afb in boring.werkplan_afbeeldingen %}
+    {% if afb.categorie == cat_key %}
+      {% set _ = bestaande.append(afb) %}
+    {% endif %}
+  {% endfor %}
+
+  {% if bestaande %}
+    {% for afb in bestaande %}
+    <div style="display:flex; align-items:center; gap:12px; margin:8px 0;">
+      <span>{{ afb.bestandsnaam }}</span>
+      {% if afb.bijschrift %}<em>({{ afb.bijschrift }})</em>{% endif %}
+      <form method="POST" style="margin:0;"
+            action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/werkplan-afbeelding/{{ afb.id }}/delete">
+        <button type="submit" style="color:red; background:none; border:none; cursor:pointer; font-size:0.9em;">
+          verwijder
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data"
+        action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/werkplan-afbeelding"
+        style="display:flex; align-items:end; gap:8px; margin-top:8px;">
+    <input type="hidden" name="categorie" value="{{ cat_key }}">
+    <div>
+      <label style="font-size:0.9em;">Bestand</label><br>
+      <input type="file" name="afbeelding" accept="image/*" required>
+    </div>
+    <div>
+      <label style="font-size:0.9em;">Bijschrift</label><br>
+      <input type="text" name="bijschrift" placeholder="bijv. Omstreeks 1870" style="width:200px">
+    </div>
+    <button type="submit" style="padding:4px 12px;">Upload</button>
+  </form>
+</div>
+{% endfor %}
+
+<div style="margin-top:16px;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">&larr; Terug naar boring</a>
+</div>
+{% endblock %}

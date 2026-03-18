@@ -2,6 +2,22 @@
 import pytest
 
 
+def _maak_order_boring(client, db, naam="HDD-test"):
+    """Maak order + boring via API, return (order_id, volgnr)."""
+    from tests.conftest import AUTH
+    resp = client.post(
+        "/orders/nieuw",
+        data={"ordernummer": naam, "type_1": "B", "aantal_1": "1"},
+        auth=AUTH,
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    from app.order.models import Order
+    db.expire_all()
+    order = db.query(Order).filter_by(ordernummer=naam).first()
+    return order.id, 1
+
+
 # TC-trace-A: RD (103896.9, 489289.5) → WGS84 correcte locatie (HDD11 punt A)
 def test_trace_a_rd_naar_wgs84_hdd11_a():
     from app.geo.coords import rd_to_wgs84
@@ -36,13 +52,11 @@ def test_trace_b_hdd11_alle_gps_punten():
 def test_trace_c_tussenpunt_opgeslagen(client, db, workspace):
     from tests.conftest import AUTH
 
-    # Maak project
-    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-test"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-trace-c")
 
     # Sla tracé op
     resp = client.post(
-        f"/api/v1/projecten/{project_id}/trace",
+        f"/orders/{order_id}/boringen/{volgnr}/trace",
         data={
             "RD_x_list": "103896.9,103934.3,104118.8",
             "RD_y_list": "489289.5,489279.1,489243.7",
@@ -55,9 +69,10 @@ def test_trace_c_tussenpunt_opgeslagen(client, db, workspace):
     )
     assert resp.status_code == 200
 
-    from app.project.models import TracePunt
+    from app.order.models import TracePunt, Boring
     db.expire_all()
-    punten = db.query(TracePunt).filter_by(project_id=project_id).order_by(TracePunt.volgorde).all()
+    boring = db.query(Boring).filter_by(order_id=order_id, volgnummer=volgnr).first()
+    punten = db.query(TracePunt).filter_by(boring_id=boring.id).order_by(TracePunt.volgorde).all()
     tussenpunt = next(p for p in punten if p.type == "tussenpunt")
     assert tussenpunt.Rh_m == 150.0
 
@@ -66,11 +81,10 @@ def test_trace_c_tussenpunt_opgeslagen(client, db, workspace):
 def test_trace_d_volgorde(client, db, workspace):
     from tests.conftest import AUTH
 
-    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-volgorde"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-trace-d")
 
     client.post(
-        f"/api/v1/projecten/{project_id}/trace",
+        f"/orders/{order_id}/boringen/{volgnr}/trace",
         data={
             "RD_x_list": "103896.9,103916.4,103934.3,104118.8",
             "RD_y_list": "489289.5,489284.1,489279.1,489243.7",
@@ -82,9 +96,10 @@ def test_trace_d_volgorde(client, db, workspace):
         follow_redirects=True,
     )
 
-    from app.project.models import TracePunt
+    from app.order.models import TracePunt, Boring
     db.expire_all()
-    punten = db.query(TracePunt).filter_by(project_id=project_id).order_by(TracePunt.volgorde).all()
+    boring = db.query(Boring).filter_by(order_id=order_id, volgnummer=volgnr).first()
+    punten = db.query(TracePunt).filter_by(boring_id=boring.id).order_by(TracePunt.volgorde).all()
     labels = [p.label for p in punten]
     assert labels == ["A", "Tv1", "Tv2", "B"]
 

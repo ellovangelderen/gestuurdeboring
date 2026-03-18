@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Trace — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>Trace invoeren — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>Voer RD New (EPSG:28992) coordinaten in. De kaart is orientatie; coordinaten zijn primair.</p>
+
+<div class="trace-layout">
+  <div class="trace-form">
+    <form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/trace" x-data="traceForm()" @submit="prepareSubmit">
+
+      <template x-for="(punt, index) in punten" :key="index">
+        <div class="trace-punt">
+          <h3 x-text="punt.label || ('Punt ' + (index+1))"></h3>
+          <label>Type
+            <select x-model="punt.type">
+              <option value="intree">Intree (A)</option>
+              <option value="tussenpunt">Tussenpunt</option>
+              <option value="uittree">Uittree (B)</option>
+            </select>
+          </label>
+          <label>Label <input type="text" x-model="punt.label" placeholder="bijv. A, Tv1, Th1, B"></label>
+          <label>RD X (m) <input type="number" x-model="punt.x" step="0.01" required></label>
+          <label>RD Y (m) <input type="number" x-model="punt.y" step="0.01" required></label>
+          <label x-show="punt.type === 'tussenpunt'">
+            Rh (m) — horizontale boogstraal
+            <input type="number" x-model="punt.rh" step="0.1" placeholder="bijv. 150">
+          </label>
+          <button type="button" @click="verwijder(index)" class="btn btn-danger btn-sm" x-show="punten.length > 2">Verwijder</button>
+        </div>
+      </template>
+
+      <button type="button" @click="voegToe()" class="btn btn-secondary">+ Tussenpunt toevoegen</button>
+
+      <!-- Hidden velden voor POST -->
+      <input type="hidden" name="RD_x_list" x-bind:value="getRDX()">
+      <input type="hidden" name="RD_y_list" x-bind:value="getRDY()">
+      <input type="hidden" name="type_list" x-bind:value="getTypes()">
+      <input type="hidden" name="label_list" x-bind:value="getLabels()">
+      <input type="hidden" name="Rh_list" x-bind:value="getRh()">
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Trace opslaan</button>
+        <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">Terug</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="trace-map">
+    <div id="map" style="height: 400px;"></div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<script>
+const bestaandePunten = {{ punten_wgs84 | tojson }};
+
+function traceForm() {
+  return {
+    punten: bestaandePunten.length >= 2
+      ? bestaandePunten.map(p => ({label: p.label, type: 'intree', x: '', y: '', rh: ''}))
+      : [
+          {label: 'A', type: 'intree', x: '', y: '', rh: ''},
+          {label: 'B', type: 'uittree', x: '', y: '', rh: ''},
+        ],
+    voegToe() {
+      const n = this.punten.length;
+      this.punten.splice(n-1, 0, {label: '', type: 'tussenpunt', x: '', y: '', rh: ''});
+    },
+    verwijder(i) { this.punten.splice(i, 1); },
+    getRDX() { return this.punten.map(p => p.x).join(','); },
+    getRDY() { return this.punten.map(p => p.y).join(','); },
+    getTypes() { return this.punten.map(p => p.type).join(','); },
+    getLabels() { return this.punten.map(p => p.label).join(','); },
+    getRh() { return this.punten.map(p => p.rh || '').join(','); },
+    prepareSubmit() { /* hidden velden zijn al live via x-bind */ },
+  };
+}
+
+// Leaflet kaart
+const map = L.map('map');
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+if (bestaandePunten.length > 0) {
+  const coords = bestaandePunten.map(p => [p.lat, p.lon]);
+  L.polyline(coords, {color: 'red'}).addTo(map);
+  bestaandePunten.forEach(p => {
+    L.marker([p.lat, p.lon]).addTo(map).bindPopup(p.label);
+  });
+  map.fitBounds(coords);
+} else {
+  // Nederland centrum
+  map.setView([52.3, 4.9], 10);
+}
+</script>
+{% endblock %}

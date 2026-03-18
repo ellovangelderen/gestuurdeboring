@@ -23,3 +23,21 @@ def fetch_project(project_id: str, db: Session):
     if not project:
         raise HTTPException(status_code=404, detail="Project niet gevonden")
     return project
+
+
+def fetch_order(order_id: str, db: Session):
+    """Haalt order op of geeft 404."""
+    from app.order.models import Order
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order niet gevonden")
+    return order
+
+
+def fetch_boring(order_id: str, volgnummer: int, db: Session):
+    """Haalt boring op via order_id + volgnummer, of geeft 404."""
+    from app.order.models import Boring
+    boring = db.query(Boring).filter_by(order_id=order_id, volgnummer=volgnummer).first()
+    if not boring:
+        raise HTTPException(status_code=404, detail="Boring niet gevonden")
+    return boring

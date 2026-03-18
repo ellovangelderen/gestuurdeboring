@@ -6,7 +6,7 @@ import ezdxf
 from ezdxf.enums import TextEntityAlignment
 from sqlalchemy.orm import Session
 
-from app.project.models import Project
+from app.order.models import Boring, Order
 
 
 NLCS_LINETYPES: dict[str, str] = {
@@ -74,30 +74,30 @@ def _setup_layers(doc: ezdxf.document.Drawing) -> None:
             )
 
 
-def _draw_boorlijn(msp, project: Project) -> None:
+def _draw_boorlijn(msp, boring: Boring) -> None:
     """Tekent rechte boorlijn A→B (skeleton — geen booggeometrie)."""
-    punten = project.trace_punten
+    punten = boring.trace_punten
     if len(punten) < 2:
         return
     coords = [(p.RD_x, p.RD_y) for p in punten]
     msp.add_lwpolyline(coords, dxfattribs={"layer": "BOORLIJN"})
 
 
-def _draw_boorgat(msp, project: Project) -> None:
+def _draw_boorgat(msp, boring: Boring) -> None:
     """Boorgat als 2 cirkels op intredepunt: r_ruimer en r_buis."""
-    intree = next((p for p in project.trace_punten if p.type == "intree"), None)
+    intree = next((p for p in boring.trace_punten if p.type == "intree"), None)
     if not intree:
         return
     center = (intree.RD_x, intree.RD_y)
-    r_boorgat = (project.Dg_mm / 2) / 1000   # mm → m (schaal 1:1 in RD)
-    r_buis = (project.De_mm / 2) / 1000
+    r_boorgat = (boring.Dg_mm / 2) / 1000   # mm → m (schaal 1:1 in RD)
+    r_buis = (boring.De_mm / 2) / 1000
     msp.add_circle(center, radius=r_boorgat, dxfattribs={"layer": "BOORGAT"})
     msp.add_circle(center, radius=r_buis, dxfattribs={"layer": "BOORGAT"})
 
 
-def _draw_sensorpunten(msp, project: Project) -> None:
+def _draw_sensorpunten(msp, boring: Boring) -> None:
     """Sensorpunt labels als TEXT op laag ATTRIBUTEN."""
-    for punt in project.trace_punten:
+    for punt in boring.trace_punten:
         if punt.label:
             msp.add_text(
                 punt.label,
@@ -109,17 +109,17 @@ def _draw_sensorpunten(msp, project: Project) -> None:
             )
 
 
-def _draw_titelblok(msp, project: Project) -> None:
+def _draw_titelblok(msp, boring: Boring, order: Order) -> None:
     """Titelblok tekst op laag TITELBLOK_TEKST."""
     from datetime import date
 
     regels = [
-        project.naam or "",
-        f"Opdrachtgever: {project.opdrachtgever or ''}",
-        f"Ordernummer: {project.ordernummer or ''}",
+        f"{order.ordernummer or ''} - {order.locatie or ''}",
+        f"Boring {boring.volgnummer:02d} ({boring.type}) {boring.naam or ''}",
+        f"Opdrachtgever: {order.opdrachtgever or ''}",
         f"Datum: {date.today().strftime('%d-%m-%Y')}",
         "Getekend: M.Luijben",
-        "Akkoord: M.Visser",
+        f"Akkoord: {order.akkoord_contact or ''}",
     ]
     # Plaatst tekst links-onder van oorsprong (modelspace 0,0)
     for i, regel in enumerate(regels):
@@ -133,16 +133,16 @@ def _draw_titelblok(msp, project: Project) -> None:
         )
 
 
-def _draw_klic_leidingen(msp, project: Project, db: Session) -> None:
+def _draw_klic_leidingen(msp, order: Order, db: Session) -> None:
     """Tekent KLIC leidingen als LWPolyline op de juiste NLCS-laag."""
     from shapely import from_wkt
     from shapely.geometry import LineString, MultiLineString, Polygon
-    from app.project.models import KLICLeiding, KLICUpload
+    from app.order.models import KLICLeiding, KLICUpload
 
     # Gebruik meest recente verwerkte upload
     upload = (
         db.query(KLICUpload)
-        .filter_by(project_id=project.id, verwerkt=True)
+        .filter_by(order_id=order.id, verwerkt=True)
         .order_by(KLICUpload.upload_datum.desc())
         .first()
     )
@@ -177,18 +177,18 @@ def _draw_klic_leidingen(msp, project: Project, db: Session) -> None:
                 msp.add_lwpolyline(coords, dxfattribs={"layer": layer, "closed": True})
 
 
-def generate_dxf(project: Project, db: Optional[Session] = None) -> bytes:
-    """Genereer DXF R2013 bytes voor een project."""
+def generate_dxf(boring: Boring, order: Order, db: Optional[Session] = None) -> bytes:
+    """Genereer DXF R2013 bytes voor een boring."""
     doc = ezdxf.new("R2013")
     msp = doc.modelspace()
 
     _setup_layers(doc)
-    _draw_boorlijn(msp, project)
-    _draw_boorgat(msp, project)
-    _draw_sensorpunten(msp, project)
-    _draw_titelblok(msp, project)
+    _draw_boorlijn(msp, boring)
+    _draw_boorgat(msp, boring)
+    _draw_sensorpunten(msp, boring)
+    _draw_titelblok(msp, boring, order)
     if db is not None:
-        _draw_klic_leidingen(msp, project, db)
+        _draw_klic_leidingen(msp, order, db)
 
     buf = io.StringIO()
     doc.write(buf)

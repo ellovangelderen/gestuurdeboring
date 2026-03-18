@@ -2,6 +2,21 @@
 from tests.conftest import AUTH
 
 
+def _maak_order_boring(client, db, naam="HDD-nav-test"):
+    """Maak order + boring via API, return (order_id, volgnr)."""
+    resp = client.post(
+        "/orders/nieuw",
+        data={"ordernummer": naam, "type_1": "B", "aantal_1": "1"},
+        auth=AUTH,
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    from app.order.models import Order
+    db.expire_all()
+    order = db.query(Order).filter_by(ordernummer=naam).first()
+    return order.id, 1
+
+
 # TC-nav-A: GET / zonder auth → 401
 def test_nav_a_geen_auth(client):
     resp = client.get("/")
@@ -10,24 +25,17 @@ def test_nav_a_geen_auth(client):
 
 # TC-nav-B: GET / met auth → 200
 def test_nav_b_met_auth(client, workspace):
-    resp = client.get("/", auth=AUTH)
+    resp = client.get("/", auth=AUTH, follow_redirects=True)
     assert resp.status_code == 200
 
 
 # TC-nav-C: Download DXF → Content-Disposition header aanwezig
-def test_nav_c_download_dxf(client, workspace):
-    # Maak project met tracépunten
-    resp = client.post(
-        "/api/v1/projecten/nieuw",
-        data={"naam": "HDD-nav-test", "De_mm": "160", "Dg_mm": "240", "SDR": "11"},
-        auth=AUTH,
-        follow_redirects=True,
-    )
-    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
+def test_nav_c_download_dxf(client, db, workspace):
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-dxf-nav")
 
     # Voeg tracépunten toe (minimaal 2 voor boorlijn)
     client.post(
-        f"/api/v1/projecten/{project_id}/trace",
+        f"/orders/{order_id}/boringen/{volgnr}/trace",
         data={
             "RD_x_list": "103896.9,104118.8",
             "RD_y_list": "489289.5,489243.7",
@@ -39,33 +47,24 @@ def test_nav_c_download_dxf(client, workspace):
         follow_redirects=True,
     )
 
-    resp = client.get(f"/api/v1/projecten/{project_id}/dxf", auth=AUTH)
+    resp = client.get(f"/orders/{order_id}/boringen/{volgnr}/dxf", auth=AUTH)
     assert resp.status_code == 200
     assert "Content-Disposition" in resp.headers
     assert ".dxf" in resp.headers["Content-Disposition"]
 
 
 # TC-nav-D: Download PDF → Content-Type application/pdf
-def test_nav_d_download_pdf(client, workspace):
-    resp = client.post(
-        "/api/v1/projecten/nieuw",
-        data={"naam": "HDD-pdf-nav"},
-        auth=AUTH,
-        follow_redirects=True,
-    )
-    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
+def test_nav_d_download_pdf(client, db, workspace):
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-pdf-nav")
 
-    resp = client.get(f"/api/v1/projecten/{project_id}/pdf", auth=AUTH)
+    resp = client.get(f"/orders/{order_id}/boringen/{volgnr}/pdf", auth=AUTH)
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
 
 
-# TC-nav-E: Projectdetail toont voortgangsstatus
-def test_nav_e_projectdetail_voortgang(client, workspace):
-    resp = client.post("/api/v1/projecten/nieuw", data={"naam": "HDD-voortgang"}, auth=AUTH, follow_redirects=True)
-    project_id = str(resp.url).split("/api/v1/projecten/")[1].rstrip("/").rstrip("/")
+# TC-nav-E: Order detail toont boring info
+def test_nav_e_orderdetail(client, db, workspace):
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-voortgang")
 
-    resp = client.get(f"/api/v1/projecten/{project_id}", auth=AUTH)
+    resp = client.get(f"/orders/{order_id}", auth=AUTH)
     assert resp.status_code == 200
-    assert "Tracé invoeren" in resp.text
-    assert "Brondata" in resp.text

@@ -13,13 +13,13 @@ from app.core.dependencies import fetch_project, get_workspace_id
 from app.core.models import Workspace
 from app.geo.ahn5 import haal_maaiveld_op
 from app.geo.coords import rd_to_wgs84
-from app.project.models import (
+from app.project.models import Project
+from app.order.models import (
     Berekening,
     Doorsnede,
     KLICLeiding,
     KLICUpload,
     MaaiveldOverride,
-    Project,
     TracePunt,
 )
 from app.rules.models import EisenProfiel, ProjectEisenProfiel

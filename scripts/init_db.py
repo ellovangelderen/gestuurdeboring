@@ -9,6 +9,7 @@ from app.core.database import Base, engine  # noqa: E402
 # Importeer alle modellen zodat SQLAlchemy de tabellen kent
 import app.core.models  # noqa: F401
 import app.project.models  # noqa: F401
+import app.order.models  # noqa: F401
 import app.rules.models  # noqa: F401
 
 

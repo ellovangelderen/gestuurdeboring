@@ -5,16 +5,24 @@ import io
 import pytest
 
 
-def _maak_hdd11_project():
-    """Maak een HDD11 project object zonder DB (voor unit tests)."""
-    from app.project.models import Project, TracePunt
+def _maak_hdd11_boring_order():
+    """Maak HDD11 boring + order objecten zonder DB (voor unit tests)."""
+    from app.order.models import Boring, Order, TracePunt
 
-    p = Project(
-        id="hdd11-test",
+    order = Order(
+        id="hdd11-order",
         workspace_id="gbt-workspace-001",
-        naam="HDD11 Haarlem Kennemerplein",
         ordernummer="3D25V700",
+        locatie="Haarlem, Kennemerplein",
+        klantcode="3D",
         opdrachtgever="Liander",
+    )
+
+    boring = Boring(
+        id="hdd11-boring",
+        order_id="hdd11-order",
+        volgnummer=1,
+        type="B",
         SDR=11,
         De_mm=160.0,
         dn_mm=14.6,
@@ -26,24 +34,24 @@ def _maak_hdd11_project():
     )
 
     punten = [
-        TracePunt(project_id="hdd11-test", volgorde=0, type="intree",     label="A",   RD_x=103896.9, RD_y=489289.5),
-        TracePunt(project_id="hdd11-test", volgorde=1, type="tussenpunt", label="Tv1", RD_x=103916.4, RD_y=489284.1),
-        TracePunt(project_id="hdd11-test", volgorde=2, type="tussenpunt", label="Tv2", RD_x=103934.3, RD_y=489279.1),
-        TracePunt(project_id="hdd11-test", volgorde=3, type="tussenpunt", label="Th1", RD_x=103947.3, RD_y=489275.5),
-        TracePunt(project_id="hdd11-test", volgorde=4, type="tussenpunt", label="Th2", RD_x=103960.8, RD_y=489272.4),
-        TracePunt(project_id="hdd11-test", volgorde=5, type="tussenpunt", label="Tv3", RD_x=104079.7, RD_y=489250.8),
-        TracePunt(project_id="hdd11-test", volgorde=6, type="tussenpunt", label="Tv4", RD_x=104109.2, RD_y=489245.5),
-        TracePunt(project_id="hdd11-test", volgorde=7, type="uittree",    label="B",   RD_x=104118.8, RD_y=489243.7),
+        TracePunt(boring_id="hdd11-boring", volgorde=0, type="intree",     label="A",   RD_x=103896.9, RD_y=489289.5),
+        TracePunt(boring_id="hdd11-boring", volgorde=1, type="tussenpunt", label="Tv1", RD_x=103916.4, RD_y=489284.1),
+        TracePunt(boring_id="hdd11-boring", volgorde=2, type="tussenpunt", label="Tv2", RD_x=103934.3, RD_y=489279.1),
+        TracePunt(boring_id="hdd11-boring", volgorde=3, type="tussenpunt", label="Th1", RD_x=103947.3, RD_y=489275.5),
+        TracePunt(boring_id="hdd11-boring", volgorde=4, type="tussenpunt", label="Th2", RD_x=103960.8, RD_y=489272.4),
+        TracePunt(boring_id="hdd11-boring", volgorde=5, type="tussenpunt", label="Tv3", RD_x=104079.7, RD_y=489250.8),
+        TracePunt(boring_id="hdd11-boring", volgorde=6, type="tussenpunt", label="Tv4", RD_x=104109.2, RD_y=489245.5),
+        TracePunt(boring_id="hdd11-boring", volgorde=7, type="uittree",    label="B",   RD_x=104118.8, RD_y=489243.7),
     ]
-    p.trace_punten = punten
-    return p
+    boring.trace_punten = punten
+    return boring, order
 
 
 # TC-dxf-A: DXF genereren → ezdxf parse zonder errors
 def test_dxf_a_parse_zonder_errors():
     from app.documents.dxf_generator import generate_dxf
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     assert isinstance(dxf_bytes, bytes)
     assert len(dxf_bytes) > 0
 
@@ -54,8 +62,8 @@ def test_dxf_a_parse_zonder_errors():
 # TC-dxf-B: Alle 16 lagen aanwezig met juiste ACI-kleur
 def test_dxf_b_alle_lagen():
     from app.documents.dxf_generator import generate_dxf, LAYERS
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     doc = ezdxf.read(io.StringIO(dxf_bytes.decode("utf-8")))
 
     for layer_naam, props in LAYERS.items():
@@ -68,8 +76,8 @@ def test_dxf_b_alle_lagen():
 # TC-dxf-C: NLCS lijntype-definities aanwezig in DXF
 def test_dxf_c_nlcs_lijntypes():
     from app.documents.dxf_generator import generate_dxf, NLCS_LINETYPES
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     doc = ezdxf.read(io.StringIO(dxf_bytes.decode("utf-8")))
 
     for lt_name in NLCS_LINETYPES:
@@ -79,8 +87,8 @@ def test_dxf_c_nlcs_lijntypes():
 # TC-dxf-D: BOORLIJN laag heeft entiteiten
 def test_dxf_d_boorlijn_heeft_entiteiten():
     from app.documents.dxf_generator import generate_dxf
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     doc = ezdxf.read(io.StringIO(dxf_bytes.decode("utf-8")))
 
     msp = doc.modelspace()
@@ -91,8 +99,8 @@ def test_dxf_d_boorlijn_heeft_entiteiten():
 # TC-dxf-E: BOORGAT cirkels voor HDD11 (Dg=240mm → r=120mm, De=160mm → r=80mm)
 def test_dxf_e_boorgat_stralen_hdd11():
     from app.documents.dxf_generator import generate_dxf
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     doc = ezdxf.read(io.StringIO(dxf_bytes.decode("utf-8")))
 
     msp = doc.modelspace()
@@ -109,8 +117,8 @@ def test_dxf_e_boorgat_stralen_hdd11():
 # TC-dxf-F: Sensorpunt label "A" aanwezig op ATTRIBUTEN laag
 def test_dxf_f_sensorpunt_label_a():
     from app.documents.dxf_generator import generate_dxf
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     doc = ezdxf.read(io.StringIO(dxf_bytes.decode("utf-8")))
 
     msp = doc.modelspace()
@@ -121,7 +129,7 @@ def test_dxf_f_sensorpunt_label_a():
 # TC-dxf-G: Bestandsversie = R2013 (AC1027)
 def test_dxf_g_bestandsversie_r2013():
     from app.documents.dxf_generator import generate_dxf
-    project = _maak_hdd11_project()
-    dxf_bytes = generate_dxf(project)
+    boring, order = _maak_hdd11_boring_order()
+    dxf_bytes = generate_dxf(boring, order)
     doc = ezdxf.read(io.StringIO(dxf_bytes.decode("utf-8")))
     assert doc.dxfversion == "AC1027", f"Versie: {doc.dxfversion}, verwacht AC1027"
