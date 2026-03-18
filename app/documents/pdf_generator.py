@@ -302,8 +302,9 @@ def _generate_bovenaanzicht_svg(boring: Boring) -> str:
 
     # Noordpijl
     svg += (
-        f'<text x="{svg_w - 15}" y="20" font-size="14" font-weight="bold" fill="#333" text-anchor="middle">N</text>\n'
-        f'<line x1="{svg_w - 15}" y1="22" x2="{svg_w - 15}" y2="38" stroke="#333" stroke-width="1.5" marker-start="url(#arrow)"/>\n'
+        f'<text x="{svg_w - 15}" y="18" font-size="14" font-weight="bold" fill="#333" text-anchor="middle">N</text>\n'
+        f'<line x1="{svg_w - 15}" y1="22" x2="{svg_w - 15}" y2="38" stroke="#333" stroke-width="1.5"/>\n'
+        f'<polygon points="{svg_w - 15},22 {svg_w - 19},28 {svg_w - 11},28" fill="#333"/>\n'
     )
 
     svg += "</svg>"
@@ -338,10 +339,18 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     import os
     tmpfiles = []
 
-    def _svg_to_tmpfile(svg_str: str, width: int = 800) -> str:
-        """Sla SVG op als tijdelijk .svg bestand, return file:// URL."""
+    def _svg_to_png_data_uri(svg_str: str) -> str:
+        """Converteer SVG naar PNG data URI via cairosvg of fallback."""
         if not svg_str:
             return ""
+        try:
+            import cairosvg
+            png_bytes = cairosvg.svg2png(bytestring=svg_str.encode("utf-8"), output_width=1200)
+            import base64 as _b64mod
+            return "data:image/png;base64," + _b64mod.b64encode(png_bytes).decode("ascii")
+        except ImportError:
+            pass
+        # Fallback: sla SVG op als file
         try:
             f = tempfile.NamedTemporaryFile(suffix=".svg", delete=False, mode="w")
             f.write(svg_str)
@@ -366,9 +375,9 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     lengteprofiel_svg = _generate_lengteprofiel_svg(boring)
     bovenaanzicht_svg = _generate_bovenaanzicht_svg(boring)
 
-    # Sla op als bestanden
-    lengteprofiel_url = _svg_to_tmpfile(lengteprofiel_svg)
-    bovenaanzicht_url = _svg_to_tmpfile(bovenaanzicht_svg)
+    # Converteer SVG's naar PNG data URIs (of file fallback)
+    lengteprofiel_url = _svg_to_png_data_uri(lengteprofiel_svg)
+    bovenaanzicht_url = _svg_to_png_data_uri(bovenaanzicht_svg)
 
     # Kaartachtergrond (OSM tiles)
     kaart_url = ""
@@ -408,7 +417,7 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
 
     template = _env.get_template("tekening.html")
     html_str = template.render(**context)
-    pdf_bytes = HTML(string=html_str, base_url=str(_template_dir)).write_pdf()
+    pdf_bytes = HTML(string=html_str, base_url="/").write_pdf()
 
     # Cleanup alle tijdelijke bestanden
     for f in tmpfiles:
