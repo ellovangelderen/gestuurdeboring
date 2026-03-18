@@ -18,6 +18,38 @@ def _hoek_pct(graden: float) -> float:
     return round(math.tan(math.radians(graden)) * 100, 1)
 
 
+def _generate_doorsnede_svg(boring) -> str:
+    """Genereer SVG van doorsnede boorgat (2 concentrische cirkels + labels)."""
+    Dg = boring.Dg_mm or 240
+    De = boring.De_mm or 160
+    svg_size = 200
+    cx, cy = 100, 85
+    r_max = 70  # buitenste cirkel (ruimer)
+    r_buis = int(r_max * De / Dg)
+
+    svg = (
+        f'<svg width="{svg_size}" height="{svg_size}" viewBox="0 0 {svg_size} {svg_size}" '
+        f'xmlns="http://www.w3.org/2000/svg">\n'
+        # Ruimer cirkel (buitenste, gestreept)
+        f'<circle cx="{cx}" cy="{cy}" r="{r_max}" fill="none" stroke="#444" stroke-width="2" stroke-dasharray="5,3"/>\n'
+        # Buis cirkel (binnenste, gevuld)
+        f'<circle cx="{cx}" cy="{cy}" r="{r_buis}" fill="#e8f4ff" stroke="#0055aa" stroke-width="2"/>\n'
+        # Maatlijnen
+        f'<line x1="{cx}" y1="{cy - r_max - 8}" x2="{cx}" y2="{cy - r_max + 3}" stroke="#333" stroke-width="1"/>\n'
+        f'<line x1="{cx}" y1="{cy + r_max - 3}" x2="{cx}" y2="{cy + r_max + 8}" stroke="#333" stroke-width="1"/>\n'
+        # Labels
+        f'<text x="{cx}" y="{cy + r_max + 18}" text-anchor="middle" font-size="9" fill="#333">Dg={Dg}mm</text>\n'
+        f'<text x="{cx}" y="{cy + r_max + 28}" text-anchor="middle" font-size="9" fill="#333">De={De}mm</text>\n'
+        # Titel labels
+        f'<text x="{cx}" y="{svg_size - 2}" text-anchor="middle" font-size="8" fill="#333">'
+        f'Pilotboring Ø{De}mm</text>\n'
+        f'<text x="{cx}" y="12" text-anchor="middle" font-size="8" fill="#333">'
+        f'Ruimer Ø{Dg}mm · {boring.materiaal} SDR{boring.SDR}</text>\n'
+        f'</svg>'
+    )
+    return svg
+
+
 def _generate_lengteprofiel_svg(boring: Boring) -> str:
     """Genereer SVG string voor het lengteprofiel van een boring.
 
@@ -479,9 +511,13 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     lengteprofiel_svg = _generate_lengteprofiel_svg(boring)
     bovenaanzicht_svg = _generate_bovenaanzicht_svg(boring)
 
+    # Doorsnede SVG
+    doorsnede_svg = _generate_doorsnede_svg(boring)
+
     # Converteer SVG's naar PNG data URIs (of file fallback)
     lengteprofiel_url = _svg_to_png_data_uri(lengteprofiel_svg)
     bovenaanzicht_url = _svg_to_png_data_uri(bovenaanzicht_svg)
+    doorsnede_url = _svg_to_png_data_uri(doorsnede_svg)
 
     # Kaartachtergrond (OSM tiles)
     kaart_url = ""
@@ -639,6 +675,7 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         "kaart_url": kaart_url,
         "is_boogzinker": boring.type == "Z",
         "gbt_logo_url": gbt_logo_url,
+        "doorsnede_url": doorsnede_url,
         "klant_logo_url": klant_logo_url,
     }
 

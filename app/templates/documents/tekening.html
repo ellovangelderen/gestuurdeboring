@@ -46,11 +46,16 @@
       <div style="font-size: 6pt; margin-top: 1mm;">Booghoek {{ boring.booghoek_gr }}° · Stand {{ boring.stand or '-' }}</div>
       {% endif %}
 
-      <div class="zone-title" style="margin-top: 1mm;">Doorsnede boorgat</div>
-      <div style="text-align: center; font-size: 5.5pt;">
-        Pilotboring Ø{{ boring.De_mm|int }}mm · Ruimer Ø{{ boring.Dg_mm|int }}mm<br>
-        1×Ø{{ boring.De_mm|int }} {{ boring.materiaal }} SDR{{ boring.SDR }}
+      <div class="zone-title" style="margin-top: 1mm;">Doorsnede boorgat, n.t.s.</div>
+      {% if doorsnede_url %}
+      <div style="text-align: center;">
+        <img src="{{ doorsnede_url }}" style="width: 30mm; display: inline-block;">
       </div>
+      {% else %}
+      <div style="text-align: center; font-size: 5.5pt;">
+        Pilotboring Ø{{ boring.De_mm|int }}mm · Ruimer Ø{{ boring.Dg_mm|int }}mm
+      </div>
+      {% endif %}
     </td>
 
     <!-- ZONE 2: Rechts-boven — Situatietekening -->
