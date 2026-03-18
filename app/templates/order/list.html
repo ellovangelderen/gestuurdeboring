@@ -1,138 +1,158 @@
 {% extends "base.html" %}
 {% block title %}Cockpit — HDD Platform{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Cockpit</h1>
-  <a href="/orders/nieuw" class="btn btn-primary">+ Nieuwe order</a>
-</div>
 
-<!-- Stats-balk -->
+{# ── Stats-balk ─────────────────────────────────────────────────────── #}
 <div class="stats-bar">
   <a href="/orders/?filter=alles" class="stat-card{% if filter == 'alles' %} stat-card--active{% endif %}">
     <div class="stat-value">{{ stats.totaal }}</div>
     <div class="stat-label">Totaal</div>
   </a>
-  <a href="/orders/?filter=alles&zoek={{ zoek }}&sorteer={{ sorteer }}&richting={{ richting }}" class="stat-card stat-card--danger{% if stats.over_deadline > 0 %} stat-card--alert{% endif %}">
+  <a href="/orders/?filter=actief" class="stat-card stat-card--info{% if filter == 'actief' %} stat-card--active{% endif %}">
+    <div class="stat-value{% if stats.in_uitvoering == 0 %} stat-value--zero{% endif %}">{{ stats.in_uitvoering }}</div>
+    <div class="stat-label">In uitvoering</div>
+  </a>
+  <a href="/orders/?filter=wacht_akkoord" class="stat-card stat-card--purple{% if filter == 'wacht_akkoord' %} stat-card--active{% endif %}">
+    <div class="stat-value{% if stats.wacht_akkoord == 0 %} stat-value--zero{% endif %}">{{ stats.wacht_akkoord }}</div>
+    <div class="stat-label">Wacht akkoord</div>
+  </a>
+  {% if stats.over_deadline > 0 %}
+  <a href="/orders/?sorteer=deadline&richting=asc" class="stat-card stat-card--danger stat-card--alert">
     <div class="stat-value">{{ stats.over_deadline }}</div>
     <div class="stat-label">Over deadline</div>
   </a>
-  <a href="/orders/?filter=alles&zoek={{ zoek }}&sorteer={{ sorteer }}&richting={{ richting }}" class="stat-card stat-card--warning">
+  {% endif %}
+  {% if stats.urgent > 0 %}
+  <a href="/orders/?sorteer=datum&richting=desc" class="stat-card stat-card--warning stat-card--alert">
     <div class="stat-value">{{ stats.urgent }}</div>
-    <div class="stat-label">Urgent (PRIO)</div>
+    <div class="stat-label">Urgent</div>
   </a>
-  <a href="/orders/?filter=actief&zoek={{ zoek }}&sorteer={{ sorteer }}&richting={{ richting }}" class="stat-card stat-card--info{% if filter == 'actief' %} stat-card--active{% endif %}">
-    <div class="stat-value">{{ stats.in_uitvoering }}</div>
-    <div class="stat-label">In uitvoering</div>
-  </a>
-  <a href="/orders/?filter=wacht_akkoord&zoek={{ zoek }}&sorteer={{ sorteer }}&richting={{ richting }}" class="stat-card stat-card--purple{% if filter == 'wacht_akkoord' %} stat-card--active{% endif %}">
-    <div class="stat-value">{{ stats.wacht_akkoord }}</div>
-    <div class="stat-label">Wacht akkoord</div>
-  </a>
+  {% endif %}
 </div>
 
-<!-- Toolbar -->
-<div class="cockpit-toolbar">
-  <form method="get" action="/orders/" class="cockpit-toolbar-form">
-    <input type="text" name="zoek" value="{{ zoek }}" placeholder="Zoek op ordernummer, locatie, klant..." class="cockpit-search">
+{# ── Toolbar ────────────────────────────────────────────────────────── #}
+<form method="get" action="/orders/" class="cockpit-toolbar">
+  <div class="toolbar-row toolbar-row--search">
+    <input type="text" name="zoek" value="{{ zoek }}" placeholder="Zoek op ordernummer, locatie, klant..." class="cockpit-search" autocomplete="off">
+    <button type="submit" class="btn btn-primary btn-sm">Zoek</button>
+  </div>
+  <div class="toolbar-row toolbar-row--controls">
     <div class="cockpit-filters">
-      <button type="submit" name="filter" value="alles" class="btn btn-sm{% if filter == 'alles' %} btn-primary{% else %} btn-secondary{% endif %}">Alles</button>
-      <button type="submit" name="filter" value="actief" class="btn btn-sm{% if filter == 'actief' %} btn-primary{% else %} btn-secondary{% endif %}">Actief</button>
-      <button type="submit" name="filter" value="wacht_akkoord" class="btn btn-sm{% if filter == 'wacht_akkoord' %} btn-primary{% else %} btn-secondary{% endif %}">Wacht akkoord</button>
-      <button type="submit" name="filter" value="geleverd" class="btn btn-sm{% if filter == 'geleverd' %} btn-primary{% else %} btn-secondary{% endif %}">Geleverd</button>
-      <button type="submit" name="filter" value="mijn" class="btn btn-sm{% if filter == 'mijn' %} btn-primary{% else %} btn-secondary{% endif %}">Mijn orders</button>
+      {% set filters = [
+        ('alles', 'Alles'),
+        ('actief', 'Actief'),
+        ('wacht_akkoord', 'Wacht akkoord'),
+        ('geleverd', 'Geleverd'),
+        ('mijn', 'Mijn orders'),
+      ] %}
+      {% for val, label in filters %}
+      <button type="submit" name="filter" value="{{ val }}" class="filter-pill{% if filter == val %} filter-pill--active{% endif %}">{{ label }}</button>
+      {% endfor %}
     </div>
-    <select name="sorteer" class="cockpit-sort" onchange="this.form.submit()">
-      <option value="deadline" {% if sorteer == 'deadline' %}selected{% endif %}>Sorteer: Deadline</option>
-      <option value="datum" {% if sorteer == 'datum' %}selected{% endif %}>Sorteer: Ontvangen</option>
-      <option value="klant" {% if sorteer == 'klant' %}selected{% endif %}>Sorteer: Klant</option>
-      <option value="status" {% if sorteer == 'status' %}selected{% endif %}>Sorteer: Status</option>
-    </select>
-    <input type="hidden" name="richting" value="{{ richting }}">
-  </form>
-  <a href="/orders/export/csv?filter={{ filter }}&zoek={{ zoek }}&sorteer={{ sorteer }}&richting={{ richting }}" class="btn btn-sm btn-secondary">CSV export</a>
-</div>
+    <div class="toolbar-right">
+      <select name="sorteer" class="cockpit-sort" onchange="this.form.submit()">
+        <option value="deadline" {% if sorteer == 'deadline' %}selected{% endif %}>Deadline</option>
+        <option value="datum" {% if sorteer == 'datum' %}selected{% endif %}>Ontvangen</option>
+        <option value="klant" {% if sorteer == 'klant' %}selected{% endif %}>Klant</option>
+        <option value="status" {% if sorteer == 'status' %}selected{% endif %}>Status</option>
+      </select>
+      <input type="hidden" name="richting" value="{{ richting }}">
+      <a href="/orders/export/csv?filter={{ filter }}&zoek={{ zoek }}&sorteer={{ sorteer }}&richting={{ richting }}" class="btn btn-sm btn-secondary" title="Exporteer als CSV">CSV</a>
+      <a href="/orders/nieuw" class="btn btn-sm btn-primary">+ Order</a>
+    </div>
+  </div>
+</form>
 
-<!-- Ordertabel -->
+{# ── Ordertabel ─────────────────────────────────────────────────────── #}
 {% if orders %}
-<table class="table cockpit-table">
-  <thead>
-    <tr>
-      <th>PRIO</th>
-      <th>Ordernummer</th>
-      <th>Locatie</th>
-      <th>Klant</th>
-      <th>Boringen</th>
-      <th>Status</th>
-      <th>Deadline</th>
-      <th>Tekenaar</th>
-      <th>EV</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for o in orders %}
-    {% set now_ts = None %}
-    <tr class="{% if o.prio %}row-prio{% endif %}{% if o.deadline and o.status in ['order_received', 'in_progress', 'waiting_for_approval'] %} {% endif %}">
-      <td>
-        {% if o.prio %}
-          <span class="prio-flag" title="Prioriteit">PRIO</span>
-        {% endif %}
-      </td>
-      <td><a href="/orders/{{ o.id }}">{{ o.ordernummer }}</a></td>
-      <td>{{ o.locatie or '—' }}</td>
-      <td>{{ o.klantcode or '—' }}</td>
-      <td>
-        {% for b in o.boringen|sort(attribute='volgnummer') %}
-          {% if b.type == 'B' %}
-            <span class="badge badge-type-B" title="Gestuurde boring">B</span>
-          {% elif b.type == 'N' %}
-            <span class="badge badge-type-N" title="Nano boring">N</span>
-          {% elif b.type == 'Z' %}
-            <span class="badge badge-type-Z" title="Boogzinker">Z</span>
-          {% elif b.type == 'C' %}
-            <span class="badge badge-type-C" title="Calculatie">C</span>
-          {% endif %}
-        {% endfor %}
-      </td>
-      <td>
-        <span class="badge badge-status badge-status-{{ o.status }}">
-          <span class="status-dot"></span>
-          {{ statuses.get(o.status, o.status) }}
-        </span>
-      </td>
-      <td class="{% if o.deadline and o.deadline < now %}deadline-over{% endif %}">
-        {{ o.deadline.strftime('%d-%m-%Y') if o.deadline else '—' }}
-      </td>
-      <td>
-        {% if o.tekenaar %}
-        <span class="avatar" title="{{ o.tekenaar }}">{{ o.tekenaar[:2]|upper }}</span>
-        {% else %}
-        —
-        {% endif %}
-      </td>
-      <td>
-        {% if o.ev_partijen %}
-          <span class="ev-warning" title="EV-partijen: {{ o.ev_partijen|map(attribute='naam')|join(', ') }}">EV</span>
-        {% endif %}
-      </td>
-      <td>
-        <div x-data="{ open: false }" class="quick-actions">
-          <button @click="open = !open" class="btn btn-sm btn-secondary">Acties &#9662;</button>
-          <div x-show="open" @click.away="open = false" class="quick-actions-menu">
-            <a href="/orders/{{ o.id }}">Order details</a>
-            {% for b in o.boringen|sort(attribute='volgnummer') %}
-              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}">{{ b.type }}{{ b.volgnummer }} details</a>
-              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}/trace">{{ b.type }}{{ b.volgnummer }} trace</a>
-              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}/brondata">{{ b.type }}{{ b.volgnummer }} brondata</a>
-            {% endfor %}
+<div class="cockpit-table-wrap">
+  <table class="table cockpit-table">
+    <thead>
+      <tr>
+        <th class="col-order">Order</th>
+        <th class="col-locatie">Locatie</th>
+        <th class="col-klant">Klant</th>
+        <th class="col-boringen">Boringen</th>
+        <th class="col-status">Status</th>
+        <th class="col-deadline">Deadline</th>
+        <th class="col-tekenaar">Tek.</th>
+        <th class="col-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in orders %}
+      <tr class="{% if o.prio %}row-prio{% endif %}">
+        {# ── Order kolom: ordernummer + inline PRIO / EV badges ── #}
+        <td class="col-order">
+          <div class="order-cell">
+            <a href="/orders/{{ o.id }}" class="order-link">{{ o.ordernummer }}</a>
+            {% if o.prio %}<span class="inline-badge inline-badge--prio" title="Prioriteit">PRIO</span>{% endif %}
+            {% if o.ev_partijen %}<span class="inline-badge inline-badge--ev" title="EV-partijen: {{ o.ev_partijen|map(attribute='naam')|join(', ') }}">EV</span>{% endif %}
           </div>
-        </div>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+        </td>
+
+        <td class="col-locatie">{{ o.locatie or '—' }}</td>
+
+        <td class="col-klant">{{ o.klantcode or '—' }}</td>
+
+        {# ── Boringen: compacte type-badges ── #}
+        <td class="col-boringen">
+          {% for b in o.boringen|sort(attribute='volgnummer') %}
+          <span class="type-badge type-badge--{{ b.type }}" title="{{ {'B':'Gestuurde boring','N':'Nano','Z':'Boogzinker','C':'Calculatie'}.get(b.type, b.type) }}">{{ b.type }}{{ b.volgnummer }}</span>
+          {% endfor %}
+        </td>
+
+        {# ── Status badge ── #}
+        <td class="col-status">
+          <span class="status-pill status-pill--{{ o.status }}">
+            {{ statuses.get(o.status, o.status) }}
+          </span>
+        </td>
+
+        {# ── Deadline ── #}
+        <td class="col-deadline{% if o.deadline and o.deadline < now and o.status in ['order_received', 'in_progress', 'waiting_for_approval'] %} deadline-over{% endif %}">
+          {{ o.deadline.strftime('%d-%m') if o.deadline else '—' }}
+        </td>
+
+        {# ── Tekenaar avatar ── #}
+        <td class="col-tekenaar">
+          {% if o.tekenaar %}
+          <span class="avatar" title="{{ o.tekenaar }}">{{ o.tekenaar[:2]|upper }}</span>
+          {% endif %}
+        </td>
+
+        {# ── Quick-actions ── #}
+        <td class="col-actions">
+          <div x-data="{ open: false }" class="quick-actions">
+            <button @click="open = !open" class="qa-btn" title="Acties">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
+            </button>
+            <div x-show="open" x-cloak @click.away="open = false" x-transition class="qa-menu">
+              <a href="/orders/{{ o.id }}" class="qa-item">
+                <span class="qa-icon">&#128196;</span> Order details
+              </a>
+              {% for b in o.boringen|sort(attribute='volgnummer') %}
+              <div class="qa-divider"></div>
+              <div class="qa-group-label">{{ b.type }}{{ b.volgnummer }}</div>
+              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}" class="qa-item">Boring details</a>
+              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}/trace" class="qa-item">Trace / kaart</a>
+              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}/brondata" class="qa-item">Brondata</a>
+              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}/dxf" class="qa-item">DXF download</a>
+              <a href="/orders/{{ o.id }}/boringen/{{ b.volgnummer }}/pdf" class="qa-item">PDF download</a>
+              {% endfor %}
+            </div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p class="empty">Geen orders gevonden. <a href="/orders/nieuw">Maak de eerste order aan.</a></p>
+<div class="empty-state">
+  <p>Geen orders gevonden{% if zoek %} voor "{{ zoek }}"{% endif %}{% if filter != 'alles' %} (filter: {{ filter }}){% endif %}.</p>
+  <a href="/orders/nieuw" class="btn btn-primary">+ Nieuwe order</a>
+</div>
 {% endif %}
+
 {% endblock %}

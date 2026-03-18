@@ -186,7 +186,7 @@ def test_cockpit_i_ev_waarschuwing(client, db, workspace):
 
     resp = client.get("/orders/", auth=AUTH)
     assert resp.status_code == 200
-    assert "ev-warning" in resp.text
+    assert "inline-badge--ev" in resp.text
     assert "Gasunie" in resp.text
 
 
@@ -198,5 +198,5 @@ def test_cockpit_j_prio_vlag(client, db, workspace):
 
     resp = client.get("/orders/", auth=AUTH)
     assert resp.status_code == 200
-    assert "prio-flag" in resp.text
+    assert "inline-badge--prio" in resp.text
     assert "PRIO" in resp.text
