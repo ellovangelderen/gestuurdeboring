@@ -206,6 +206,7 @@ def generate_werkplan(order: Order, boring: Boring,
                       revisie: int = 0,
                       revisie_omschrijving: str = "Vergunningsaanvraag",
                       gebruik_ai: bool = False,
+                      db=None,
                       ) -> bytes:
     """Genereer een werkplan als Word-document (.docx bytes).
 
@@ -534,24 +535,123 @@ def generate_werkplan(order: Order, boring: Boring,
 
     _add_styled_paragraph(doc, "KABELS & LEIDINGEN:", bold=True, space_after=4)
 
-    # KLIC screenshot uit DB
+    # ── KLIC data uit platform ──
+    klic_data_gevuld = False
+    if db is not None:
+        from app.order.models import KLICLeiding, KLICUpload
+        laatste_upload = (
+            db.query(KLICUpload)
+            .filter_by(order_id=order.id, verwerkt=True)
+            .order_by(KLICUpload.upload_datum.desc())
+            .first()
+        )
+        if laatste_upload:
+            leidingen = db.query(KLICLeiding).filter_by(klic_upload_id=laatste_upload.id).all()
+            if leidingen:
+                klic_data_gevuld = True
+                # Samenvatting per beheerder
+                _add_styled_paragraph(
+                    doc,
+                    f"Op basis van KLIC melding {laatste_upload.meldingnummer or ''} "
+                    f"zijn {len(leidingen)} kabels en leidingen van "
+                    f"{laatste_upload.aantal_beheerders or '?'} beheerders in kaart gebracht:",
+                    space_after=4,
+                )
+                # Tabel: beheerder | type | aantal
+                from collections import defaultdict
+                agg = defaultdict(lambda: {"aantal": 0, "types": set()})
+                for l in leidingen:
+                    key = l.beheerder or "Onbekend"
+                    agg[key]["aantal"] += 1
+                    if l.leidingtype:
+                        agg[key]["types"].add(l.leidingtype)
+                table = doc.add_table(rows=1, cols=3)
+                table.style = "Table Grid"
+                table.alignment = WD_TABLE_ALIGNMENT.LEFT
+                hdr = table.rows[0].cells
+                hdr[0].text = "Beheerder"
+                hdr[1].text = "Leidingtype"
+                hdr[2].text = "Aantal"
+                for cell in hdr:
+                    for p in cell.paragraphs:
+                        for run in p.runs:
+                            run.bold = True
+                            run.font.size = Pt(9)
+                for beh in sorted(agg.keys()):
+                    row = table.add_row().cells
+                    row[0].text = beh
+                    row[1].text = ", ".join(sorted(agg[beh]["types"]))[:60]
+                    row[2].text = str(agg[beh]["aantal"])
+                    for cell in row:
+                        for p in cell.paragraphs:
+                            for run in p.runs:
+                                run.font.size = Pt(9)
+                doc.add_paragraph()
+
+                # Sleufloze leidingen waarschuwing
+                sleufloze = [l for l in leidingen if l.sleufloze_techniek]
+                if sleufloze:
+                    _add_styled_paragraph(
+                        doc,
+                        f"Let op: {len(sleufloze)} leiding(en) zijn gedetecteerd als sleufloze techniek "
+                        f"(HDD/boogzinker). Deze leidingen liggen mogelijk dieper dan verwacht.",
+                        bold=True, space_after=4,
+                        color=RGBColor(0xCC, 0x66, 0x00),
+                    )
+
+                # Diepte waarschuwing
+                met_diepte = sum(1 for l in leidingen if l.diepte_m is not None)
+                if met_diepte == 0:
+                    _add_styled_paragraph(
+                        doc,
+                        "Opmerking: Geen van de leidingen in de KLIC heeft betrouwbare dieptegegevens. "
+                        "Dieptes dienen ter plaatse te worden gecontroleerd conform CROW 96b.",
+                        space_after=6,
+                        color=RGBColor(0xCC, 0x00, 0x00),
+                    )
+
+    # KLIC screenshot uit DB (altijd, als fallback of aanvulling)
     klic_fotos = _get_afbeeldingen(boring, "klic")
     if klic_fotos:
         for foto in klic_fotos:
             _add_image(doc, foto.bestandspad, foto.bijschrift or "Screenshot van de KLIC")
-    else:
+    elif not klic_data_gevuld:
         _add_styled_paragraph(
             doc,
             "[Voeg hier een screenshot van de KLIC viewer in + analyse]",
             space_after=6,
             color=RGBColor(0xCC, 0x00, 0x00),
         )
+
+    # EV-partijen uit platform
+    if order.ev_partijen:
+        _add_styled_paragraph(doc, "EIS VOORZORGSMAATREGEL (EV):", bold=True, space_after=4)
+        _add_styled_paragraph(
+            doc,
+            "De volgende netbeheerders hebben een Eis Voorzorgsmaatregel (EV) op hun leidingen. "
+            "Vóór aanvang van werkzaamheden dient contact te worden opgenomen:",
+            space_after=4,
+        )
+        for ev in order.ev_partijen:
+            _add_styled_paragraph(doc, f"  • {ev.naam}", space_after=2)
+        doc.add_paragraph()
+
     _add_styled_paragraph(
         doc,
         "De gebruikelijke voorzichtigheid en werkwijze volgens CROW500 zijn hier voldoende "
         "om het risico op schade uit te sluiten.",
         space_after=12,
     )
+
+    # Waterschap info
+    if order.waterkering_url:
+        _add_styled_paragraph(doc, "WATERSCHAP:", bold=True, space_after=4)
+        _add_styled_paragraph(
+            doc,
+            "Het tracé ligt binnen het beheergebied van het waterschap. De waterkering- en "
+            "watergang-voorschriften zijn gecontroleerd en in het ontwerp verwerkt.",
+            space_after=6,
+        )
 
     # RWS paragraaf als vergunning = R
     if order.vergunning == "R":
@@ -773,8 +873,46 @@ def generate_werkplan(order: Order, boring: Boring,
         doc,
         "Voor de geotechnische gegevens van de ondergrond is uitgegaan van twee sonderingen aan beide "
         "zijden van de gestuurde boring welke terug te vinden zijn in bijlage C.",
-        space_after=12,
+        space_after=6,
     )
+
+    # Doorsneden uit platform
+    if boring.doorsneden:
+        _add_styled_paragraph(doc, "Grondopbouw langs het tracé:", bold=True, space_after=4)
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        table.alignment = WD_TABLE_ALIGNMENT.LEFT
+        hdr = table.rows[0].cells
+        hdr[0].text = "Afstand (m)"
+        hdr[1].text = "NAP (m)"
+        hdr[2].text = "Grondtype"
+        hdr[3].text = "GWS (m)"
+        for cell in hdr:
+            for p in cell.paragraphs:
+                for run in p.runs:
+                    run.bold = True
+                    run.font.size = Pt(9)
+        for d in sorted(boring.doorsneden, key=lambda d: d.volgorde):
+            row = table.add_row().cells
+            row[0].text = f"{d.afstand_m:.0f}"
+            row[1].text = f"{d.NAP_m:+.1f}"
+            row[2].text = d.grondtype or "—"
+            row[3].text = f"{d.GWS_m:+.1f}" if d.GWS_m else "—"
+            for cell in row:
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        run.font.size = Pt(9)
+        doc.add_paragraph()
+
+    # Maaiveld uit platform
+    if boring.maaiveld_override:
+        mv = boring.maaiveld_override
+        _add_styled_paragraph(
+            doc,
+            f"Maaiveld intrede: {mv.MVin_NAP_m:+.2f} m NAP (bron: {mv.MVin_bron or 'handmatig'}). "
+            f"Maaiveld uittrede: {mv.MVuit_NAP_m:+.2f} m NAP (bron: {mv.MVuit_bron or 'handmatig'}).",
+            space_after=6,
+        )
 
     # 4.1 Sterkteberekeningen
     _add_heading(doc, "4.1.  Sterkteberekeningen", level=2)
