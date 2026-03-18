@@ -5,11 +5,11 @@ Volledige bedrijfsnamen bij sommige klanten nog opvragen bij Martien.
 """
 
 KLANTCODES = [
-    {"code": "3D", "naam": "3D-Drilling BV",        "akkoord_contact": "Michel Visser"},
-    {"code": "RD", "naam": "R&D Drilling",           "akkoord_contact": "Marcel van Hoolwerff"},
-    {"code": "IE", "naam": "Infra Elite",            "akkoord_contact": "Erik Heijnekamp"},
-    {"code": "KB", "naam": "Kappert Infra",          "akkoord_contact": "Alice Kappert"},
-    {"code": "BT", "naam": "BTL Drilling",           "akkoord_contact": "Patricia"},
+    {"code": "3D", "naam": "3D-Drilling BV",        "akkoord_contact": "Michel Visser",     "logo": "Logo3D.jpg"},
+    {"code": "RD", "naam": "R&D Drilling",           "akkoord_contact": "Marcel van Hoolwerff", "logo": ""},
+    {"code": "IE", "naam": "Infra Elite",            "akkoord_contact": "Erik Heijnekamp",   "logo": ""},
+    {"code": "KB", "naam": "Kappert Infra",          "akkoord_contact": "Alice Kappert",     "logo": ""},
+    {"code": "BT", "naam": "BTL Drilling",           "akkoord_contact": "Patricia",          "logo": ""},
     {"code": "TM", "naam": "TM Infra",              "akkoord_contact": ""},
     {"code": "QG", "naam": "QG Infra",              "akkoord_contact": ""},
     {"code": "MM", "naam": "MM Infra",              "akkoord_contact": ""},
@@ -61,3 +61,11 @@ def get_klant_naam(klantcode: str) -> str:
         if kc["code"] == klantcode:
             return kc["naam"]
     return klantcode
+
+
+def get_klant_logo(klantcode: str) -> str:
+    """Geeft het logo-bestandsnaam voor een klantcode (of lege string)."""
+    for kc in KLANTCODES:
+        if kc["code"] == klantcode:
+            return kc.get("logo", "")
+    return ""

@@ -137,11 +137,22 @@
             4. DWG is leidend; PDF is afgeleid.
           </td>
           <!-- Logo's -->
-          <td style="padding: 1.5mm; vertical-align: middle; text-align: center; border-right: 0.5pt solid #000; width: 20%;">
-            {% if gbt_logo_url %}
-            <img src="{{ gbt_logo_url }}" style="width: 35mm; display: block; margin: 0 auto 1mm;">
-            {% endif %}
-            <div style="font-size: 5pt; color: #666;">IN OPDRACHT VAN:</div>
+          <td style="padding: 1.5mm; vertical-align: middle; text-align: center; border-right: 0.5pt solid #000; width: 25%;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                {% if klant_logo_url %}
+                <td style="text-align: center; padding: 1mm;">
+                  <img src="{{ klant_logo_url }}" style="max-width: 28mm; max-height: 12mm;">
+                </td>
+                {% endif %}
+                {% if gbt_logo_url %}
+                <td style="text-align: center; padding: 1mm;">
+                  <img src="{{ gbt_logo_url }}" style="max-width: 28mm; max-height: 12mm;">
+                </td>
+                {% endif %}
+              </tr>
+            </table>
+            <div style="font-size: 5pt; color: #666; margin-top: 0.5mm;">IN OPDRACHT VAN:</div>
             <div style="font-size: 7pt; font-weight: bold;">{{ order.opdrachtgever or '—' }}</div>
           </td>
           <!-- Titelblok -->

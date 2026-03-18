@@ -496,11 +496,22 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         except Exception:
             pass
 
-    # GBT logo
+    # Logo's
+    _logos_dir = Path(__file__).parent.parent / "static" / "logos"
     gbt_logo_url = ""
-    gbt_logo_path = Path(__file__).parent.parent / "static" / "logos" / "gbt_logo.svg"
+    gbt_logo_path = _logos_dir / "gbt_logo.svg"
     if gbt_logo_path.exists():
         gbt_logo_url = _svg_to_png_data_uri(gbt_logo_path.read_text())
+
+    # Klant logo (boorbedrijf)
+    klant_logo_url = ""
+    from app.order.klantcodes import get_klant_logo
+    klant_logo_file = get_klant_logo(order.klantcode or "")
+    if klant_logo_file:
+        klant_logo_path = _logos_dir / klant_logo_file
+        if klant_logo_path.exists():
+            klant_logo_url = _bytes_to_tmpfile(klant_logo_path.read_bytes(),
+                                                klant_logo_path.suffix)
 
     context = {
         "boring": boring,
@@ -519,6 +530,7 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         "kaart_url": kaart_url,
         "is_boogzinker": boring.type == "Z",
         "gbt_logo_url": gbt_logo_url,
+        "klant_logo_url": klant_logo_url,
     }
 
     template = _env.get_template("tekening.html")
