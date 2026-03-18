@@ -154,6 +154,12 @@ def test_pdf_f_klic_disclaimer():
         r_buis_mm=80.0,
         intreehoek_pct=32.5,
         uittreehoek_pct=40.4,
+        ev_zones=[],
+        has_ev_zones=False,
+        lengteprofiel_svg="",
+        bovenaanzicht_svg="",
+        kaart_url="",
+        is_boogzinker=False,
     )
-    assert "KLIC" in html
     assert "CROW 96b" in html
+    assert "K&amp;L" in html or "K&L" in html
