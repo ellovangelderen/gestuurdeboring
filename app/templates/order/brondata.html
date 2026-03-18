@@ -174,7 +174,10 @@
   </form>
 </section>
 
-<a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">&larr; Terug naar boring</a>
+<div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/conflictcheck" class="btn btn-primary">Conflictcheck K&amp;L</a>
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">&larr; Terug naar boring</a>
+</div>
 
 <script>
 function maaiveldAhn5() {

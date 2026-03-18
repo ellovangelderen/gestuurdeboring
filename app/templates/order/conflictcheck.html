@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Conflictcheck — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>Conflictcheck — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>3D afstandscontrole boortracé vs kabels &amp; leidingen (KLIC).</p>
+
+{% if fout %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem;">
+  <strong>Kan geen conflictcheck uitvoeren:</strong> {{ fout }}
+</section>
+{% else %}
+
+<div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <div class="stat-card" style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ totaal_leidingen }}</div>
+    <div style="font-size: 0.8em; color: #666;">Leidingen totaal</div>
+  </div>
+  <div class="stat-card" style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ totaal_in_corridor }}</div>
+    <div style="font-size: 0.8em; color: #666;">Binnen 25m corridor</div>
+  </div>
+  {% if onbekend %}
+  <div class="stat-card" style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #dc3545; background: #fff5f5;">
+    <div style="font-size: 1.5rem; font-weight: 700; color: #dc3545;">{{ onbekend|length }}</div>
+    <div style="font-size: 0.8em; color: #dc3545;">Diepte onbekend</div>
+  </div>
+  {% endif %}
+  {% if te_dicht %}
+  <div class="stat-card" style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #dc3545; background: #fff5f5;">
+    <div style="font-size: 1.5rem; font-weight: 700; color: #dc3545;">{{ te_dicht|length }}</div>
+    <div style="font-size: 0.8em; color: #dc3545;">Conflict (&lt;0.5m)</div>
+  </div>
+  {% endif %}
+  {% if waarschuwing %}
+  <div class="stat-card" style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ffc107; background: #fff8e1;">
+    <div style="font-size: 1.5rem; font-weight: 700; color: #856404;">{{ waarschuwing|length }}</div>
+    <div style="font-size: 0.8em; color: #856404;">Waarschuwing (0.5-1.5m)</div>
+  </div>
+  {% endif %}
+</div>
+
+{% if onbekend %}
+<section class="card" style="border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+  <h2 style="color: #dc3545;">Diepte onbekend — altijd controleren</h2>
+  <p style="font-size: 0.85em; color: #666;">KLIC dieptes zijn vaak onbetrouwbaar. Deze leidingen liggen binnen de corridor maar hebben geen betrouwbare dieptegegevens.</p>
+  <table class="table">
+    <thead><tr><th>Beheerder</th><th>Type</th><th>Afstand tot tracé</th><th>Positie (m)</th></tr></thead>
+    <tbody>
+      {% for c in onbekend %}
+      <tr>
+        <td>{{ c.beheerder }}</td>
+        <td>{{ c.leidingtype }}</td>
+        <td>{{ c.horizontale_afstand_m }} m</td>
+        <td>{{ c.x_profiel }} m</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if te_dicht %}
+<section class="card" style="border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+  <h2 style="color: #dc3545;">Conflict — afstand &lt; 0.5m</h2>
+  <table class="table">
+    <thead><tr><th>Beheerder</th><th>Type</th><th>Afstand</th><th>Boor NAP</th><th>Leiding NAP</th><th>Positie</th></tr></thead>
+    <tbody>
+      {% for c in te_dicht %}
+      <tr>
+        <td>{{ c.beheerder }}</td>
+        <td>{{ c.leidingtype }}</td>
+        <td style="color: #dc3545; font-weight: 700;">{{ "%.2f"|format(c.afstand_m) }} m</td>
+        <td>{{ "%.2f"|format(c.z_boor) }}</td>
+        <td>{{ "%.2f"|format(c.z_leiding) if c.z_leiding is not none else '?' }}</td>
+        <td>{{ c.x_profiel }} m</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if waarschuwing %}
+<section class="card" style="border-left: 4px solid #ffc107; margin-bottom: 1rem;">
+  <h2 style="color: #856404;">Waarschuwing — afstand 0.5 – 1.5m</h2>
+  <table class="table">
+    <thead><tr><th>Beheerder</th><th>Type</th><th>Afstand</th><th>Boor NAP</th><th>Leiding NAP</th><th>Positie</th></tr></thead>
+    <tbody>
+      {% for c in waarschuwing %}
+      <tr>
+        <td>{{ c.beheerder }}</td>
+        <td>{{ c.leidingtype }}</td>
+        <td style="color: #856404; font-weight: 600;">{{ "%.2f"|format(c.afstand_m) }} m</td>
+        <td>{{ "%.2f"|format(c.z_boor) }}</td>
+        <td>{{ "%.2f"|format(c.z_leiding) if c.z_leiding is not none else '?' }}</td>
+        <td>{{ c.x_profiel }} m</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if veilig %}
+<details style="margin-bottom: 1rem;">
+  <summary class="btn btn-secondary btn-sm">Veilig ({{ veilig|length }} leidingen, afstand &gt; 1.5m)</summary>
+  <table class="table" style="margin-top: 0.5rem;">
+    <thead><tr><th>Beheerder</th><th>Type</th><th>Afstand</th><th>Positie</th></tr></thead>
+    <tbody>
+      {% for c in veilig %}
+      <tr>
+        <td>{{ c.beheerder }}</td>
+        <td>{{ c.leidingtype }}</td>
+        <td style="color: #28a745;">{{ "%.2f"|format(c.afstand_m) }} m</td>
+        <td>{{ c.x_profiel }} m</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}
+
+{% if not onbekend and not te_dicht and not waarschuwing and not veilig %}
+<section class="card" style="border-left: 4px solid #28a745; background: #f0fff0; padding: 1rem;">
+  <strong style="color: #28a745;">Geen leidingen binnen de corridor van 25m.</strong>
+</section>
+{% endif %}
+
+{% endif %}
+
+<a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata" class="btn btn-secondary">&larr; Terug naar brondata</a>
+{% endblock %}
