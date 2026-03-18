@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Sleufloze leidingen — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>Sleufloze leidingen — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>Leidingen die met sleufloze techniek (HDD, boogzinker, e.d.) zijn aangelegd. Deze leidingen liggen mogelijk dieper dan verwacht en vereisen extra aandacht bij het ontwerp.</p>
+
+{% if not heeft_klic %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem;">
+  <strong>Geen KLIC data beschikbaar</strong> — upload eerst een KLIC bestand via de brondata pagina.
+</section>
+{% else %}
+
+<div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ totaal_leidingen }}</div>
+    <div style="font-size: 0.8em; color: #666;">Leidingen totaal</div>
+  </div>
+  <div style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid {% if sleufloze %}#dc3545{% else %}#28a745{% endif %};">
+    <div style="font-size: 1.5rem; font-weight: 700; color: {% if sleufloze %}#dc3545{% else %}#28a745{% endif %};">{{ sleufloze|length }}</div>
+    <div style="font-size: 0.8em; color: #666;">Sleufloze techniek</div>
+  </div>
+  <div style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid {% if mogelijk %}#ffc107{% else %}#ddd{% endif %};">
+    <div style="font-size: 1.5rem; font-weight: 700; {% if mogelijk %}color: #856404;{% endif %}">{{ mogelijk|length }}</div>
+    <div style="font-size: 0.8em; color: #666;">Mogelijk sleufloze</div>
+  </div>
+</div>
+
+{% if sleufloze %}
+<section class="card" style="border-left: 4px solid #dc3545; margin-bottom: 1rem;">
+  <h2 style="color: #dc3545;">Sleufloze techniek gedetecteerd</h2>
+  <p style="font-size: 0.85em; color: #666;">
+    Detectie op basis van materiaaltype (PE/HDPE/HPE = altijd geboord) en/of mantelbuis + bijlage-heuristiek.
+    Deze leidingen zijn met grote zekerheid sleufloze aangelegd.
+  </p>
+  <table class="table">
+    <thead>
+      <tr><th>Beheerder</th><th>Type</th><th>Materiaal</th><th>Diepte</th><th>Bron</th></tr>
+    </thead>
+    <tbody>
+      {% for l in sleufloze %}
+      <tr>
+        <td>{{ l.beheerder or '-' }}</td>
+        <td>{{ l.leidingtype or '-' }}</td>
+        <td>{{ l.label_tekst or '-' }}</td>
+        <td>{% if l.diepte_m is not none %}{{ "%.1f"|format(l.diepte_m) }} m{% else %}<span style="color: #dc3545;">Onbekend</span>{% endif %}</td>
+        <td>{{ l.diepte_bron or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if mogelijk %}
+<section class="card" style="border-left: 4px solid #ffc107; margin-bottom: 1rem;">
+  <h2 style="color: #856404;">Mogelijk sleufloze techniek</h2>
+  <p style="font-size: 0.85em; color: #666;">
+    Stalen leidingen kunnen geboord zijn maar ook gegraven. Beoordeel of er intree/uittree-ruimte aanwezig is.
+  </p>
+  <table class="table">
+    <thead>
+      <tr><th>Beheerder</th><th>Type</th><th>Materiaal</th><th>Diepte</th><th>Bron</th></tr>
+    </thead>
+    <tbody>
+      {% for l in mogelijk %}
+      <tr>
+        <td>{{ l.beheerder or '-' }}</td>
+        <td>{{ l.leidingtype or '-' }}</td>
+        <td>{{ l.label_tekst or '-' }}</td>
+        <td>{% if l.diepte_m is not none %}{{ "%.1f"|format(l.diepte_m) }} m{% else %}<span style="color: #856404;">Onbekend</span>{% endif %}</td>
+        <td>{{ l.diepte_bron or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if not sleufloze and not mogelijk %}
+<section class="card" style="border-left: 4px solid #28a745; background: #f0fff0; padding: 1rem;">
+  <strong style="color: #28a745;">Geen sleufloze leidingen gedetecteerd in deze KLIC-levering.</strong>
+</section>
+{% endif %}
+
+<details style="margin-top: 1rem; font-size: 0.85em;">
+  <summary style="cursor: pointer; color: #666;">Detectieregels</summary>
+  <div style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f9fa; border-radius: 4px;">
+    <p><strong>Materiaalregel (primair):</strong></p>
+    <ul>
+      <li>PE / HDPE / HPE / PE100 / PE80 → altijd geboord (sleufloze techniek)</li>
+      <li>Staal → kan geboord zijn (mogelijk sleufloze)</li>
+      <li>PVC / Beton / Asbestcement → gegraven (geen sleufloze)</li>
+    </ul>
+    <p><strong>Bijlage-heuristiek (aanvullend):</strong></p>
+    <ul>
+      <li>Mantelbuis + geen diepte + PDF-bijlage aanwezig → sleufloze techniek</li>
+    </ul>
+  </div>
+</details>
+
+{% endif %}
+
+<div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata" class="btn btn-secondary">&larr; Brondata</a>
+</div>
+{% endblock %}

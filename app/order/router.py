@@ -942,6 +942,58 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── Sleufloze leidingen ───────────────────────────────────────────────────
+
+@router.get("/{order_id}/boringen/{volgnr}/sleufloze", response_class=HTMLResponse)
+def sleufloze_leidingen_pagina(
+    request: Request,
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Overzicht sleufloze leidingen uit KLIC data."""
+    order = fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    sleufloze = []
+    mogelijk = []
+    totaal_leidingen = 0
+
+    laatste_upload = None
+    if order.klic_uploads:
+        uploads = [u for u in order.klic_uploads if u.verwerkt]
+        if uploads:
+            laatste_upload = sorted(uploads, key=lambda u: u.upload_datum)[-1]
+
+    if laatste_upload:
+        leidingen = (
+            db.query(KLICLeiding)
+            .filter_by(klic_upload_id=laatste_upload.id)
+            .all()
+        )
+        totaal_leidingen = len(leidingen)
+        for l in leidingen:
+            if l.sleufloze_techniek:
+                sleufloze.append(l)
+            elif l.mogelijk_sleufloze:
+                mogelijk.append(l)
+
+    return templates.TemplateResponse(
+        "order/sleufloze.html",
+        {
+            "request": request,
+            "order": order,
+            "boring": boring,
+            "user": user,
+            "sleufloze": sleufloze,
+            "mogelijk": mogelijk,
+            "totaal_leidingen": totaal_leidingen,
+            "heeft_klic": laatste_upload is not None,
+        },
+    )
+
+
 # ── GWSW riool BOB ────────────────────────────────────────────────────────
 
 @router.get("/{order_id}/boringen/{volgnr}/gwsw", response_class=HTMLResponse)

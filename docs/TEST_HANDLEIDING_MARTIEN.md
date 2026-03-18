@@ -155,7 +155,20 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 ---
 
-## 11. EV-zones
+## 11. Sleufloze leidingen
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 11.1 | Brondata → "Sleufloze leidingen" | Overzicht sleufloze leidingen uit KLIC |
+| 11.2 | Stats-balk | Totaal leidingen, sleufloze (rood), mogelijk sleufloze (geel) |
+| 11.3 | Rode sectie | PE/HDPE leidingen + mantelbuizen → "sleufloze techniek gedetecteerd" |
+| 11.4 | Gele sectie | Stalen leidingen → "mogelijk sleufloze techniek" |
+| 11.5 | Geen sleufloze | Groene melding "Geen sleufloze leidingen gedetecteerd" |
+| 11.6 | Detectieregels (inklapbaar) | Uitleg materiaalregel + bijlage-heuristiek |
+
+---
+
+## 12. EV-zones
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
@@ -168,7 +181,7 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 ## Bekende beperkingen (nog niet gebouwd)
 
 - ~~GWSW riool BOB (backlog 5)~~ — **gebouwd** (PDOK API + gemeente-mail)
-- **Sleufloze detectie** (backlog 6) — in KLIC parser maar nog geen apart scherm
+- ~~Sleufloze detectie (backlog 6)~~ — **gebouwd** (apart scherm met categorieën)
 - **Tracévarianten** (backlog 12) — meerdere varianten vergelijken
 - **SnelStart facturatie** (backlog 13) — handmatig factureren
 - **Vergunningscheck** (backlog 14) — handmatig opzoeken
