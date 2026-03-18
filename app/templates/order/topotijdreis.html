@@ -73,8 +73,11 @@ const TILE_BASE = 'https://tiles.arcgis.com/tiles/nSZVuSZjHpEZZbRo/arcgis/rest/s
 
 function maakTilelayer(jaar) {
   if (jaar === 'Nu') {
-    // PDOK BRT in RD tiling (zelfde CRS)
-    return L.tileLayer('https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:28992/{z}/{x}/{y}.png', {
+    // PDOK BRT via WMS (ondersteunt elke CRS server-side)
+    return L.tileLayer.wms('https://service.pdok.nl/brt/achtergrondkaart/wms/v2_0', {
+      layers: 'standaard',
+      format: 'image/png',
+      transparent: false,
       attribution: '&copy; Kadaster / PDOK (actueel)',
       tileSize: 256
     });
