@@ -61,17 +61,34 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     # SVG viewBox
     margin_left = 45   # ruimte voor NAP labels
     margin_right = 15
-    margin_top = 25
+    margin_top = 30
     margin_bot = 35    # ruimte voor afstandslabels
     svg_width = 1200
-    svg_height = 450
+    svg_height = 500
 
-    z_min = profiel.diepte_NAP_m - 2
-    z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 2
+    # z-bereik: inclusief doorsneden als die er zijn
+    z_min = profiel.diepte_NAP_m - 1.0
+    if boring.doorsneden:
+        z_min = min(z_min, min(d.NAP_m for d in boring.doorsneden) - 0.5)
+    z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 1.5
     x_range = L_totaal if L_totaal > 0 else 1.0
     z_range = z_max - z_min if (z_max - z_min) > 0 else 1.0
+
+    # Horizontale schaal: x in pixels
     sx = (svg_width - margin_left - margin_right) / x_range
-    sz = (svg_height - margin_top - margin_bot) / z_range
+
+    # Verticale schaal: OVERDREVEN zodat bogen zichtbaar zijn
+    # Martien gebruikt ~10-15x verticale overdrijving
+    sz = sx * 15  # 15x overdrijving t.o.v. horizontaal
+
+    # Pas SVG hoogte aan op basis van werkelijke benodigde ruimte
+    svg_height = int(margin_top + margin_bot + z_range * sz)
+    svg_height = max(svg_height, 300)  # minimaal 300px
+    svg_height = min(svg_height, 800)  # maximaal 800px
+
+    # Als het niet past, schaal terug
+    if z_range * sz > (svg_height - margin_top - margin_bot):
+        sz = (svg_height - margin_top - margin_bot) / z_range
 
     def tx(x: float) -> float:
         return margin_left + x * sx
