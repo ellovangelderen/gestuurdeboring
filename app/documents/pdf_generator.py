@@ -176,63 +176,51 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     return svg
 
 
-def _fetch_map_image_b64(lat_min: float, lon_min: float, lat_max: float, lon_max: float,
-                          width: int = 600, height: int = 400) -> str | None:
-    """Haal een statische kaartafbeelding op als base64 PNG via OSM static map."""
+def _fetch_map_image_b64(lat_center: float, lon_center: float, zoom: int = 16,
+                          tiles_x: int = 3, tiles_y: int = 2) -> str | None:
+    """Haal OSM kaartachtergrond op door tiles te stitchen.
+
+    Returns: "image/png,{base64}" of None bij fout.
+    """
     import base64
+    import io
     import httpx
     import logging
+    from PIL import Image
     logger = logging.getLogger(__name__)
 
-    # Gebruik OpenStreetMap static map via bbox
-    # Bereken center en zoom
-    lat_center = (lat_min + lat_max) / 2
-    lon_center = (lon_min + lon_max) / 2
+    # Bereken tile indices voor center
+    import math as _m
+    n = 2 ** zoom
+    tile_cx = int((lon_center + 180.0) / 360.0 * n)
+    tile_cy = int((1.0 - _m.log(_m.tan(_m.radians(lat_center)) + 1.0 / _m.cos(_m.radians(lat_center))) / _m.pi) / 2.0 * n)
 
-    # Bereken geschikt zoomniveau
-    lat_span = lat_max - lat_min
-    lon_span = lon_max - lon_min
-    # Hoe kleiner de span, hoe hoger de zoom
-    span = max(lat_span, lon_span)
-    if span < 0.002:
-        zoom = 17
-    elif span < 0.005:
-        zoom = 16
-    elif span < 0.01:
-        zoom = 15
-    elif span < 0.02:
-        zoom = 14
-    elif span < 0.05:
-        zoom = 13
-    else:
-        zoom = 12
+    # Grid van tiles rondom center
+    half_x = tiles_x // 2
+    half_y = tiles_y // 2
+    tile_size = 256
 
-    # Gebruik PDOK luchtfoto WMTS als statische kaart (Web Mercator)
-    # Alternatief: OSM tile stitching. We gebruiken een eenvoudige aanpak:
-    # Haal 1 WMS GetMap request op
-    try:
-        from app.geo.coords import rd_to_wgs84, wgs84_to_rd
-        # Converteer bbox naar RD voor PDOK
-        rd_min_x, rd_min_y = wgs84_to_rd(lat_min, lon_min)
-        rd_max_x, rd_max_y = wgs84_to_rd(lat_max, lon_max)
+    canvas = Image.new("RGB", (tiles_x * tile_size, tiles_y * tile_size))
 
-        # PDOK luchtfoto WMS
-        url = (
-            f"https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0"
-            f"?service=WMS&version=1.3.0&request=GetMap"
-            f"&layers=Actueel_orthoHR"
-            f"&crs=EPSG:28992"
-            f"&bbox={rd_min_x},{rd_min_y},{rd_max_x},{rd_max_y}"
-            f"&width={width}&height={height}"
-            f"&format=image/png"
-        )
-        resp = httpx.get(url, timeout=10)
-        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image"):
-            return base64.b64encode(resp.content).decode("ascii")
-    except Exception as exc:
-        logger.warning("Kaart ophalen mislukt: %s", exc)
+    for dy in range(tiles_y):
+        for dx in range(tiles_x):
+            tx = tile_cx - half_x + dx
+            ty = tile_cy - half_y + dy
+            url = f"https://tile.openstreetmap.org/{zoom}/{tx}/{ty}.png"
+            try:
+                resp = httpx.get(url, timeout=8, headers={"User-Agent": "HDD-Platform/1.0"})
+                if resp.status_code == 200:
+                    tile_img = Image.open(io.BytesIO(resp.content))
+                    canvas.paste(tile_img, (dx * tile_size, dy * tile_size))
+            except Exception as exc:
+                logger.warning("OSM tile fout %s: %s", url, exc)
 
-    return None
+    buf = io.BytesIO()
+    canvas.save(buf, format="JPEG", quality=85)
+    data = buf.getvalue()
+    if len(data) < 5000:
+        return None
+    return "image/jpeg," + base64.b64encode(data).decode("ascii")
 
 
 def _generate_bovenaanzicht_svg(boring: Boring) -> str:
@@ -290,7 +278,7 @@ def _generate_bovenaanzicht_svg(boring: Boring) -> str:
         if map_b64:
             svg += (
                 f'<image x="0" y="0" width="{svg_w}" height="{svg_h}" '
-                f'href="data:image/png;base64,{map_b64}" '
+                f'xlink:href="data:{map_b64}" '
                 f'preserveAspectRatio="none"/>\n'
             )
         else:
@@ -348,6 +336,29 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     lengteprofiel_svg = _generate_lengteprofiel_svg(boring)
     bovenaanzicht_svg = _generate_bovenaanzicht_svg(boring)
 
+    # Kaartachtergrond als tijdelijk bestand (WeasyPrint ondersteunt geen data URIs voor img)
+    kaart_file_url = ""
+    _kaart_tmpfile = None
+    if boring.trace_punten and len(boring.trace_punten) >= 2:
+        try:
+            import tempfile
+            from app.geo.coords import rd_to_wgs84
+            xs = [p.RD_x for p in boring.trace_punten]
+            ys = [p.RD_y for p in boring.trace_punten]
+            cx = (min(xs) + max(xs)) / 2
+            cy = (min(ys) + max(ys)) / 2
+            lat_c, lon_c = rd_to_wgs84(cx, cy)
+            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=16, tiles_x=4, tiles_y=3)
+            if b64:
+                import base64
+                img_bytes = base64.b64decode(b64.split(",", 1)[1])
+                _kaart_tmpfile = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                _kaart_tmpfile.write(img_bytes)
+                _kaart_tmpfile.flush()
+                kaart_file_url = f"file://{_kaart_tmpfile.name}"
+        except Exception:
+            pass
+
     context = {
         "boring": boring,
         "order": order,
@@ -362,10 +373,20 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         "has_ev_zones": len(ev_zones) > 0,
         "lengteprofiel_svg": lengteprofiel_svg,
         "bovenaanzicht_svg": bovenaanzicht_svg,
+        "kaart_url": kaart_file_url,
         "is_boogzinker": boring.type == "Z",
     }
 
     template = _env.get_template("tekening.html")
     html_str = template.render(**context)
     pdf_bytes = HTML(string=html_str, base_url=str(_template_dir)).write_pdf()
+
+    # Cleanup tijdelijk kaartbestand
+    if _kaart_tmpfile:
+        import os
+        try:
+            os.unlink(_kaart_tmpfile.name)
+        except OSError:
+            pass
+
     return pdf_bytes

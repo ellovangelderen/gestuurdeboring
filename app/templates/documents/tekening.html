@@ -103,6 +103,13 @@
       {% endif %}
     </div>
 
+    {% if kaart_url %}
+    <h2>Situatietekening</h2>
+    <div class="profiel-blok" style="padding: 0;">
+      <img src="{{ kaart_url }}" style="width: 100%; display: block;">
+    </div>
+    {% endif %}
+
     {% if bovenaanzicht_svg %}
     <h2>Bovenaanzicht trace</h2>
     <div class="profiel-blok">
