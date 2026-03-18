@@ -144,3 +144,149 @@ legend { font-weight: bold; padding: 0 6px; }
 .empty { color: #888; font-style: italic; }
 
 hr { border: none; border-top: 1px solid #dee2e6; margin: 24px 0; }
+
+/* ── Cockpit Stats-balk ──────────────────────────────────────────────── */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  text-decoration: none;
+  color: #1a1a1a;
+  transition: box-shadow 0.15s;
+}
+.stat-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.stat-card--active { border-color: #003087; box-shadow: 0 0 0 2px rgba(0,48,135,0.2); }
+.stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+.stat-card--danger .stat-value { color: #dc3545; }
+.stat-card--alert { border-color: #dc3545; background: #fff5f5; }
+.stat-card--warning .stat-value { color: #e67e00; }
+.stat-card--info .stat-value { color: #0077cc; }
+.stat-card--purple .stat-value { color: #6f42c1; }
+
+/* ── Cockpit Toolbar ─────────────────────────────────────────────────── */
+.cockpit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.cockpit-toolbar-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.cockpit-search {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 220px;
+}
+.cockpit-filters { display: flex; gap: 4px; }
+.cockpit-sort {
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #fff;
+}
+
+/* ── Cockpit Tabel ───────────────────────────────────────────────────── */
+.cockpit-table td { vertical-align: middle; }
+
+/* Type badges */
+.badge-type-B { background: #212529; color: #fff; }
+.badge-type-N { background: #6c757d; color: #fff; }
+.badge-type-Z { background: #6f42c1; color: #fff; }
+.badge-type-C { background: #20c997; color: #fff; }
+
+/* Status badges */
+.badge-status { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.badge-status-order_received { background: #e8f4ff; color: #0055aa; }
+.badge-status-order_received .status-dot { background: #0077cc; }
+.badge-status-in_progress { background: #fff3cd; color: #856404; }
+.badge-status-in_progress .status-dot { background: #e67e00; }
+.badge-status-delivered { background: #d4edda; color: #155724; }
+.badge-status-delivered .status-dot { background: #28a745; }
+.badge-status-waiting_for_approval { background: #f3e8ff; color: #5a2d82; }
+.badge-status-waiting_for_approval .status-dot { background: #6f42c1; }
+.badge-status-done { background: #d4edda; color: #155724; }
+.badge-status-done .status-dot { background: #155724; }
+.badge-status-cancelled { background: #f1f3f5; color: #868e96; }
+.badge-status-cancelled .status-dot { background: #868e96; }
+
+/* Tekenaar avatar */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #003087;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* EV-waarschuwing */
+.ev-warning {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #fff3cd;
+  color: #856404;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* PRIO vlag */
+.prio-flag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #dc3545;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.row-prio { background: #fff8f8; }
+
+/* Deadline over */
+.deadline-over { color: #dc3545; font-weight: 700; }
+
+/* Quick-actions dropdown */
+.quick-actions { position: relative; display: inline-block; }
+.quick-actions-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  min-width: 180px;
+  z-index: 100;
+  padding: 4px 0;
+}
+.quick-actions-menu a {
+  display: block;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #1a1a1a;
+  text-decoration: none;
+}
+.quick-actions-menu a:hover { background: #f1f3f5; }

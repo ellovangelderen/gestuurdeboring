@@ -101,6 +101,9 @@
     <label>Akkoord contactpersoon
       <input type="text" name="akkoord_contact" value="{{ order.akkoord_contact or '' }}">
     </label>
+    <label>Deadline
+      <input type="date" name="deadline" value="{{ order.deadline.strftime('%Y-%m-%d') if order.deadline else '' }}">
+    </label>
     <label>Status
       <select name="status">
         {% for s in statuses.items() %}

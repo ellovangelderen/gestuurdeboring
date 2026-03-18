@@ -1,10 +1,14 @@
+import csv
+import io
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -43,29 +47,183 @@ def _i(v: str) -> int | None:
     return int(v) if v and v.strip() else None
 
 
-# ── Orderlijst ──────────────────────────────────────────────────────────────
+# ── Cockpit helpers ────────────────────────────────────────────────────────
+
+_STATUS_MAP = {s["value"]: s["label"] for s in ORDER_STATUSES}
+
+# Statussen die als "actief" gelden (niet geleverd/afgerond/geannuleerd)
+_ACTIEVE_STATUSSEN = {"order_received", "in_progress", "waiting_for_approval"}
+
+
+def _query_orders(
+    db: Session,
+    workspace_id: str,
+    *,
+    filter: str = "alles",
+    zoek: str = "",
+    sorteer: str = "deadline",
+    richting: str = "asc",
+    user: str = "",
+) -> list[Order]:
+    """Bouw een gefilterde, gesorteerde orderlijst voor de cockpit."""
+    q = db.query(Order).filter_by(workspace_id=workspace_id)
+
+    # -- filter --
+    if filter == "actief":
+        q = q.filter(Order.status.in_(_ACTIEVE_STATUSSEN))
+    elif filter == "wacht_akkoord":
+        q = q.filter(Order.status == "waiting_for_approval")
+    elif filter == "geleverd":
+        q = q.filter(Order.status.in_({"delivered", "done"}))
+    elif filter == "mijn":
+        q = q.filter(Order.tekenaar == user)
+    # "alles" → geen extra filter
+
+    # -- zoek --
+    if zoek:
+        like = f"%{zoek}%"
+        q = q.filter(
+            (Order.ordernummer.ilike(like))
+            | (Order.locatie.ilike(like))
+            | (Order.klantcode.ilike(like))
+            | (Order.opdrachtgever.ilike(like))
+        )
+
+    # -- sorteer --
+    col_map = {
+        "deadline": Order.deadline,
+        "datum": Order.ontvangen_op,
+        "klant": Order.klantcode,
+        "status": Order.status,
+    }
+    col = col_map.get(sorteer, Order.deadline)
+    if richting == "desc":
+        q = q.order_by(col.desc().nullslast(), Order.ontvangen_op.desc())
+    else:
+        q = q.order_by(col.asc().nullslast(), Order.ontvangen_op.desc())
+
+    return q.all()
+
+
+def _compute_stats(orders: list[Order]) -> dict:
+    """Bereken cockpit statistieken uit een lijst orders."""
+    now_aware = datetime.now(timezone.utc)
+    now_naive = now_aware.replace(tzinfo=None)
+    totaal = len(orders)
+    over_deadline = 0
+    urgent = 0
+    in_uitvoering = 0
+    wacht_akkoord = 0
+
+    for o in orders:
+        if o.deadline:
+            # Vergelijk met juiste variant (naive of aware)
+            now = now_aware if o.deadline.tzinfo else now_naive
+        else:
+            now = now_aware
+        if o.deadline and o.deadline < now and o.status in _ACTIEVE_STATUSSEN:
+            over_deadline += 1
+        if o.prio and o.status in _ACTIEVE_STATUSSEN:
+            urgent += 1
+        if o.status == "in_progress":
+            in_uitvoering += 1
+        if o.status == "waiting_for_approval":
+            wacht_akkoord += 1
+
+    return {
+        "totaal": totaal,
+        "over_deadline": over_deadline,
+        "urgent": urgent,
+        "in_uitvoering": in_uitvoering,
+        "wacht_akkoord": wacht_akkoord,
+    }
+
+
+# ── Cockpit (orderlijst) ──────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
 def order_lijst(
     request: Request,
+    filter: str = Query("alles"),
+    zoek: str = Query(""),
+    sorteer: str = Query("deadline"),
+    richting: str = Query("asc"),
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = get_workspace_id(user)
-    orders = (
-        db.query(Order)
-        .filter_by(workspace_id=workspace_id)
-        .order_by(Order.ontvangen_op.desc())
-        .all()
+
+    # Alle orders voor stats (ongeacht filter)
+    alle_orders = db.query(Order).filter_by(workspace_id=workspace_id).all()
+    stats = _compute_stats(alle_orders)
+
+    # Gefilterde orders voor tabel
+    orders = _query_orders(
+        db, workspace_id,
+        filter=filter, zoek=zoek, sorteer=sorteer, richting=richting, user=user,
     )
+
     return templates.TemplateResponse(
         "order/list.html",
         {
             "request": request,
             "orders": orders,
             "user": user,
-            "statuses": {s["value"]: s["label"] for s in ORDER_STATUSES},
+            "statuses": _STATUS_MAP,
+            "stats": stats,
+            "filter": filter,
+            "zoek": zoek,
+            "sorteer": sorteer,
+            "richting": richting,
+            "now": datetime.now(timezone.utc).replace(tzinfo=None),
         },
+    )
+
+
+# ── CSV export ─────────────────────────────────────────────────────────────
+
+@router.get("/export/csv")
+def export_csv(
+    filter: str = Query("alles"),
+    zoek: str = Query(""),
+    sorteer: str = Query("deadline"),
+    richting: str = Query("asc"),
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workspace_id = get_workspace_id(user)
+    orders = _query_orders(
+        db, workspace_id,
+        filter=filter, zoek=zoek, sorteer=sorteer, richting=richting, user=user,
+    )
+
+    output = io.StringIO()
+    output.write("\ufeff")  # UTF-8 BOM voor Excel
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow([
+        "Ordernummer", "Locatie", "Klant", "Boringen", "Status",
+        "Deadline", "Tekenaar", "Prio", "EV-partijen",
+    ])
+    for o in orders:
+        boring_types = " ".join(b.type for b in sorted(o.boringen, key=lambda b: b.volgnummer))
+        ev = ", ".join(ep.naam for ep in o.ev_partijen) if o.ev_partijen else ""
+        writer.writerow([
+            o.ordernummer,
+            o.locatie or "",
+            o.klantcode or "",
+            boring_types,
+            _STATUS_MAP.get(o.status, o.status),
+            o.deadline.strftime("%d-%m-%Y") if o.deadline else "",
+            o.tekenaar or "",
+            "Ja" if o.prio else "Nee",
+            ev,
+        ])
+
+    csv_bytes = output.getvalue().encode("utf-8")
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=orders_export.csv"},
     )
 
 
@@ -98,6 +256,7 @@ def order_nieuw_opslaan(
     vergunning: str = Form("-"),
     tekenaar: str = Form("martien"),
     akkoord_contact: str = Form(""),
+    deadline: str = Form(""),
     type_1: str = Form(""),
     aantal_1: str = Form("1"),
     type_2: str = Form(""),
@@ -115,6 +274,14 @@ def order_nieuw_opslaan(
     if not contact and klantcode:
         contact = get_akkoord_contact(klantcode)
 
+    # Parse deadline date string
+    deadline_dt = None
+    if deadline and deadline.strip():
+        try:
+            deadline_dt = datetime.strptime(deadline.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
     order = Order(
         workspace_id=workspace_id,
         ordernummer=ordernummer.strip(),
@@ -124,6 +291,7 @@ def order_nieuw_opslaan(
         vergunning=vergunning,
         tekenaar=tekenaar.strip() or "martien",
         akkoord_contact=contact or None,
+        deadline=deadline_dt,
     )
     db.add(order)
     db.flush()  # order.id beschikbaar
@@ -184,6 +352,7 @@ def order_update(
     vergunning: str = Form("-"),
     tekenaar: str = Form("martien"),
     akkoord_contact: str = Form(""),
+    deadline: str = Form(""),
     status: str = Form(""),
     notitie: str = Form(""),
     prio: str = Form(""),
@@ -200,6 +369,14 @@ def order_update(
     order.vergunning = vergunning
     order.tekenaar = tekenaar.strip() or "martien"
     order.akkoord_contact = akkoord_contact.strip() or None
+    # Parse deadline
+    if deadline and deadline.strip():
+        try:
+            order.deadline = datetime.strptime(deadline.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    else:
+        order.deadline = None
     if status:
         order.status = status
     order.notitie = notitie.strip() or None
