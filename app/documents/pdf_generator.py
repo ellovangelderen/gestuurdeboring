@@ -66,14 +66,13 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     svg_width = 1200
     svg_height = 500
 
-    # z-bereik: moet ALLE segmenten bevatten (inclusief boog-toppen)
-    all_z = [mv.MVin_NAP_m, mv.MVuit_NAP_m, profiel.diepte_NAP_m]
-    for seg in profiel.segmenten:
-        all_z.extend([seg["z_start"], seg["z_end"]])
+    # z-bereik: van diepste punt tot net boven maaiveld (NIET boog-toppen)
+    # Bogen worden geclipt op maaiveld — zoals in Martien's referentie
+    mv_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m)
+    z_max = mv_max + 2.0
+    z_min = profiel.diepte_NAP_m - 1.5
     if boring.doorsneden:
-        all_z.extend([d.NAP_m for d in boring.doorsneden])
-    z_min = min(all_z) - 1.0
-    z_max = max(all_z) + 1.0
+        z_min = min(z_min, min(d.NAP_m for d in boring.doorsneden) - 0.5)
     x_range = L_totaal if L_totaal > 0 else 1.0
     z_range = z_max - z_min if (z_max - z_min) > 0 else 1.0
 
@@ -130,25 +129,37 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         f'stroke="#5a8a3c" stroke-width="2.5" stroke-dasharray="8,4"/>'
     )
 
-    # ── Boorlijn (rood, dik, met ARCs) ──
+    # ── Boorlijn (rood, dik, met ARCs — geclipt op maaiveld) ──
+    # Clip grens: lineair geïnterpoleerd maaiveld op elke x
+    def mv_at_x(x):
+        t = x / L_totaal if L_totaal > 0 else 0
+        return mv.MVin_NAP_m + t * (mv.MVuit_NAP_m - mv.MVin_NAP_m)
+
+    boorlijn_punten = []  # verzamel alle punten voor één polyline
     for seg in profiel.segmenten:
         if seg["type"] == "lijn":
             if seg.get("lengte", 0) < 0.001:
                 continue
-            svg_parts.append(
-                f'<line x1="{tx(seg["x_start"]):.1f}" y1="{tz(seg["z_start"]):.1f}" '
-                f'x2="{tx(seg["x_end"]):.1f}" y2="{tz(seg["z_end"]):.1f}" '
-                f'stroke="#cc0000" stroke-width="3"/>'
-            )
+            # Clip lijn op maaiveld
+            x_s, z_s = seg["x_start"], min(seg["z_start"], mv_at_x(seg["x_start"]))
+            x_e, z_e = seg["x_end"], min(seg["z_end"], mv_at_x(seg["x_end"]))
+            boorlijn_punten.append((x_s, z_s))
+            boorlijn_punten.append((x_e, z_e))
         elif seg["type"] == "arc":
             pts = arc_punten(
                 seg["cx"], seg["cz"], seg["radius"],
-                seg["start_hoek_rad"], seg["eind_hoek_rad"], n=60,
+                seg["start_hoek_rad"], seg["eind_hoek_rad"], n=80,
             )
-            svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in pts)
-            svg_parts.append(
-                f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3"/>'
-            )
+            for x, z in pts:
+                # Clip: als boog boven maaiveld uitsteekt, clip op maaiveld
+                z_clipped = min(z, mv_at_x(x))
+                boorlijn_punten.append((x, z_clipped))
+
+    if boorlijn_punten:
+        svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in boorlijn_punten)
+        svg_parts.append(
+            f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3"/>'
+        )
 
     # ── Sensorpunt labels langs de boorlijn ──
     # Bereken positie per sensorpunt op het profiel (projectie op x-as)
