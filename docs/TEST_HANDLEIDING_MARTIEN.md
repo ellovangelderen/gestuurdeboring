@@ -1,5 +1,5 @@
 # Testhandleiding HDD Platform — Martien Luijben
-**Versie: 18 maart 2026**
+**Versie: 18 maart 2026 (v2 — volledige backlog)**
 **URL: http://localhost:8000** (lokaal) / **https://hdd.inodus.nl** (productie)
 **Inloggen: gebruiker `martien` + wachtwoord**
 
@@ -173,27 +173,82 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 ---
 
-## 12. EV-zones
+## 12. Tracévarianten vergelijken
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
-| 12.1 | Upload KLIC met EV-leidingen | Rode waarschuwing op brondata pagina |
-| 12.2 | Download DXF | Laag "EV-ZONE" aanwezig met polygonen |
-| 12.3 | Download PDF | EV-waarschuwing in het document |
+| 12.1 | Boring detail → "Varianten" link | Varianten pagina met kaart |
+| 12.2 | Hoofdtracé zichtbaar als rode lijn | Rode lijn op kaart |
+| 12.3 | Klik "+ Nieuwe variant toevoegen" | Formulier opent |
+| 12.4 | Klik op kaart voor alternatief A en B punt | Coördinaten worden ingevuld |
+| 12.5 | "Variant opslaan" | Variant verschijnt als gestreepte blauwe lijn op kaart |
+| 12.6 | Vergelijkingstabel | Lengte + delta per variant |
+| 12.7 | "Verwijder" bij variant | Variant verwijderd, hoofd blijft |
 
 ---
 
-## Bekende beperkingen (nog niet gebouwd)
+## 13. Factuur concept (SnelStart)
 
-- ~~GWSW riool BOB (backlog 5)~~ — **gebouwd** (PDOK API + gemeente-mail)
-- ~~Sleufloze detectie (backlog 6)~~ — **gebouwd** (apart scherm met categorieën)
-- **Tracévarianten** (backlog 12) — meerdere varianten vergelijken
-- **SnelStart facturatie** (backlog 13) — handmatig factureren
-- **Vergunningscheck** (backlog 14) — handmatig opzoeken
-- **Dinoloket sonderingen** (backlog 15) — handmatig opzoeken
-- **NEN 3651 berekeningen** (backlog 17) — Sigma override
-- **As-Built revisie** (backlog 18) — handmatig in AutoCAD
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 13.1 | Order detail → "Factuur concept" | Factuur pagina opent |
+| 13.2 | Factuurregels | Per boring een regel (type + locatie + lengte) |
+| 13.3 | Werkplan regel | Als er type B boringen zijn |
+| 13.4 | Klantgegevens | Naam, opdrachtgever, contact correct |
+| 13.5 | "Kopieer" | Tekst naar klembord, plak in SnelStart |
+
+---
+
+## 14. Vergunningscheck
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 14.1 | Brondata → "Vergunningscheck" | Vergunningscheck pagina opent |
+| 14.2 | Links naar portalen | Omgevingsloket, PDOK, BAG Viewer, Bodemloket |
+| 14.3 | Klik "Open" bij Omgevingsloket | Omgevingsloket opent op de juiste coördinaten |
+| 14.4 | Checklist | Afvinken welke vergunningen gecontroleerd zijn |
+
+---
+
+## 15. Sonderingen (DINOloket)
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 15.1 | Brondata → "Sonderingen" | Sonderingen pagina opent |
+| 15.2 | Links naar DINOloket en BRO | Klik opent op juiste locatie |
+| 15.3 | Werkwijze instructies | Stappen voor het opzoeken van sonderingen |
+
+---
+
+## 16. EV-zones
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 16.1 | Upload KLIC met EV-leidingen | Rode waarschuwing op brondata pagina |
+| 16.2 | Download DXF | Laag "EV-ZONE" aanwezig met polygonen |
+| 16.3 | Download PDF | EV-waarschuwing in het document |
+
+---
+
+## 17. As-Built revisietekeningen
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 17.1 | Boring detail → "As-Built" link | As-Built pagina opent |
+| 17.2 | Ontwerp-tracé zichtbaar als grijze lijn | Grijze gestreepte lijn op kaart |
+| 17.3 | Vul werkelijke meetpunten in (of klik op kaart) | Coördinaten ingevuld per punt |
+| 17.4 | "As-Built opslaan" | Revisienummer verhoogd, groene lijn op kaart |
+| 17.5 | Afwijkingstabel | Per punt: ontwerp vs. werkelijk + afwijking in meters |
+| 17.6 | Download DXF | Bestandsnaam bevat rev.1 (of hoger) |
+
+---
+
+## Bekende beperkingen (optioneel, niet gebouwd)
+
+- **GEF/CPT parser** (backlog 16) — handmatig grondtype bepalen
+- **NEN 3651 berekeningen** (backlog 17) — Sigma override (handmatig invoeren)
 - **SMTP statusmail** — nu kopiëren, later automatisch versturen
+- **SnelStart API** — nu kopiëren, Martien voert zelf in via webportal
 
 ---
 
