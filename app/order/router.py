@@ -14,6 +14,9 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.core.dependencies import fetch_order, fetch_boring, get_workspace_id
+from app.geo.ahn5 import haal_maaiveld_op
+from app.geo.pdok_urls import genereer_pdok_url
+from app.geo.waterschap import bepaal_waterschap, waterschap_kaart_url
 from app.order.klantcodes import (
     KLANTCODES, ORDER_STATUSES, BORING_TYPES, VERGUNNING_TYPES,
     get_akkoord_contact, get_klant_naam,
@@ -525,6 +528,18 @@ def trace_opslaan(
         )
         db.add(punt)
 
+    # Auto-genereer PDOK + waterschap URLs op basis van intree-punt
+    intree_idx = next((i for i, t in enumerate(types) if t == "intree"), None)
+    if intree_idx is not None and intree_idx < len(xs):
+        order = fetch_order(order_id, db)
+        ix, iy = xs[intree_idx], ys[intree_idx]
+        order.pdok_url = genereer_pdok_url(ix, iy)
+        # Waterschap bepalen (externe call, falen is OK)
+        ws_naam = bepaal_waterschap(ix, iy)
+        ws_url = waterschap_kaart_url(ws_naam)
+        if ws_url:
+            order.waterkering_url = ws_url
+
     db.commit()
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}", status_code=303)
 
@@ -622,6 +637,80 @@ def maaiveld_opslaan(
         db.add(mv)
     db.commit()
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
+
+
+@router.post("/{order_id}/boringen/{volgnr}/maaiveld/ahn5")
+def maaiveld_ahn5_ophalen(
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Haal maaiveld op via AHN5 WCS voor intree- en uittree-punt van deze boring."""
+    fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    intree = next((p for p in boring.trace_punten if p.type == "intree"), None)
+    uittree = next((p for p in boring.trace_punten if p.type == "uittree"), None)
+
+    if intree is None and uittree is None:
+        return JSONResponse({
+            "status": "fout",
+            "melding": "Geen intree- of uittree-punt gevonden — sla eerst het tracé op",
+        })
+
+    mv_in: float | None = None
+    mv_uit: float | None = None
+
+    if intree is not None:
+        mv_in = haal_maaiveld_op(intree.RD_x, intree.RD_y)
+    if uittree is not None:
+        mv_uit = haal_maaiveld_op(uittree.RD_x, uittree.RD_y)
+
+    if mv_in is None and mv_uit is None:
+        return JSONResponse({
+            "status": "fout",
+            "melding": "AHN5 service niet bereikbaar — vul handmatig in",
+        })
+
+    in_bron = "ahn5" if mv_in is not None else "niet_beschikbaar"
+    uit_bron = "ahn5" if mv_uit is not None else "niet_beschikbaar"
+
+    mv = boring.maaiveld_override
+    if mv is None:
+        mv = MaaiveldOverride(boring_id=boring.id)
+        db.add(mv)
+
+    if mv_in is not None:
+        mv.MVin_NAP_m = mv_in
+        mv.MVin_ahn5_m = mv_in
+    if mv_uit is not None:
+        mv.MVuit_NAP_m = mv_uit
+        mv.MVuit_ahn5_m = mv_uit
+
+    mv.MVin_bron = in_bron
+    mv.MVuit_bron = uit_bron
+    mv.bron = "ahn5"
+    mv.override_datum = datetime.now(timezone.utc)
+    db.commit()
+
+    status = "ok" if (mv_in is not None and mv_uit is not None) else "partial"
+    response: dict = {
+        "status": status,
+        "MVin_NAP_m": mv_in,
+        "MVuit_NAP_m": mv_uit,
+        "MVin_bron": in_bron,
+        "MVuit_bron": uit_bron,
+    }
+    if status == "partial":
+        ontbrekend = []
+        if mv_in is None:
+            ontbrekend.append("intree")
+        if mv_uit is None:
+            ontbrekend.append("uittree")
+        response["melding"] = f"AHN5 niet beschikbaar voor: {', '.join(ontbrekend)}"
+
+    return JSONResponse(response)
 
 
 @router.post("/{order_id}/klic")

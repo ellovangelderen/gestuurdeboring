@@ -65,23 +65,60 @@
 {% endif %}
 
 <!-- Maaiveld -->
-<section class="card">
+<section class="card" x-data="maaiveldAhn5()">
   <h2>Maaiveld</h2>
   {% set mv = boring.maaiveld_override %}
+
+  <!-- AHN5 ophalen knop -->
+  <div style="margin-bottom: 1rem;">
+    <button class="btn btn-secondary" @click="ophalen()" :disabled="bezig">
+      <span x-show="!bezig">Ophalen via AHN5</span>
+      <span x-show="bezig">Bezig met ophalen...</span>
+    </button>
+    <template x-if="melding">
+      <span :class="status === 'ok' ? 'badge badge-success' : status === 'partial' ? 'badge badge-warning' : 'badge badge-danger'"
+            x-text="melding" style="margin-left: 0.5rem;"></span>
+    </template>
+  </div>
+
+  <!-- Bron-badges -->
+  {% if mv %}
+  <div style="margin-bottom: 0.5rem; font-size: 0.85em; color: #666;">
+    MVin bron: <span class="badge {% if mv.MVin_bron == 'ahn5' %}badge-success{% elif mv.MVin_bron == 'niet_beschikbaar' %}badge-danger{% else %}badge-secondary{% endif %}">{{ mv.MVin_bron or 'handmatig' }}</span>
+    {% if mv.MVin_ahn5_m is not none %} (AHN5 ref: {{ "%.3f"|format(mv.MVin_ahn5_m) }} m NAP){% endif %}
+    &nbsp;|&nbsp;
+    MVuit bron: <span class="badge {% if mv.MVuit_bron == 'ahn5' %}badge-success{% elif mv.MVuit_bron == 'niet_beschikbaar' %}badge-danger{% else %}badge-secondary{% endif %}">{{ mv.MVuit_bron or 'handmatig' }}</span>
+    {% if mv.MVuit_ahn5_m is not none %} (AHN5 ref: {{ "%.3f"|format(mv.MVuit_ahn5_m) }} m NAP){% endif %}
+  </div>
+  {% endif %}
+
   <form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/maaiveld">
     <label>MVin — maaiveld intrede (m NAP)
       <input type="number" name="MVin_NAP_m" step="0.01"
-             value="{{ mv.MVin_NAP_m if mv else '' }}"
+             x-model="mv_in"
              placeholder="bijv. 1.01" required>
     </label>
     <label>MVuit — maaiveld uittrede (m NAP)
       <input type="number" name="MVuit_NAP_m" step="0.01"
-             value="{{ mv.MVuit_NAP_m if mv else '' }}"
+             x-model="mv_uit"
              placeholder="bijv. 1.27" required>
     </label>
-    <button type="submit" class="btn btn-primary">Opslaan</button>
+    <button type="submit" class="btn btn-primary">Opslaan (handmatig)</button>
   </form>
 </section>
+
+<!-- PDOK & Waterschap URLs -->
+{% if order.pdok_url or order.waterkering_url %}
+<section class="card">
+  <h2>Externe kaartlinks</h2>
+  {% if order.pdok_url %}
+    <p><a href="{{ order.pdok_url }}" target="_blank" rel="noopener">PDOK Viewer</a> (automatisch gegenereerd uit tracé)</p>
+  {% endif %}
+  {% if order.waterkering_url %}
+    <p><a href="{{ order.waterkering_url }}" target="_blank" rel="noopener">Waterschapskaart</a></p>
+  {% endif %}
+</section>
+{% endif %}
 
 <!-- Doorsneden -->
 <section class="card" x-data="doorsneden()">
@@ -140,6 +177,39 @@
 <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">&larr; Terug naar boring</a>
 
 <script>
+function maaiveldAhn5() {
+  return {
+    bezig: false,
+    status: null,
+    melding: null,
+    mv_in: '{{ boring.maaiveld_override.MVin_NAP_m if boring.maaiveld_override and boring.maaiveld_override.MVin_NAP_m is not none else "" }}',
+    mv_uit: '{{ boring.maaiveld_override.MVuit_NAP_m if boring.maaiveld_override and boring.maaiveld_override.MVuit_NAP_m is not none else "" }}',
+    async ophalen() {
+      this.bezig = true;
+      this.melding = null;
+      try {
+        const resp = await fetch('/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/maaiveld/ahn5', { method: 'POST' });
+        const data = await resp.json();
+        this.status = data.status;
+        if (data.status === 'ok') {
+          this.mv_in = data.MVin_NAP_m;
+          this.mv_uit = data.MVuit_NAP_m;
+          this.melding = 'AHN5 opgehaald';
+        } else if (data.status === 'partial') {
+          if (data.MVin_NAP_m !== null) this.mv_in = data.MVin_NAP_m;
+          if (data.MVuit_NAP_m !== null) this.mv_uit = data.MVuit_NAP_m;
+          this.melding = data.melding;
+        } else {
+          this.melding = data.melding;
+        }
+      } catch(e) {
+        this.status = 'fout';
+        this.melding = 'Netwerkfout bij AHN5 ophalen';
+      }
+      this.bezig = false;
+    }
+  };
+}
 function doorsneden() {
   return {
     rijen: {{ boring.doorsneden | map(attribute='afstand_m') | list | tojson }}.map((a, i) => ({
