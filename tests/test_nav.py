@@ -62,6 +62,69 @@ def test_nav_d_download_pdf(client, db, workspace):
     assert resp.headers["content-type"] == "application/pdf"
 
 
+# TC-nav-E2: DXF download met maaiveld + trace (volledige DB-flow)
+def test_nav_e2_dxf_volledige_flow(client, db, workspace):
+    """Smoketest: DXF download met trace + maaiveld + EV-zones query → 200, geen crash."""
+    from unittest.mock import patch
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-dxf-full")
+
+    # Trace opslaan
+    with patch("app.order.router.bepaal_waterschap", return_value=None):
+        client.post(
+            f"/orders/{order_id}/boringen/{volgnr}/trace",
+            data={
+                "RD_x_list": "103896.9,104118.8",
+                "RD_y_list": "489289.5,489243.7",
+                "type_list": "intree,uittree",
+                "label_list": "A,B",
+                "Rh_list": ",",
+            },
+            auth=AUTH, follow_redirects=True,
+        )
+    # Maaiveld opslaan
+    client.post(
+        f"/orders/{order_id}/boringen/{volgnr}/maaiveld",
+        data={"MVin_NAP_m": "1.01", "MVuit_NAP_m": "1.27"},
+        auth=AUTH, follow_redirects=True,
+    )
+
+    resp = client.get(f"/orders/{order_id}/boringen/{volgnr}/dxf", auth=AUTH)
+    assert resp.status_code == 200
+    assert ".dxf" in resp.headers.get("Content-Disposition", "")
+    assert len(resp.content) > 500
+
+
+# TC-nav-E3: PDF download met maaiveld + trace (volledige DB-flow)
+def test_nav_e3_pdf_volledige_flow(client, db, workspace):
+    """Smoketest: PDF download met trace + maaiveld + EV-zones query → 200, geen crash."""
+    from unittest.mock import patch
+    order_id, volgnr = _maak_order_boring(client, db, "HDD-pdf-full")
+
+    with patch("app.order.router.bepaal_waterschap", return_value=None):
+        client.post(
+            f"/orders/{order_id}/boringen/{volgnr}/trace",
+            data={
+                "RD_x_list": "103896.9,104118.8",
+                "RD_y_list": "489289.5,489243.7",
+                "type_list": "intree,uittree",
+                "label_list": "A,B",
+                "Rh_list": ",",
+            },
+            auth=AUTH, follow_redirects=True,
+        )
+    client.post(
+        f"/orders/{order_id}/boringen/{volgnr}/maaiveld",
+        data={"MVin_NAP_m": "1.01", "MVuit_NAP_m": "1.27"},
+        auth=AUTH, follow_redirects=True,
+    )
+
+    resp = client.get(f"/orders/{order_id}/boringen/{volgnr}/pdf", auth=AUTH)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content[:4] == b"%PDF"
+    assert len(resp.content) > 1000
+
+
 # TC-nav-E: Order detail toont boring info
 def test_nav_e_orderdetail(client, db, workspace):
     order_id, volgnr = _maak_order_boring(client, db, "HDD-voortgang")
