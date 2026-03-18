@@ -181,6 +181,7 @@ class TracePunt(Base):
     RD_y = Column(Float, nullable=False)
     Rh_m = Column(Float)
     label = Column(String)
+    variant = Column(Integer, default=0)    # 0=hoofd, 1/2/3=alternatieven
 
     boring = relationship("Boring", back_populates="trace_punten")
 
