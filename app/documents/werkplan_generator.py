@@ -128,16 +128,21 @@ def _medium_tekst(boring: Boring) -> str:
 
 
 def _ckb_categorie(boring: Boring) -> tuple[str, str]:
-    """Bepaal CKB-categorie op basis van berekende intrekkracht."""
+    """Bepaal CKB-categorie op basis van berekende intrekkracht.
+
+    ST-A (<9T) · ST-B (10–39T) · ST-C (40–149T) · ST-D (>150T)
+    """
     if boring.berekening and boring.berekening.Ttot_N:
-        ton = abs(boring.berekening.Ttot_N) / 9810  # N naar ton
-        if ton <= 12:
-            return "S-A", "Kleine gestuurde boringen (maximaal 12 ton)"
-        elif ton <= 80:
-            return "S-B", "Grote gestuurde boringen (van 12 tot 80 ton)"
+        ton = abs(boring.berekening.Ttot_N) / 9806.65  # N naar metrische ton
+        if ton < 9:
+            return "ST-A", "Kleine gestuurde boringen (maximaal 9 ton)"
+        elif ton <= 39:
+            return "ST-B", "Grote gestuurde boringen (van 9 tot 39 ton)"
+        elif ton <= 149:
+            return "ST-C", "Zeer grote gestuurde boringen (van 40 tot 149 ton)"
         else:
-            return "S-C", "Zeer grote gestuurde boringen (meer dan 80 ton)"
-    return "S-A", "Kleine gestuurde boringen (maximaal 12 ton)"
+            return "ST-D", "Extra grote gestuurde boringen (meer dan 150 ton)"
+    return "ST-A", "Kleine gestuurde boringen (maximaal 9 ton)"
 
 
 def _generate_inleiding_template(doc, klant_naam: str, hoofdaannemer: str):
@@ -316,7 +321,7 @@ def generate_werkplan(order: Order, boring: Boring,
     # Header rij
     headers = ["Revisie", "Datum", "Omschrijving", "Voorbereid", "Goedgekeurd"]
     for i, header in enumerate(headers):
-        cell = table.rows[1].cells[i]
+        cell = table.rows[0].cells[i]
         cell.text = header
         for paragraph in cell.paragraphs:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -329,7 +334,7 @@ def generate_werkplan(order: Order, boring: Boring,
     akkoord = order.akkoord_contact or ""
     data = [str(revisie), vandaag, revisie_omschrijving, auteur.split()[0] + "." + auteur.split()[-1][0] if " " in auteur else auteur, akkoord]
     for i, val in enumerate(data):
-        cell = table.rows[0].cells[i]
+        cell = table.rows[1].cells[i]
         cell.text = val
         for paragraph in cell.paragraphs:
             paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -370,7 +375,7 @@ def generate_werkplan(order: Order, boring: Boring,
         ("6.2", "Personeel", 3),
         ("6.3", "Tijdsplanning", 3),
         ("6.4", "Afwijkingen", 3),
-        ("6.4", "Inspectie na intrekken", 3),
+        ("6.5", "Inspectie na intrekken", 3),
     ]
 
     for nr, titel, indent_level in inhoud_items:
@@ -668,7 +673,7 @@ def generate_werkplan(order: Order, boring: Boring,
     _add_heading(doc, "3.2.1   Het boorkop volgsysteem", level=3)
     _add_styled_paragraph(
         doc,
-        "De diepte, rotatie, hellingshoek en richting van de boorkoop worden tijdens het uitvoering "
+        "De diepte, rotatie, hellingshoek en richting van de boorkop worden tijdens het uitvoering "
         "van de pilotboring continue gemonitord met een meetsysteem en teruggekoppeld naar de "
         "boormeester. Deze informatie gebruikt de boormeester om bij te sturen indien nodig en "
         "wordt genoteerd en/of opgeslagen voor latere verwerking in de As-Built tekening van de boring.",
@@ -894,9 +899,10 @@ def generate_werkplan(order: Order, boring: Boring,
         "van boormachines in 3 processen:",
         space_after=6,
     )
-    _add_styled_paragraph(doc, "S-A: Kleine gestuurde boringen (maximaal 12 ton),", space_after=2)
-    _add_styled_paragraph(doc, "S-B: Grote gestuurde boringen (van 12 tot 80 ton),", space_after=2)
-    _add_styled_paragraph(doc, "S-C: Zeer grote gestuurde boringen (meer dan 80 ton).", space_after=6)
+    _add_styled_paragraph(doc, "ST-A: Kleine gestuurde boringen (maximaal 9 ton),", space_after=2)
+    _add_styled_paragraph(doc, "ST-B: Grote gestuurde boringen (van 9 tot 39 ton),", space_after=2)
+    _add_styled_paragraph(doc, "ST-C: Zeer grote gestuurde boringen (van 40 tot 149 ton),", space_after=2)
+    _add_styled_paragraph(doc, "ST-D: Extra grote gestuurde boringen (meer dan 150 ton).", space_after=6)
 
     ckb_cat, ckb_desc = _ckb_categorie(boring)
     _add_styled_paragraph(
@@ -1031,7 +1037,7 @@ def generate_werkplan(order: Order, boring: Boring,
     doc.add_paragraph()
 
     # 6.4 Inspectie na intrekken
-    _add_heading(doc, "6.4   Inspectie na intrekken", level=2)
+    _add_heading(doc, "6.5   Inspectie na intrekken", level=2)
     _add_styled_paragraph(
         doc,
         "Direct na het afronden van de intrekfase dient de polyetheen leiding bij het intredepunt van de "

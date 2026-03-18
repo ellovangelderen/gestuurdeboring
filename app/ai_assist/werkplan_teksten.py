@@ -3,7 +3,11 @@
 Gebruikt Claude API om projectspecifieke teksten te schrijven op basis van
 data uit de database. Fallback naar template-tekst als API niet beschikbaar.
 """
+import logging
+
 import anthropic
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.order.models import Boring, Order
@@ -112,7 +116,8 @@ Gebruik geen opsommingstekens, geen headers, alleen lopende tekst. Vermijd marke
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text.strip()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"AI tekstgeneratie mislukt: {e}")
         return ""
 
 
@@ -139,7 +144,8 @@ Schrijf in het Nederlands, geen opsommingen, alleen lopende tekst."""
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text.strip()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"AI tekstgeneratie mislukt: {e}")
         return ""
 
 
@@ -171,5 +177,6 @@ Schrijf 2-4 zinnen + een conclusie. Zakelijk Nederlands, geen opsommingen."""
             messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text.strip()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"AI tekstgeneratie mislukt: {e}")
         return ""
