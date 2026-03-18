@@ -125,22 +125,63 @@
         {% endif %}
       </div>
 
-      <!-- Opmerkingen + Titelblok: rest van de hoogte -->
+      <!-- Opmerkingen + Logo's + Titelblok -->
       <table style="width: 100%; border-collapse: collapse; font-size: 5.5pt;">
         <tr>
-          <td style="padding: 1.5mm; vertical-align: top; border-right: 0.5pt solid #000; width: 55%;">
+          <!-- Opmerkingen -->
+          <td style="padding: 1.5mm; vertical-align: top; border-right: 0.5pt solid #000; width: 40%;">
             <strong>OPMERKINGEN:</strong><br>
             1. Dieptes K&amp;L indicatief — opzoeken conform CROW 96b.<br>
             2. CROW 96b: grondroerder verantwoordelijk.<br>
             3. Sensorpunten via walk-over meetsysteem.<br>
             4. DWG is leidend; PDF is afgeleid.
           </td>
-          <td style="padding: 1.5mm; vertical-align: top; font-size: 6pt;">
-            <strong>{{ order.ordernummer or '' }} — {{ order.locatie or '' }}</strong><br>
-            Opdr: {{ order.opdrachtgever or '—' }} · {{ boring.materiaal }} SDR{{ boring.SDR }} Ø{{ boring.De_mm|int }}mm<br>
-            Getekend: M. Luijben · Akkoord: {{ order.akkoord_contact or '—' }}<br>
-            Datum: {{ datum }} · Nr: {{ order.ordernummer or '' }}-{{ '%02d'|format(boring.volgnummer) }}<br>
-            <span style="font-size: 5pt;">Rev 0 · {{ datum }} · Eerste uitgifte</span>
+          <!-- Logo's -->
+          <td style="padding: 1.5mm; vertical-align: middle; text-align: center; border-right: 0.5pt solid #000; width: 20%;">
+            {% if gbt_logo_url %}
+            <img src="{{ gbt_logo_url }}" style="width: 35mm; display: block; margin: 0 auto 1mm;">
+            {% endif %}
+            <div style="font-size: 5pt; color: #666;">IN OPDRACHT VAN:</div>
+            <div style="font-size: 7pt; font-weight: bold;">{{ order.opdrachtgever or '—' }}</div>
+          </td>
+          <!-- Titelblok -->
+          <td style="padding: 0; vertical-align: top; width: 40%;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 6pt;">
+              <tr>
+                <td style="padding: 1mm; border-bottom: 0.3pt solid #ccc;" colspan="2">
+                  <strong style="font-size: 7pt;">{{ order.ordernummer or '' }} — {{ order.locatie or '' }}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee; border-right: 0.3pt solid #eee; width: 50%;">
+                  {{ boring.materiaal }} SDR{{ boring.SDR }} Ø{{ boring.De_mm|int }}mm
+                </td>
+                <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee;">
+                  Gestuurde boring
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee; border-right: 0.3pt solid #eee;">
+                  Getekend: M. Luijben
+                </td>
+                <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee;">
+                  Akkoord: {{ order.akkoord_contact or '—' }}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee; border-right: 0.3pt solid #eee;">
+                  Datum: {{ datum }}
+                </td>
+                <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee; font-weight: bold;">
+                  Nr: {{ order.ordernummer or '' }}-{{ '%02d'|format(boring.volgnummer) }}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.5mm 1mm; font-size: 5pt;" colspan="2">
+                  Rev 0 · {{ datum }} · Eerste uitgifte · M.Luijben
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
       </table>
