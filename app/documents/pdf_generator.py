@@ -384,8 +384,12 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     if boring.trace_punten and len(boring.trace_punten) >= 2:
         try:
             import base64 as _b64
+            import io as _io
+            import math as _m
             from app.geo.coords import rd_to_wgs84
-            from PIL import Image, ImageDraw
+            from PIL import Image, ImageDraw, ImageFont
+            from shapely import from_wkt
+            from shapely.geometry import LineString
 
             xs = [p.RD_x for p in boring.trace_punten]
             ys = [p.RD_y for p in boring.trace_punten]
@@ -393,59 +397,98 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
             cy = (min(ys) + max(ys)) / 2
             lat_c, lon_c = rd_to_wgs84(cx, cy)
 
-            # Zoom: zo dicht mogelijk op het tracé
+            # Zoom hoog genoeg dat tracé ~60% van de breedte vult
             trace_span = max(max(xs) - min(xs), max(ys) - min(ys))
-            if trace_span < 50:
-                zm = 19
-            elif trace_span < 200:
-                zm = 19
-            elif trace_span < 500:
-                zm = 18
-            else:
-                zm = 17
+            zm = 19 if trace_span < 500 else 18
 
-            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=zm, tiles_x=9, tiles_y=3)
+            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=zm, tiles_x=9, tiles_y=5)
             if b64:
                 img_bytes = _b64.b64decode(b64.split(",", 1)[1])
-
-                # Teken tracé als rode lijn over de kaart
-                import io as _io
                 img = Image.open(_io.BytesIO(img_bytes))
                 draw = ImageDraw.Draw(img)
                 img_w, img_h = img.size
 
-                # Converteer RD coords naar pixel coords op de tile-image
-                # Center van de image = (lat_c, lon_c) = pixel (img_w/2, img_h/2)
-                # Schaal: bij zoom z, 1 pixel ≈ (40075016.686 * cos(lat) / (256 * 2^z)) meter
-                import math as _m
                 meters_per_pixel = 40075016.686 * _m.cos(_m.radians(lat_c)) / (256.0 * (2 ** zm))
 
-                trace_pixels = []
-                for p in boring.trace_punten:
-                    # Afstand in meters van center
-                    dx_m = p.RD_x - cx
-                    dy_m = p.RD_y - cy
-                    px = img_w / 2 + dx_m / meters_per_pixel
-                    py = img_h / 2 - dy_m / meters_per_pixel  # y is omgekeerd
-                    trace_pixels.append((int(px), int(py)))
+                def rd_to_px(rd_x, rd_y):
+                    px = img_w / 2 + (rd_x - cx) / meters_per_pixel
+                    py = img_h / 2 - (rd_y - cy) / meters_per_pixel
+                    return int(px), int(py)
 
-                # Teken rode lijn (dik, goed zichtbaar)
+                # ── KLIC leidingen tekenen ──
+                KLIC_KLEUREN = {
+                    "LAAGSPANNING": (190, 150, 0),      # goudgeel
+                    "MIDDENSPANNING": (0, 130, 60),      # groen
+                    "HOOGSPANNING": (220, 0, 0),         # rood
+                    "LD-GAS": (160, 80, 0),              # bruin
+                    "WATERLEIDING": (0, 85, 170),        # blauw
+                    "RIOOL-VRIJVERVAL": (112, 48, 160),  # paars
+                    "PERSRIOOL": (112, 48, 160),         # paars
+                }
+                if db is not None:
+                    from app.order.models import KLICLeiding, KLICUpload
+                    laatste_upload = (
+                        db.query(KLICUpload)
+                        .filter_by(order_id=order.id, verwerkt=True)
+                        .order_by(KLICUpload.upload_datum.desc())
+                        .first()
+                    )
+                    if laatste_upload:
+                        klic_leidingen = db.query(KLICLeiding).filter_by(klic_upload_id=laatste_upload.id).all()
+                        for leiding in klic_leidingen:
+                            if not leiding.geometrie_wkt or not leiding.dxf_laag:
+                                continue
+                            kleur = KLIC_KLEUREN.get(leiding.dxf_laag, (150, 150, 150))
+                            try:
+                                geom = from_wkt(leiding.geometrie_wkt)
+                                lines = []
+                                if hasattr(geom, 'coords'):
+                                    lines = [list(geom.coords)]
+                                elif hasattr(geom, 'geoms'):
+                                    lines = [list(g.coords) for g in geom.geoms]
+                                for coords in lines:
+                                    if len(coords) >= 2:
+                                        pixels = [rd_to_px(c[0], c[1]) for c in coords]
+                                        draw.line(pixels, fill=kleur, width=2)
+                            except Exception:
+                                continue
+
+                # ── Tracélijn tekenen (bovenop KLIC) ──
+                trace_pixels = [rd_to_px(p.RD_x, p.RD_y) for p in boring.trace_punten]
                 if len(trace_pixels) >= 2:
                     draw.line(trace_pixels, fill=(204, 0, 0), width=6)
 
-                # Teken punten + labels (groter)
-                from PIL import ImageFont
+                # ── Sensorpunt labels ──
                 try:
-                    font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 18)
+                    font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
                 except Exception:
                     font = ImageFont.load_default()
+
                 for i, p in enumerate(boring.trace_punten):
                     px, py = trace_pixels[i]
-                    draw.ellipse([px-7, py-7, px+7, py+7], fill=(204, 0, 0), outline=(255, 255, 255))
+                    draw.ellipse([px-6, py-6, px+6, py+6], fill=(204, 0, 0), outline=(255, 255, 255))
                     if p.label:
-                        # Witte achtergrond voor leesbaarheid
-                        draw.rectangle([px+10, py-20, px+10+len(p.label)*12, py-2], fill=(255, 255, 255, 200))
-                        draw.text((px+10, py-20), p.label, fill=(204, 0, 0), font=font)
+                        tw = len(p.label) * 13
+                        draw.rectangle([px+10, py-22, px+12+tw, py], fill=(255, 255, 255))
+                        draw.text((px+11, py-22), p.label, fill=(204, 0, 0), font=font)
+
+                # ── Crop: bijsnijden rond het tracé ──
+                trace_px_xs = [tp[0] for tp in trace_pixels]
+                trace_px_ys = [tp[1] for tp in trace_pixels]
+                margin_px = 150  # pixels marge (ruim voor labels)
+                crop_left = max(0, min(trace_px_xs) - margin_px)
+                crop_top = max(0, min(trace_px_ys) - margin_px)
+                crop_right = min(img_w, max(trace_px_xs) + margin_px)
+                crop_bottom = min(img_h, max(trace_px_ys) + margin_px)
+                # Minimale crop hoogte voor goede aspect ratio
+                crop_h = crop_bottom - crop_top
+                crop_w = crop_right - crop_left
+                if crop_h < crop_w * 0.4:
+                    extra = int((crop_w * 0.4 - crop_h) / 2)
+                    crop_top = max(0, crop_top - extra)
+                    crop_bottom = min(img_h, crop_bottom + extra)
+
+                img = img.crop((crop_left, crop_top, crop_right, crop_bottom))
 
                 buf = _io.BytesIO()
                 img.save(buf, format="JPEG", quality=90)
