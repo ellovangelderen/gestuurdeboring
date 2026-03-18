@@ -176,8 +176,67 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     return svg
 
 
+def _fetch_map_image_b64(lat_min: float, lon_min: float, lat_max: float, lon_max: float,
+                          width: int = 600, height: int = 400) -> str | None:
+    """Haal een statische kaartafbeelding op als base64 PNG via OSM static map."""
+    import base64
+    import httpx
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Gebruik OpenStreetMap static map via bbox
+    # Bereken center en zoom
+    lat_center = (lat_min + lat_max) / 2
+    lon_center = (lon_min + lon_max) / 2
+
+    # Bereken geschikt zoomniveau
+    lat_span = lat_max - lat_min
+    lon_span = lon_max - lon_min
+    # Hoe kleiner de span, hoe hoger de zoom
+    span = max(lat_span, lon_span)
+    if span < 0.002:
+        zoom = 17
+    elif span < 0.005:
+        zoom = 16
+    elif span < 0.01:
+        zoom = 15
+    elif span < 0.02:
+        zoom = 14
+    elif span < 0.05:
+        zoom = 13
+    else:
+        zoom = 12
+
+    # Gebruik PDOK luchtfoto WMTS als statische kaart (Web Mercator)
+    # Alternatief: OSM tile stitching. We gebruiken een eenvoudige aanpak:
+    # Haal 1 WMS GetMap request op
+    try:
+        from app.geo.coords import rd_to_wgs84, wgs84_to_rd
+        # Converteer bbox naar RD voor PDOK
+        rd_min_x, rd_min_y = wgs84_to_rd(lat_min, lon_min)
+        rd_max_x, rd_max_y = wgs84_to_rd(lat_max, lon_max)
+
+        # PDOK luchtfoto WMS
+        url = (
+            f"https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0"
+            f"?service=WMS&version=1.3.0&request=GetMap"
+            f"&layers=Actueel_orthoHR"
+            f"&crs=EPSG:28992"
+            f"&bbox={rd_min_x},{rd_min_y},{rd_max_x},{rd_max_y}"
+            f"&width={width}&height={height}"
+            f"&format=image/png"
+        )
+        resp = httpx.get(url, timeout=10)
+        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("image"):
+            return base64.b64encode(resp.content).decode("ascii")
+    except Exception as exc:
+        logger.warning("Kaart ophalen mislukt: %s", exc)
+
+    return None
+
+
 def _generate_bovenaanzicht_svg(boring: Boring) -> str:
-    """Genereer simpele SVG van trace bovenaanzicht."""
+    """Genereer SVG van trace bovenaanzicht met kaartachtergrond."""
     punten = boring.trace_punten
     if len(punten) < 2:
         return ""
@@ -187,39 +246,78 @@ def _generate_bovenaanzicht_svg(boring: Boring) -> str:
     x_min, x_max = min(xs), max(xs)
     y_min, y_max = min(ys), max(ys)
 
-    # Voeg marge toe
+    # Voeg ruime marge toe voor kaartcontext
     dx = max(x_max - x_min, 1.0)
     dy = max(y_max - y_min, 1.0)
-    margin = max(dx, dy) * 0.1
+    margin = max(dx, dy) * 0.3
 
-    svg_w, svg_h = 300, 200
-    sx = (svg_w - 40) / (dx + 2 * margin)
-    sy = (svg_h - 40) / (dy + 2 * margin)
+    svg_w, svg_h = 500, 350
+    view_x_min = x_min - margin
+    view_x_max = x_max + margin
+    view_y_min = y_min - margin
+    view_y_max = y_max + margin
+    view_dx = view_x_max - view_x_min
+    view_dy = view_y_max - view_y_min
+
+    sx = svg_w / view_dx
+    sy = svg_h / view_dy
     s = min(sx, sy)
 
+    # Centreer
+    offset_x = (svg_w - view_dx * s) / 2
+    offset_y = (svg_h - view_dy * s) / 2
+
     def tx(x: float) -> float:
-        return 20 + (x - x_min + margin) * s
+        return offset_x + (x - view_x_min) * s
 
     def ty(y: float) -> float:
-        # RD y naar boven, SVG y naar beneden
-        return svg_h - 20 - (y - y_min + margin) * s
-
-    pts_str = " ".join(f"{tx(p.RD_x):.1f},{ty(p.RD_y):.1f}" for p in punten)
+        return svg_h - offset_y - (y - view_y_min) * s
 
     svg = (
         f'<svg width="{svg_w}" height="{svg_h}" '
         f'viewBox="0 0 {svg_w} {svg_h}" '
-        f'xmlns="http://www.w3.org/2000/svg" style="background:#fafafa; border:0.5pt solid #ccc;">\n'
-        f'<polyline points="{pts_str}" fill="none" stroke="#cc0000" stroke-width="2"/>\n'
+        f'xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+        f'style="border:0.5pt solid #ccc;">\n'
     )
-    # Labels bij intree en uittree
-    for p in punten:
-        if p.type in ("intree", "uittree") and p.label:
+
+    # Kaartachtergrond ophalen
+    try:
+        from app.geo.coords import rd_to_wgs84
+        lat_min_wgs, lon_min_wgs = rd_to_wgs84(view_x_min, view_y_min)
+        lat_max_wgs, lon_max_wgs = rd_to_wgs84(view_x_max, view_y_max)
+        map_b64 = _fetch_map_image_b64(lat_min_wgs, lon_min_wgs, lat_max_wgs, lon_max_wgs,
+                                        width=svg_w * 2, height=svg_h * 2)
+        if map_b64:
             svg += (
-                f'<circle cx="{tx(p.RD_x):.1f}" cy="{ty(p.RD_y):.1f}" r="3" fill="#cc0000"/>\n'
-                f'<text x="{tx(p.RD_x) + 5:.1f}" y="{ty(p.RD_y) - 5:.1f}" '
-                f'font-size="8" fill="#333">{p.label}</text>\n'
+                f'<image x="0" y="0" width="{svg_w}" height="{svg_h}" '
+                f'href="data:image/png;base64,{map_b64}" '
+                f'preserveAspectRatio="none"/>\n'
             )
+        else:
+            svg += f'<rect x="0" y="0" width="{svg_w}" height="{svg_h}" fill="#f0f0f0"/>\n'
+    except Exception:
+        svg += f'<rect x="0" y="0" width="{svg_w}" height="{svg_h}" fill="#f0f0f0"/>\n'
+
+    # Tracé lijn
+    pts_str = " ".join(f"{tx(p.RD_x):.1f},{ty(p.RD_y):.1f}" for p in punten)
+    svg += f'<polyline points="{pts_str}" fill="none" stroke="#cc0000" stroke-width="3"/>\n'
+
+    # Labels + punten
+    for p in punten:
+        px, py = tx(p.RD_x), ty(p.RD_y)
+        svg += f'<circle cx="{px:.1f}" cy="{py:.1f}" r="4" fill="#cc0000" stroke="#fff" stroke-width="1.5"/>\n'
+        if p.label:
+            svg += (
+                f'<text x="{px + 7:.1f}" y="{py - 5:.1f}" '
+                f'font-size="10" font-weight="bold" fill="#fff" stroke="#333" stroke-width="0.3">{p.label}</text>\n'
+            )
+
+    # Noordpijl
+    svg += (
+        f'<text x="{svg_w - 15}" y="20" font-size="14" font-weight="bold" fill="#333" text-anchor="middle">N</text>\n'
+        f'<line x1="{svg_w - 15}" y1="22" x2="{svg_w - 15}" y2="38" stroke="#333" stroke-width="1.5" marker-start="url(#arrow)"/>\n'
+    )
+
     svg += "</svg>"
     return svg
 
