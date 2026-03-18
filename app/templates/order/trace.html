@@ -2,14 +2,14 @@
 {% block title %}Trace — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
 {% block content %}
 <h1>Trace invoeren — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
-<p>Voer RD New (EPSG:28992) coordinaten in. De kaart is orientatie; coordinaten zijn primair.</p>
+<p>Klik op de kaart om punten te plaatsen, of voer RD-coordinaten handmatig in.</p>
 
 <div class="trace-layout">
-  <div class="trace-form">
-    <form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/trace" x-data="traceForm()" @submit="prepareSubmit">
+  <div class="trace-form" x-data="traceForm()">
+    <form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/trace" @submit="prepareSubmit">
 
       <template x-for="(punt, index) in punten" :key="index">
-        <div class="trace-punt">
+        <div class="trace-punt" :class="{'trace-punt-active': actief === index}" @click="selecteerPunt(index)">
           <h3 x-text="punt.label || ('Punt ' + (index+1))"></h3>
           <label>Type
             <select x-model="punt.type">
@@ -31,6 +31,11 @@
 
       <button type="button" @click="voegToe()" class="btn btn-secondary">+ Tussenpunt toevoegen</button>
 
+      <p style="margin-top: 0.5rem; font-size: 0.85em; color: #666;">
+        Klik een punt in de lijst aan, klik dan op de kaart om coordinaten over te nemen.
+        Actief punt: <strong x-text="punten[actief]?.label || (actief+1)"></strong>
+      </p>
+
       <!-- Hidden velden voor POST -->
       <input type="hidden" name="RD_x_list" x-bind:value="getRDX()">
       <input type="hidden" name="RD_y_list" x-bind:value="getRDY()">
@@ -46,54 +51,157 @@
   </div>
 
   <div class="trace-map">
-    <div id="map" style="height: 400px;"></div>
+    <div id="map" style="height: 500px;"></div>
   </div>
 </div>
 
+<style>
+.trace-punt { padding: 0.5rem; border: 2px solid transparent; border-radius: 4px; margin-bottom: 0.5rem; }
+.trace-punt-active { border-color: #0d6efd; background: #f0f7ff; }
+</style>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 
 <script>
 const bestaandePunten = {{ punten_wgs84 | tojson }};
 
+// RD New projectie (EPSG:28992)
+proj4.defs("EPSG:28992", "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs");
+
+function wgs84ToRD(lat, lon) {
+  const result = proj4("EPSG:4326", "EPSG:28992", [lon, lat]);
+  return { x: Math.round(result[0] * 100) / 100, y: Math.round(result[1] * 100) / 100 };
+}
+
+function rdToWGS84(x, y) {
+  const result = proj4("EPSG:28992", "EPSG:4326", [x, y]);
+  return { lat: result[1], lon: result[0] };
+}
+
+// Leaflet kaart
+const map = L.map('map');
+
+// Kaartlagen
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+});
+const luchtfotoLayer = L.tileLayer('https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg', {
+  attribution: '&copy; PDOK Luchtfoto'
+});
+const bgtLayer = L.tileLayer.wms('https://service.pdok.nl/lv/bgt/wms/v1_0', {
+  layers: 'standaardvisualisatie',
+  format: 'image/png',
+  transparent: true,
+  attribution: '&copy; PDOK BGT'
+});
+
+osmLayer.addTo(map);
+L.control.layers({
+  "OpenStreetMap": osmLayer,
+  "Luchtfoto": luchtfotoLayer,
+}, {
+  "BGT": bgtLayer,
+}).addTo(map);
+
+// Markers en lijn bijhouden
+let markers = [];
+let polyline = null;
+
+function updateKaart(punten) {
+  // Oude markers verwijderen
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  if (polyline) { map.removeLayer(polyline); polyline = null; }
+
+  const coords = [];
+  punten.forEach((p, i) => {
+    if (p.x && p.y) {
+      const wgs = rdToWGS84(parseFloat(p.x), parseFloat(p.y));
+      const marker = L.marker([wgs.lat, wgs.lon]).addTo(map)
+        .bindPopup(p.label || ('Punt ' + (i+1)));
+      markers.push(marker);
+      coords.push([wgs.lat, wgs.lon]);
+    }
+  });
+
+  if (coords.length >= 2) {
+    polyline = L.polyline(coords, {color: 'red', weight: 3}).addTo(map);
+  }
+}
+
 function traceForm() {
-  return {
+  const form = {
+    actief: 0,
     punten: bestaandePunten.length >= 2
-      ? bestaandePunten.map(p => ({label: p.label, type: 'intree', x: '', y: '', rh: ''}))
+      ? bestaandePunten.map(p => ({
+          label: p.label,
+          type: p.type || 'tussenpunt',
+          x: p.rd_x || '',
+          y: p.rd_y || '',
+          rh: p.rh || '',
+        }))
       : [
           {label: 'A', type: 'intree', x: '', y: '', rh: ''},
           {label: 'B', type: 'uittree', x: '', y: '', rh: ''},
         ],
+    selecteerPunt(i) { this.actief = i; },
     voegToe() {
       const n = this.punten.length;
       this.punten.splice(n-1, 0, {label: '', type: 'tussenpunt', x: '', y: '', rh: ''});
+      this.actief = n-1;
     },
-    verwijder(i) { this.punten.splice(i, 1); },
+    verwijder(i) {
+      this.punten.splice(i, 1);
+      if (this.actief >= this.punten.length) this.actief = this.punten.length - 1;
+    },
     getRDX() { return this.punten.map(p => p.x).join(','); },
     getRDY() { return this.punten.map(p => p.y).join(','); },
     getTypes() { return this.punten.map(p => p.type).join(','); },
     getLabels() { return this.punten.map(p => p.label).join(','); },
     getRh() { return this.punten.map(p => p.rh || '').join(','); },
     prepareSubmit() { /* hidden velden zijn al live via x-bind */ },
+    // Wordt aangeroepen vanuit de kaart-klik handler
+    zetCoordinaten(rdX, rdY) {
+      this.punten[this.actief].x = rdX;
+      this.punten[this.actief].y = rdY;
+      // Schuif door naar het volgende punt
+      if (this.actief < this.punten.length - 1) {
+        this.actief++;
+      }
+      updateKaart(this.punten);
+    },
   };
+
+  // Initiele kaart update (na Alpine init)
+  setTimeout(() => updateKaart(form.punten), 100);
+
+  return form;
 }
 
-// Leaflet kaart
-const map = L.map('map');
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
-
+// Initieel kaartbeeld
 if (bestaandePunten.length > 0) {
-  const coords = bestaandePunten.map(p => [p.lat, p.lon]);
-  L.polyline(coords, {color: 'red'}).addTo(map);
-  bestaandePunten.forEach(p => {
-    L.marker([p.lat, p.lon]).addTo(map).bindPopup(p.label);
-  });
-  map.fitBounds(coords);
+  const coords = bestaandePunten
+    .filter(p => p.lat && p.lon)
+    .map(p => [p.lat, p.lon]);
+  if (coords.length > 0) map.fitBounds(coords, { padding: [40, 40] });
 } else {
-  // Nederland centrum
   map.setView([52.3, 4.9], 10);
 }
+
+// Kaart-klik → coordinaten overnemen in het actieve punt
+map.on('click', function(e) {
+  const rd = wgs84ToRD(e.latlng.lat, e.latlng.lng);
+  // Alpine component ophalen via het form element
+  const formEl = document.querySelector('[x-data]');
+  if (formEl && formEl.__x) {
+    formEl.__x.$data.zetCoordinaten(rd.x, rd.y);
+  } else if (formEl && formEl._x_dataStack) {
+    // Alpine v3
+    const data = formEl._x_dataStack[0];
+    data.zetCoordinaten(rd.x, rd.y);
+  }
+});
 </script>
 {% endblock %}

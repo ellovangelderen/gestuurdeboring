@@ -467,7 +467,11 @@ def trace_form(
         from app.geo.coords import rd_to_wgs84
         for p in boring.trace_punten:
             lat, lon = rd_to_wgs84(p.RD_x, p.RD_y)
-            punten_wgs84.append({"label": p.label, "lat": lat, "lon": lon})
+            punten_wgs84.append({
+                "label": p.label, "lat": lat, "lon": lon,
+                "type": p.type, "rd_x": p.RD_x, "rd_y": p.RD_y,
+                "rh": p.Rh_m or "",
+            })
     except Exception:
         pass
     return templates.TemplateResponse(
