@@ -72,13 +72,6 @@ const map = L.map('map', { crs: RD, maxZoom: 11, minZoom: 2 });
 const TILE_BASE = 'https://tiles.arcgis.com/tiles/nSZVuSZjHpEZZbRo/arcgis/rest/services/';
 
 function maakTilelayer(jaar) {
-  if (jaar === 'Nu') {
-    // Actuele luchtfoto van dezelfde ArcGIS server (zelfde tiling scheme)
-    return L.tileLayer(TILE_BASE + 'HR_Luchtfoto_Actueel/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '&copy; Kadaster / Luchtfoto actueel',
-      tileSize: 256
-    });
-  }
   return L.tileLayer(TILE_BASE + 'Historische_tijdreis_' + jaar + '/MapServer/tile/{z}/{y}/{x}', {
     attribution: '&copy; Kadaster / Topotijdreis ' + jaar,
     tileSize: 256
