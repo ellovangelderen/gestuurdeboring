@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}GWSW Riool — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>GWSW Riool BOB — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>Riooldata uit de PDOK GWSW database (100m rondom intree-punt).</p>
+
+{% if fout %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem;">
+  <strong>{{ fout }}</strong>
+</section>
+{% else %}
+
+<!-- Samenvatting -->
+<div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ leidingen|length }}</div>
+    <div style="font-size: 0.8em; color: #666;">Riool totaal</div>
+  </div>
+  <div style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid {% if met_bob %}#28a745{% else %}#ffc107{% endif %};">
+    <div style="font-size: 1.5rem; font-weight: 700; color: {% if met_bob %}#28a745{% else %}#856404{% endif %};">{{ met_bob|length }}</div>
+    <div style="font-size: 0.8em; color: #666;">Met BOB data</div>
+  </div>
+  <div style="flex: 1; min-width: 140px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid {% if zonder_bob %}#dc3545{% else %}#ddd{% endif %};">
+    <div style="font-size: 1.5rem; font-weight: 700; {% if zonder_bob %}color: #dc3545;{% endif %}">{{ zonder_bob|length }}</div>
+    <div style="font-size: 0.8em; color: #666;">Zonder BOB</div>
+  </div>
+</div>
+
+{% if met_bob %}
+<section class="card" style="margin-bottom: 1rem;">
+  <h2>Riool met BOB-gegevens</h2>
+  <table class="table">
+    <thead>
+      <tr><th>Naam</th><th>BOB begin (NAP)</th><th>BOB eind (NAP)</th><th>Materiaal</th><th>Diameter</th><th>Stelsel</th><th>Gemeente</th></tr>
+    </thead>
+    <tbody>
+      {% for l in met_bob %}
+      <tr>
+        <td>{{ l.naam or '-' }}</td>
+        <td>{{ "%.2f"|format(l.bob_begin) if l.bob_begin is not none else '-' }}</td>
+        <td>{{ "%.2f"|format(l.bob_eind) if l.bob_eind is not none else '-' }}</td>
+        <td>{{ l.materiaal or '-' }}</td>
+        <td>{% if l.hoogte_mm %}{{ l.hoogte_mm|int }} mm{% else %}-{% endif %}</td>
+        <td>{{ l.stelseltype or '-' }}</td>
+        <td>{{ l.gemeente }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if zonder_bob %}
+<section class="card" style="border-left: 4px solid #ffc107; margin-bottom: 1rem;">
+  <h2 style="color: #856404;">Riool zonder BOB — gemeente opvragen</h2>
+  <p style="font-size: 0.85em; color: #666;">Deze leidingen zijn gevonden maar hebben geen BOB-gegevens. Vraag de gemeente om deze data.</p>
+  <table class="table">
+    <thead>
+      <tr><th>Naam</th><th>Materiaal</th><th>Diameter</th><th>Stelsel</th><th>Gemeente</th></tr>
+    </thead>
+    <tbody>
+      {% for l in zonder_bob %}
+      <tr>
+        <td>{{ l.naam or '-' }}</td>
+        <td>{{ l.materiaal or '-' }}</td>
+        <td>{% if l.hoogte_mm %}{{ l.hoogte_mm|int }} mm{% else %}-{% endif %}</td>
+        <td>{{ l.stelseltype or '-' }}</td>
+        <td>{{ l.gemeente }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if not leidingen %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem; margin-bottom: 1rem;">
+  <strong>Geen riooldata beschikbaar in GWSW voor deze locatie.</strong>
+  <p style="margin-top: 0.5rem; font-size: 0.9em;">Niet alle gemeentes leveren data aan het GWSW. Gebruik de gemeente-mail hieronder om BOB-gegevens op te vragen.</p>
+</section>
+{% endif %}
+
+{% if gemeente_mail %}
+<section class="card" style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+  <h2>Gemeente-mail concept</h2>
+  <p style="font-size: 0.85em; color: #666;">Kopieer en verstuur via je mailprogramma naar de betreffende gemeente.</p>
+
+  <div style="margin-bottom: 0.75rem;">
+    <label style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase;">Onderwerp</label>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <input type="text" id="gem-subject" value="{{ gemeente_mail.onderwerp }}" readonly
+             style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-size: 0.9em;">
+      <button onclick="kopieerVeld('gem-subject')" class="btn btn-secondary btn-sm">Kopieer</button>
+    </div>
+  </div>
+
+  <div>
+    <label style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase;">Bericht</label>
+    <textarea id="gem-body" readonly
+              style="width: 100%; min-height: 220px; font-family: inherit; font-size: 0.9em; line-height: 1.6;
+                     padding: 1rem; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; resize: vertical;">{{ gemeente_mail.tekst }}</textarea>
+  </div>
+
+  <button onclick="kopieerAlles()" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Kopieer mail</button>
+</section>
+{% endif %}
+
+{% endif %}
+
+<div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata" class="btn btn-secondary">&larr; Brondata</a>
+</div>
+
+<script>
+function kopieerVeld(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(() => {
+    el.style.borderColor = '#28a745';
+    setTimeout(() => el.style.borderColor = '#ddd', 1500);
+  });
+}
+function kopieerAlles() {
+  const subject = document.getElementById('gem-subject').value;
+  const body = document.getElementById('gem-body').value;
+  navigator.clipboard.writeText('Onderwerp: ' + subject + '\n\n' + body).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Gekopieerd!';
+    btn.style.background = '#28a745';
+    setTimeout(() => { btn.textContent = 'Kopieer mail'; btn.style.background = ''; }, 2000);
+  });
+}
+</script>
+{% endblock %}

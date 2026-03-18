@@ -130,7 +130,20 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 ---
 
-## 9. Statusmail
+## 9. GWSW Riool BOB + gemeente-mail
+
+| Stap | Actie | Verwacht resultaat |
+|------|-------|--------------------|
+| 9.1 | Brondata → "Riool BOB (GWSW)" | GWSW pagina opent |
+| 9.2 | Bekijk resultaat | Tabel met riooldata: naam, BOB begin/eind (NAP), materiaal, diameter |
+| 9.3 | Als BOB beschikbaar | Groene teller "Met BOB data" |
+| 9.4 | Als BOB niet beschikbaar | Gemeente-mail concept verschijnt |
+| 9.5 | Bekijk gemeente-mail | Bevat locatie, ordernummer, RD-coördinaten |
+| 9.6 | Klik "Kopieer mail" | Onderwerp + bericht gekopieerd, plak in mailprogramma |
+
+---
+
+## 10. Statusmail
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
@@ -142,7 +155,7 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 ---
 
-## 10. EV-zones
+## 11. EV-zones
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
@@ -154,7 +167,7 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 ## Bekende beperkingen (nog niet gebouwd)
 
-- **GWSW riool BOB** (backlog 5) — riooldata moet nog handmatig
+- ~~GWSW riool BOB (backlog 5)~~ — **gebouwd** (PDOK API + gemeente-mail)
 - **Sleufloze detectie** (backlog 6) — in KLIC parser maar nog geen apart scherm
 - **Tracévarianten** (backlog 12) — meerdere varianten vergelijken
 - **SnelStart facturatie** (backlog 13) — handmatig factureren

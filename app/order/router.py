@@ -942,6 +942,74 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── GWSW riool BOB ────────────────────────────────────────────────────────
+
+@router.get("/{order_id}/boringen/{volgnr}/gwsw", response_class=HTMLResponse)
+def gwsw_riool_pagina(
+    request: Request,
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """GWSW riool BOB data + gemeente-mail generator."""
+    from app.geo.gwsw import haal_riooldata_op
+
+    order = fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    fout = None
+    leidingen = []
+    gemeente_mail = None
+
+    intree = next((p for p in boring.trace_punten if p.type == "intree"), None)
+    if not intree:
+        fout = "Geen intree-punt — sla eerst het tracé op."
+    else:
+        leidingen = haal_riooldata_op(intree.RD_x, intree.RD_y, buffer_m=100.0)
+
+        met_bob = [l for l in leidingen if l.heeft_bob]
+        zonder_bob = [l for l in leidingen if not l.heeft_bob]
+
+        # Als er geen leidingen zijn, of alle zonder BOB → gemeente-mail genereren
+        if not leidingen or (leidingen and not met_bob):
+            locatie = order.locatie or "de projectlocatie"
+            ordernr = order.ordernummer or ""
+            gemeente_mail = {
+                "onderwerp": f"Verzoek BOB-gegevens riool — {ordernr} {locatie}",
+                "tekst": (
+                    f"Geachte heer/mevrouw,\n\n"
+                    f"Voor het ontwerp van een gestuurde boring op de volgende locatie hebben wij "
+                    f"de BOB-gegevens (binnenonderkant buis) van het rioolstelsel nodig:\n\n"
+                    f"  Locatie: {locatie}\n"
+                    f"  Ordernummer: {ordernr}\n"
+                    f"  RD-coördinaten: X={intree.RD_x:.2f}  Y={intree.RD_y:.2f}\n\n"
+                    f"Het betreft het riool in de directe omgeving van bovengenoemde coördinaten "
+                    f"(straal ca. 100 meter).\n\n"
+                    f"Kunt u ons de BOB-waarden en het leidingmateriaal/diameter doorgeven?\n\n"
+                    f"Bij voorbaat dank.\n\n"
+                    f"Met vriendelijke groet,\n\n"
+                    f"Martien Luijben\n"
+                    f"GestuurdeBoringTekening.nl"
+                ),
+            }
+
+    return templates.TemplateResponse(
+        "order/gwsw.html",
+        {
+            "request": request,
+            "order": order,
+            "boring": boring,
+            "user": user,
+            "fout": fout,
+            "leidingen": leidingen,
+            "met_bob": [l for l in leidingen if l.heeft_bob],
+            "zonder_bob": [l for l in leidingen if not l.heeft_bob],
+            "gemeente_mail": gemeente_mail,
+        },
+    )
+
+
 # ── Topotijdreis ──────────────────────────────────────────────────────────
 
 TOPOTIJDREIS_JAREN = [
