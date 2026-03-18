@@ -45,29 +45,43 @@
 {% if punten_wgs84 %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<!-- Esri Leaflet voor ArcGIS tile services -->
-<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
 
 <script>
 const punten = {{ punten_wgs84 | tojson }};
 const jaren = {{ jaren | tojson }};
 
-// Standaard Leaflet kaart (Web Mercator)
-const map = L.map('map');
+// RD New projectie met de EXACTE ArcGIS tiling parameters
+proj4.defs("EPSG:28992", "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs");
 
-// ArcGIS historische kaarten (esri-leaflet handelt projectie af)
+const RD = new L.Proj.CRS("EPSG:28992",
+  "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs",
+  {
+    // Exacte waarden uit de ArcGIS MapServer tileInfo
+    resolutions: [3251.206502413005, 1625.6032512065026, 812.8016256032513, 406.40081280162565,
+                  203.20040640081282, 101.60020320040641, 50.800101600203206, 25.400050800101603,
+                  12.700025400050801, 6.350012700025401, 3.1750063500127004, 1.5875031750063502],
+    origin: [-30515500, 31112400],
+    bounds: L.bounds([-30515500, 31112400], [30515500, -31112400])
+  }
+);
+
+const map = L.map('map', { crs: RD, maxZoom: 11, minZoom: 2 });
+
 const TILE_BASE = 'https://tiles.arcgis.com/tiles/nSZVuSZjHpEZZbRo/arcgis/rest/services/';
 
 function maakTilelayer(jaar) {
   if (jaar === 'Nu') {
-    // PDOK actuele BRT achtergrondkaart
-    return L.tileLayer('https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png', {
-      attribution: '&copy; Kadaster / PDOK (actueel)'
+    // PDOK BRT in RD tiling (zelfde CRS)
+    return L.tileLayer('https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:28992/{z}/{x}/{y}.png', {
+      attribution: '&copy; Kadaster / PDOK (actueel)',
+      tileSize: 256
     });
   }
-  return L.esri.tiledMapLayer({
-    url: TILE_BASE + 'Historische_tijdreis_' + jaar + '/MapServer',
-    attribution: '&copy; Kadaster / Topotijdreis ' + jaar
+  return L.tileLayer(TILE_BASE + 'Historische_tijdreis_' + jaar + '/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Kadaster / Topotijdreis ' + jaar,
+    tileSize: 256
   });
 }
 
@@ -126,7 +140,7 @@ if (punten.length > 0) {
         .addTo(map).bindPopup(p.label);
     }
   });
-  map.fitBounds(coords, { padding: [60, 60], maxZoom: 16 });
+  map.fitBounds(coords, { padding: [60, 60], maxZoom: 8 });
 }
 </script>
 {% endif %}
