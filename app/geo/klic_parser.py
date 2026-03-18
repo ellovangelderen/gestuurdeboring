@@ -1,8 +1,15 @@
-"""KLIC IMKL 2.0 GML parser — backlog item 1.
+"""KLIC IMKL 2.0 GML parser — backlog items 1 + 3.
 
 Pakt een KLIC ZIP uit, parseert het GML-bestand en slaat leidingen op als
-KLICLeiding-records. Alle coördinaten zijn RD New (EPSG:28992) — geen projectie nodig.
+KLICLeiding-records. Alle coordinaten zijn RD New (EPSG:28992) — geen projectie nodig.
+
+Backlog 3 toevoegingen:
+- EV-detectie (AanduidingEisVoorzorgsmaatregel)
+- Diepte uit tekstvelden (Annotatie / Maatvoering labels)
+- Materiaalregel sleufloze techniek
+- Formaat B support (enkel GML bestand)
 """
+import re
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -41,7 +48,7 @@ PRIMAIRE_LEIDING_NAMEN = {
     "Rioolleiding",
 }
 
-# IMKL thema-URL suffix → DXF-laag
+# IMKL thema-URL suffix -> DXF-laag
 THEMA_TO_LAYER: dict[str, str] = {
     "laagspanning":     "LAAGSPANNING",
     "middenspanning":   "MIDDENSPANNING",
@@ -56,7 +63,7 @@ THEMA_TO_LAYER: dict[str, str] = {
     "overig":           "LAAGSPANNING",
 }
 
-# Feature-type naam → default thema als Utiliteitsnet onbekend is
+# Feature-type naam -> default thema als Utiliteitsnet onbekend is
 FEATURETYPE_TO_THEMA: dict[str, str] = {
     "Elektriciteitskabel":         "laagspanning",
     "OlieGasChemicalienPijpleiding": "gasLageDruk",
@@ -65,6 +72,10 @@ FEATURETYPE_TO_THEMA: dict[str, str] = {
     "Telecommunicatiekabel":       "datatransport",
     "Mantelbuis":                  "datatransport",
 }
+
+# Materialen die op sleufloze techniek wijzen
+_SLEUFLOZE_MATERIALEN = {"PE", "HDPE", "PE100", "PE80", "PEX"}
+_MOGELIJK_SLEUFLOZE_MATERIALEN = {"staal", "steel"}
 
 
 def _tag(ns: str, local: str) -> str:
@@ -116,7 +127,7 @@ def _extract_geometry_wkt(ul_element) -> Optional[str]:
 
 
 def _build_utility_link_index(root) -> dict[str, str]:
-    """Bouwt een dict van UtilityLink gml:id → WKT geometrie."""
+    """Bouwt een dict van UtilityLink gml:id -> WKT geometrie."""
     index: dict[str, str] = {}
     for fm in root.iter(_tag(NS_GML, "featureMember")):
         for child in fm:
@@ -130,7 +141,7 @@ def _build_utility_link_index(root) -> dict[str, str]:
 
 
 def _build_network_index(root) -> dict[str, dict]:
-    """Bouwt een dict van Utiliteitsnet gml:id → {thema, bronhouder}."""
+    """Bouwt een dict van Utiliteitsnet gml:id -> {thema, bronhouder}."""
     index: dict[str, dict] = {}
     for fm in root.iter(_tag(NS_GML, "featureMember")):
         for child in fm:
@@ -147,7 +158,7 @@ def _build_network_index(root) -> dict[str, dict]:
 
 
 def _build_beheerder_index(root) -> dict[str, str]:
-    """Bouwt een dict van bronhoudercode → organisatienaam."""
+    """Bouwt een dict van bronhoudercode -> organisatienaam."""
     index: dict[str, str] = {}
     for fm in root.iter(_tag(NS_GML, "featureMember")):
         for child in fm:
@@ -207,6 +218,182 @@ def _build_alle_beheerder_codes(root) -> set[str]:
     return codes
 
 
+# ── Backlog 3: EV-detectie ──────────────────────────────────────────────────
+
+def _build_ev_index(root, beheerder_index: dict[str, str]) -> tuple[dict[str, dict], list[dict]]:
+    """Parse AanduidingEisVoorzorgsmaatregel en Belanghebbende elementen.
+
+    Returns:
+        - ev_network_index: {netwerk_href: {ev_verplicht, contactgegevens}}
+        - ev_partijen: [{beheerder, contactgegevens}] voor order-level weergave
+    """
+    # Stap 1: Verzamel contactgegevens uit AanduidingEisVoorzorgsmaatregel
+    ev_contacts: dict[str, str] = {}  # netwerk_href -> contactgegevens
+    for fm in root.iter(_tag(NS_GML, "featureMember")):
+        for child in fm:
+            if child.tag == _tag(NS_IMKL, "AanduidingEisVoorzorgsmaatregel"):
+                in_network = child.find(_tag(NS_IMKL, "inNetwork"))
+                if in_network is None:
+                    continue
+                net_href = in_network.get(_tag(NS_XLINK, "href"), "")
+                if not net_href:
+                    continue
+
+                contact_el = child.find(f".//{_tag(NS_IMKL, 'contactVoorzorgsmaatregel')}")
+                naam = ""
+                telefoon = ""
+                email = ""
+                if contact_el is not None:
+                    naam_el = contact_el.find(f".//{_tag(NS_IMKL, 'naam')}")
+                    tel_el = contact_el.find(f".//{_tag(NS_IMKL, 'telefoon')}")
+                    email_el = contact_el.find(f".//{_tag(NS_IMKL, 'email')}")
+                    naam = naam_el.text if naam_el is not None and naam_el.text else ""
+                    telefoon = tel_el.text if tel_el is not None and tel_el.text else ""
+                    email = email_el.text if email_el is not None and email_el.text else ""
+
+                ev_contacts[net_href] = " | ".join(filter(None, [naam, telefoon, email]))
+
+    # Stap 2: Verzamel netwerken met EV uit Belanghebbende
+    ev_network_index: dict[str, dict] = {}
+    ev_partijen: list[dict] = []
+
+    for fm in root.iter(_tag(NS_GML, "featureMember")):
+        for child in fm:
+            if child.tag == _tag(NS_IMKL, "Belanghebbende"):
+                ev_el = child.find(_tag(NS_IMKL, "indicatieEisVoorzorgsmaatregel"))
+                if ev_el is None or ev_el.text != "true":
+                    continue
+
+                net_el = child.find(_tag(NS_IMKL, "utiliteitsnet"))
+                net_href = net_el.get(_tag(NS_XLINK, "href"), "") if net_el is not None else ""
+
+                # Bronhouder code uit het gml:id (bijv. nl.imkl-KL1012._Belanghebbende_...)
+                gml_id = child.get(_tag(NS_GML, "id"), "")
+                bronhouder_code = ""
+                if gml_id:
+                    parts = gml_id.replace("nl.imkl-", "").split(".")
+                    if parts:
+                        bronhouder_code = parts[0]
+
+                beheerder_naam = beheerder_index.get(bronhouder_code, bronhouder_code)
+                contactgegevens = ev_contacts.get(net_href, "")
+
+                if net_href:
+                    ev_network_index[net_href] = {
+                        "ev_verplicht": True,
+                        "contactgegevens": contactgegevens,
+                    }
+
+                ev_partijen.append({
+                    "beheerder": beheerder_naam,
+                    "contactgegevens": contactgegevens,
+                })
+
+    # Voeg ook EV-netwerken toe die alleen in AanduidingEisVoorzorgsmaatregel staan
+    for net_href, contactgegevens in ev_contacts.items():
+        if net_href not in ev_network_index:
+            ev_network_index[net_href] = {
+                "ev_verplicht": True,
+                "contactgegevens": contactgegevens,
+            }
+
+    return ev_network_index, ev_partijen
+
+
+# ── Backlog 3: Diepte uit tekstvelden ───────────────────────────────────────
+
+# Regex patronen voor diepte extractie uit vrije tekst
+_DIEPTE_REGEX_NAP = re.compile(
+    r"([+-]?\d+[.,]\d+)\s*m?\s*-?\s*[Nn][Aa][Pp]"
+)
+_DIEPTE_REGEX_GENERIC = re.compile(
+    r"diepte.*?([+-]?\d+[.,]\d+)", re.IGNORECASE
+)
+
+
+def _extract_diepte_uit_tekst(tekst: str) -> tuple[Optional[float], Optional[str]]:
+    """Probeer diepte uit vrije tekst te extraheren.
+
+    Returns: (diepte_float, "tekstveld_onzeker") bij match, anders (None, None).
+    """
+    if not tekst:
+        return None, None
+
+    # Probeer NAP-patroon eerst
+    match = _DIEPTE_REGEX_NAP.search(tekst)
+    if match:
+        try:
+            val = float(match.group(1).replace(",", "."))
+            return val, "tekstveld_onzeker"
+        except ValueError:
+            pass
+
+    # Probeer generiek diepte-patroon
+    match = _DIEPTE_REGEX_GENERIC.search(tekst)
+    if match:
+        try:
+            val = float(match.group(1).replace(",", "."))
+            return val, "tekstveld_onzeker"
+        except ValueError:
+            pass
+
+    return None, None
+
+
+def _build_label_index(root) -> dict[str, list[str]]:
+    """Bouwt index van netwerk_href -> [label teksten] uit Annotatie en Maatvoering elementen."""
+    index: dict[str, list[str]] = {}
+
+    for fm in root.iter(_tag(NS_GML, "featureMember")):
+        for child in fm:
+            tag_local = child.tag.split("}")[-1]
+            if tag_local not in ("Annotatie", "Maatvoering"):
+                continue
+
+            in_network = child.find(_tag(NS_IMKL, "inNetwork"))
+            if in_network is None:
+                continue
+            net_href = in_network.get(_tag(NS_XLINK, "href"), "")
+            if not net_href:
+                continue
+
+            label_el = child.find(_tag(NS_IMKL, "label"))
+            if label_el is not None and label_el.text:
+                if net_href not in index:
+                    index[net_href] = []
+                index[net_href].append(label_el.text)
+
+    return index
+
+
+# ── Backlog 3: Materiaalregel sleufloze techniek ────────────────────────────
+
+def _detect_materiaal_sleufloze(feature) -> tuple[bool, bool]:
+    """Detecteer sleufloze techniek op basis van buismateriaalType.
+
+    Returns: (sleufloze_techniek, mogelijk_sleufloze)
+    """
+    mat_el = feature.find(_tag(NS_IMKL, "buismateriaalType"))
+    if mat_el is None:
+        return False, False
+
+    mat_href = mat_el.get(_tag(NS_XLINK, "href"), "")
+    mat_val = _href_suffix(mat_href).upper()
+
+    # Ook check op element text als href leeg is
+    if not mat_val and mat_el.text:
+        mat_val = mat_el.text.strip().upper()
+
+    if mat_val in _SLEUFLOZE_MATERIALEN:
+        return True, False
+    if mat_val.lower() in _MOGELIJK_SLEUFLOZE_MATERIALEN:
+        return False, True
+
+    return False, False
+
+
+# ── Hoofdparser ─────────────────────────────────────────────────────────────
+
 def _parse_gml_file(
     xml_data: bytes,
     project_id: str,
@@ -214,10 +401,10 @@ def _parse_gml_file(
     db: Session,
 ) -> dict:
     """
-    Parseert één GML/XML bestand en slaat leidingen op in de database.
+    Parseert een GML/XML bestand en slaat leidingen op in de database.
     Geeft terug: {count_primair, count_totaal, beheerders_set, alle_beheerders_set, fout}.
     """
-    from app.project.models import KLICLeiding
+    from app.order.models import KLICLeiding
 
     try:
         root = etree.fromstring(xml_data)
@@ -235,6 +422,8 @@ def _parse_gml_file(
     beheerder_index = _build_beheerder_index(root)
     network_pdf_set = _build_network_pdf_index(root)
     alle_beheerder_codes = _build_alle_beheerder_codes(root)
+    ev_index, ev_partijen = _build_ev_index(root, beheerder_index)
+    label_index = _build_label_index(root)
 
     count_primair = 0
     count_totaal = 0
@@ -248,7 +437,7 @@ def _parse_gml_file(
 
             gml_id = feature.get(_tag(NS_GML, "id"), "")
 
-            # Bepaal netwerk → thema + bronhouder
+            # Bepaal netwerk -> thema + bronhouder
             in_network_el = feature.find(_tag(NS_NET, "inNetwork"))
             network_href = (
                 in_network_el.get(_tag(NS_XLINK, "href"), "")
@@ -275,15 +464,19 @@ def _parse_gml_file(
             link_href = link_el.get(_tag(NS_XLINK, "href"), "") if link_el is not None else ""
             geometrie_wkt = ul_index.get(link_href)
 
-            # Sleufloze detectie: Mantelbuis + diepte NULL + netwerk heeft profielschets PDF
+            # Sleufloze detectie: Mantelbuis + netwerk heeft profielschets PDF (bestaand)
             is_mantelbuis = feature_type == "Mantelbuis"
             netwerk_heeft_pdf = network_href in network_pdf_set
             sleufloze = is_mantelbuis and netwerk_heeft_pdf
 
+            # Materiaalregel sleufloze techniek (backlog 3)
+            mat_sleufloze, mat_mogelijk = _detect_materiaal_sleufloze(feature)
+            if mat_sleufloze:
+                sleufloze = True
+
             # PDF URL voor bron_pdf_url (eerste PDF van dit netwerk)
             bron_pdf_url = None
             if sleufloze:
-                # Zoek eerste ExtraDetailinfo PDF van dit netwerk
                 for fm2 in root.iter(_tag(NS_GML, "featureMember")):
                     for edi in fm2:
                         if edi.tag == _tag(NS_IMKL, "ExtraDetailinfo"):
@@ -297,19 +490,41 @@ def _parse_gml_file(
                     if bron_pdf_url:
                         break
 
+            # EV-detectie (backlog 3)
+            ev_info = ev_index.get(network_href, {})
+            ev_verplicht = ev_info.get("ev_verplicht", False)
+            ev_contactgegevens = ev_info.get("contactgegevens", None)
+
+            # Label teksten voor dit netwerk (backlog 3)
+            labels = label_index.get(network_href, [])
+            label_tekst = "\n".join(labels) if labels else None
+
+            # Diepte: probeer uit IMKL structuur (niet beschikbaar in huidige data),
+            # val terug op tekstveldextractie (backlog 3)
+            diepte_m = None
+            diepte_bron = None
+
+            if label_tekst:
+                diepte_m, diepte_bron = _extract_diepte_uit_tekst(label_tekst)
+
             leiding = KLICLeiding(
-                project_id=project_id,
                 klic_upload_id=klic_upload_id,
                 beheerder=beheerder_naam,
                 leidingtype=feature_type,
                 thema=thema,
                 dxf_laag=dxf_laag,
                 geometrie_wkt=geometrie_wkt,
-                diepte_m=None,
+                diepte_m=diepte_m,
+                diepte_bron=diepte_bron,
                 diepte_override_m=None,
                 sleufloze_techniek=sleufloze,
+                mogelijk_sleufloze=mat_mogelijk,
                 bron_pdf_url=bron_pdf_url,
                 imkl_feature_id=gml_id,
+                ev_verplicht=ev_verplicht,
+                ev_contactgegevens=ev_contactgegevens,
+                label_tekst=label_tekst,
+                toelichting_tekst=None,
             )
             db.add(leiding)
 
@@ -323,8 +538,73 @@ def _parse_gml_file(
         "count_totaal": count_totaal,
         "beheerders_set": beheerders,
         "alle_beheerders_set": alle_beheerder_codes,
+        "ev_partijen": ev_partijen,
         "fout": None,
     }
+
+
+# ── Formaat B: enkel GML bestand ────────────────────────────────────────────
+
+def _store_ev_partijen(order_id: str, ev_partijen: list[dict], db: Session) -> None:
+    """Sla EV-partijen op als EVPartij records op de order."""
+    from app.order.models import EVPartij
+    # Verwijder bestaande EV-partijen (idempotent)
+    db.query(EVPartij).filter_by(order_id=order_id).delete()
+    db.flush()
+    for i, ev in enumerate(ev_partijen):
+        partij = EVPartij(
+            order_id=order_id,
+            naam=f"{ev['beheerder']} — {ev['contactgegevens']}" if ev.get("contactgegevens") else ev["beheerder"],
+            volgorde=i,
+        )
+        db.add(partij)
+    db.flush()
+
+
+def verwerk_klic_gml(
+    gml_pad: str,
+    order_id: str,
+    klic_upload_id: str,
+    db: Session,
+) -> None:
+    """Verwerk een enkel GML/XML bestand (Formaat B)."""
+    from app.order.models import KLICLeiding, KLICUpload
+
+    upload = db.get(KLICUpload, klic_upload_id)
+    if not upload:
+        return
+
+    # Verwijder eerder geparsede leidingen (idempotent)
+    db.query(KLICLeiding).filter_by(klic_upload_id=klic_upload_id).delete()
+    db.flush()
+
+    try:
+        xml_data = Path(gml_pad).read_bytes()
+        resultaat = _parse_gml_file(xml_data, order_id, klic_upload_id, db)
+
+        if resultaat["fout"]:
+            upload.verwerkt = False
+            upload.verwerk_fout = resultaat["fout"]
+            upload.verwerkt_op = datetime.now(timezone.utc)
+            db.commit()
+            return
+
+        # Sla EV-partijen op
+        if resultaat.get("ev_partijen"):
+            _store_ev_partijen(order_id, resultaat["ev_partijen"], db)
+
+        upload.verwerkt = True
+        upload.verwerk_fout = None
+        upload.aantal_leidingen = resultaat["count_primair"]
+        upload.aantal_beheerders = len(resultaat["alle_beheerders_set"])
+        upload.verwerkt_op = datetime.now(timezone.utc)
+        db.commit()
+
+    except Exception as exc:
+        upload.verwerkt = False
+        upload.verwerk_fout = f"Verwerkingsfout: {exc}"
+        upload.verwerkt_op = datetime.now(timezone.utc)
+        db.commit()
 
 
 def verwerk_klic_zip(
@@ -338,7 +618,7 @@ def verwerk_klic_zip(
     Bijwerkt KLICUpload.verwerkt, aantal_leidingen, aantal_beheerders, verwerk_fout.
     Gooit geen exceptions — fouten worden opgeslagen in KLICUpload.verwerk_fout.
     """
-    from app.project.models import KLICLeiding, KLICUpload
+    from app.order.models import KLICLeiding, KLICUpload
 
     upload = db.get(KLICUpload, klic_upload_id)
     if not upload:
@@ -369,11 +649,13 @@ def verwerk_klic_zip(
             alle_beheerders_in_leidingen: set[str] = set()
             alle_beheerders_in_levering: set[str] = set()
 
+            alle_ev_partijen: list[dict] = []
+
             for gml_naam in gml_namen:
-                gml_pad = Path(tmpdir) / gml_naam
-                if not gml_pad.exists():
+                gml_pad_file = Path(tmpdir) / gml_naam
+                if not gml_pad_file.exists():
                     continue
-                xml_data = gml_pad.read_bytes()
+                xml_data = gml_pad_file.read_bytes()
                 resultaat = _parse_gml_file(xml_data, project_id, klic_upload_id, db)
                 if resultaat["fout"]:
                     upload.verwerkt = False
@@ -385,9 +667,13 @@ def verwerk_klic_zip(
                 totaal_count += resultaat["count_totaal"]
                 alle_beheerders_in_leidingen.update(resultaat["beheerders_set"])
                 alle_beheerders_in_levering.update(resultaat["alle_beheerders_set"])
+                alle_ev_partijen.extend(resultaat.get("ev_partijen", []))
+
+        # Sla EV-partijen op
+        if alle_ev_partijen:
+            _store_ev_partijen(project_id, alle_ev_partijen, db)
 
         # aantal_beheerders = alle Beheerder-entiteiten in de levering
-        # (inclusief beheerders die alleen een brief hebben, zonder kabels)
         upload.verwerkt = True
         upload.verwerk_fout = None
         upload.aantal_leidingen = totaal_primair
@@ -405,3 +691,16 @@ def verwerk_klic_zip(
         upload.verwerk_fout = f"Verwerkingsfout: {exc}"
         upload.verwerkt_op = datetime.now(timezone.utc)
         db.commit()
+
+
+def verwerk_klic_bestand(
+    bestandspad: str,
+    order_id: str,
+    klic_upload_id: str,
+    db: Session,
+) -> None:
+    """Dispatch naar juiste parser op basis van bestandstype (ZIP vs GML/XML)."""
+    if zipfile.is_zipfile(bestandspad):
+        verwerk_klic_zip(bestandspad, order_id, klic_upload_id, db)
+    else:
+        verwerk_klic_gml(bestandspad, order_id, klic_upload_id, db)

@@ -256,8 +256,9 @@ def brondata_form(
     klic_samenvatting: list[dict] = []
     diepte_waarschuwing = False
     laatste_upload = None
-    if project.klic_uploads:
-        laatste_upload = sorted(project.klic_uploads, key=lambda u: u.upload_datum)[-1]
+    klic_uploads = db.query(KLICUpload).filter_by(order_id=project_id).order_by(KLICUpload.upload_datum).all()
+    if klic_uploads:
+        laatste_upload = klic_uploads[-1]
         if laatste_upload.verwerkt:
             leidingen = (
                 db.query(KLICLeiding)
@@ -417,7 +418,7 @@ async def klic_upload(
         shutil.copyfileobj(klic_zip.file, f)
 
     upload = KLICUpload(
-        project_id=project_id,
+        order_id=project_id,
         bestandsnaam=safe_filename,
         bestandspad=str(dest_path),
         verwerkt=False,
@@ -437,7 +438,7 @@ def klic_verwerken(
     """Trigger KLIC parsing synchroon. Redirect naar brondata na verwerking."""
     fetch_project(project_id, db)
     upload = db.get(KLICUpload, upload_id)
-    if not upload or upload.project_id != project_id:
+    if not upload or upload.order_id != project_id:
         raise HTTPException(status_code=404, detail="KLIC upload niet gevonden")
 
     from app.geo.klic_parser import verwerk_klic_zip
@@ -455,7 +456,7 @@ def klic_status(
     fetch_project(project_id, db)
     upload = (
         db.query(KLICUpload)
-        .filter_by(project_id=project_id)
+        .filter_by(order_id=project_id)
         .order_by(KLICUpload.upload_datum.desc())
         .first()
     )

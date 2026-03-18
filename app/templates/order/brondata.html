@@ -46,12 +46,23 @@
     <p>Nog geen KLIC bestand geupload.</p>
   {% endif %}
   <form method="post" action="/orders/{{ order.id }}/klic" enctype="multipart/form-data">
-    <label>Nieuw KLIC ZIP bestand uploaden
-      <input type="file" name="klic_zip" accept=".zip" required>
+    <label>Nieuw KLIC bestand uploaden (ZIP, XML of GML)
+      <input type="file" name="klic_zip" accept=".zip,.xml,.gml" required>
     </label>
     <button type="submit" class="btn btn-primary">Uploaden</button>
   </form>
 </section>
+
+{% if ev_leidingen %}
+<section class="card" style="border-left: 4px solid #dc3545; background: #fff5f5;">
+  <strong>WAARSCHUWING: EV-leidingen aanwezig</strong>
+  <ul>
+    {% for ev in ev_leidingen %}
+    <li>{{ ev.beheerder }} — {{ ev.contactgegevens }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 <!-- Maaiveld -->
 <section class="card">

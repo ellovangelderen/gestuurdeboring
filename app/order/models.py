@@ -152,8 +152,14 @@ class KLICLeiding(Base):
     diepte_m = Column(Float)
     diepte_override_m = Column(Float)
     sleufloze_techniek = Column(Boolean, default=False)
+    mogelijk_sleufloze = Column(Boolean, default=False)
     bron_pdf_url = Column(String)
     imkl_feature_id = Column(String)
+    diepte_bron = Column(String)              # "imkl", "tekstveld_onzeker", None
+    ev_verplicht = Column(Boolean, default=False)
+    ev_contactgegevens = Column(String)
+    label_tekst = Column(Text)
+    toelichting_tekst = Column(Text)
 
     klic_upload = relationship("KLICUpload", back_populates="leidingen")
 

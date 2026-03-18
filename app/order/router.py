@@ -545,6 +545,7 @@ def brondata_form(
     # KLIC samenvatting (order-level)
     klic_samenvatting: list[dict] = []
     diepte_waarschuwing = False
+    ev_leidingen: list[dict] = []
     laatste_upload = None
     if order.klic_uploads:
         laatste_upload = sorted(order.klic_uploads, key=lambda u: u.upload_datum)[-1]
@@ -569,6 +570,13 @@ def brondata_form(
             met_diepte = sum(1 for l in leidingen if l.diepte_m is not None)
             diepte_waarschuwing = total > 0 and met_diepte == 0
 
+            # EV-leidingen: uit EVPartij records op de order
+            for ep in order.ev_partijen:
+                ev_leidingen.append({
+                    "beheerder": ep.naam or "",
+                    "contactgegevens": "",
+                })
+
     return templates.TemplateResponse(
         "order/brondata.html",
         {
@@ -578,6 +586,7 @@ def brondata_form(
             "user": user,
             "klic_samenvatting": klic_samenvatting,
             "diepte_waarschuwing": diepte_waarschuwing,
+            "ev_leidingen": ev_leidingen,
             "laatste_upload": laatste_upload,
         },
     )
@@ -626,6 +635,12 @@ async def klic_upload(
     dest_dir = UPLOAD_DIR / order_id
     dest_dir.mkdir(parents=True, exist_ok=True)
     safe_filename = Path(klic_zip.filename).name
+
+    # Accepteer .zip, .xml en .gml bestanden
+    suffix = Path(safe_filename).suffix.lower()
+    if suffix not in (".zip", ".xml", ".gml"):
+        raise HTTPException(status_code=400, detail="Alleen .zip, .xml of .gml bestanden toegestaan")
+
     dest_path = dest_dir / safe_filename
 
     with open(dest_path, "wb") as f:
@@ -639,6 +654,11 @@ async def klic_upload(
     )
     db.add(upload)
     db.commit()
+
+    # Auto-verwerken na upload
+    from app.geo.klic_parser import verwerk_klic_bestand
+    verwerk_klic_bestand(str(dest_path), order_id, upload.id, db)
+
     # Redirect terug naar de eerste boring's brondata, of order detail
     boringen = sorted(order.boringen, key=lambda b: b.volgnummer)
     if boringen:
