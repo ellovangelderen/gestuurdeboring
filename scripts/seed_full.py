@@ -220,6 +220,22 @@ def seed_multi_boring(db):
     db.add(TracePunt(boring_id=b1.id, volgorde=1, type="uittree",
                      RD_x=136650.0, RD_y=456780.0, label="B", variant=0))
 
+    db.add(MaaiveldOverride(
+        boring_id=b1.id, MVin_NAP_m=2.10, MVuit_NAP_m=1.85,
+        bron="handmatig", MVin_bron="handmatig", MVuit_bron="handmatig",
+    ))
+
+    for d in [
+        (0, 0.0,   -2.0, "Zand", -0.5),
+        (1, 50.0,  -3.5, "Klei", -0.8),
+        (2, 100.0, -4.0, "Klei", -1.0),
+        (3, 152.0, -2.5, "Zand", -0.6),
+    ]:
+        db.add(Doorsnede(boring_id=b1.id, volgorde=d[0], afstand_m=d[1],
+                         NAP_m=d[2], grondtype=d[3], GWS_m=d[4]))
+
+    db.add(Berekening(boring_id=b1.id, Ttot_N=18500.0, bron="sigma_override"))
+
     # Boring 2: type N
     b2 = Boring(
         order_id=order.id, volgnummer=2, type="N", naam="NANO1",
@@ -235,6 +251,11 @@ def seed_multi_boring(db):
                      RD_x=136510.0, RD_y=456810.0, label="A", variant=0))
     db.add(TracePunt(boring_id=b2.id, volgorde=1, type="uittree",
                      RD_x=136560.0, RD_y=456805.0, label="B", variant=0))
+
+    db.add(MaaiveldOverride(
+        boring_id=b2.id, MVin_NAP_m=2.05, MVuit_NAP_m=1.90,
+        bron="handmatig", MVin_bron="handmatig", MVuit_bron="handmatig",
+    ))
 
     db.commit()
     print("[OK] IE26V001 — 2 boringen (B+N), status wacht_akkoord, PRIO")
