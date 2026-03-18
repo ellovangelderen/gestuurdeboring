@@ -942,6 +942,62 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── Topotijdreis ──────────────────────────────────────────────────────────
+
+TOPOTIJDREIS_JAREN = [
+    1815, 1850, 1900, 1910, 1920, 1925, 1930, 1940, 1950,
+    1960, 1970, 1975, 1980, 1990, 2000, 2005, 2010, 2015,
+]
+
+
+@router.get("/{order_id}/boringen/{volgnr}/topotijdreis", response_class=HTMLResponse)
+def topotijdreis_pagina(
+    request: Request,
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Topotijdreis: historische kaarten voor het tracégebied."""
+    order = fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    punten_wgs84 = []
+    rd_center = None
+    try:
+        from app.geo.coords import rd_to_wgs84
+        for p in boring.trace_punten:
+            lat, lon = rd_to_wgs84(p.RD_x, p.RD_y)
+            punten_wgs84.append({"label": p.label, "lat": lat, "lon": lon,
+                                  "rd_x": p.RD_x, "rd_y": p.RD_y})
+        if boring.trace_punten:
+            xs = [p.RD_x for p in boring.trace_punten]
+            ys = [p.RD_y for p in boring.trace_punten]
+            rd_center = {"x": sum(xs) / len(xs), "y": sum(ys) / len(ys)}
+    except Exception:
+        pass
+
+    # Link-out naar topotijdreis.nl
+    topotijdreis_url = None
+    if punten_wgs84:
+        mid = punten_wgs84[len(punten_wgs84) // 2]
+        topotijdreis_url = f"https://www.topotijdreis.nl/#/52/{mid['lat']:.6f}/{mid['lon']:.6f}"
+
+    return templates.TemplateResponse(
+        "order/topotijdreis.html",
+        {
+            "request": request,
+            "order": order,
+            "boring": boring,
+            "user": user,
+            "punten_wgs84": punten_wgs84,
+            "rd_center": rd_center,
+            "topotijdreis_url": topotijdreis_url,
+            "jaren": TOPOTIJDREIS_JAREN,
+        },
+    )
+
+
 # ── Conflictcheck ─────────────────────────────────────────────────────────
 
 @router.get("/{order_id}/boringen/{volgnr}/conflictcheck", response_class=HTMLResponse)

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Topotijdreis — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>Topotijdreis — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>Historische kaarten voor het tracégebied. Gebruik de slider om door de tijd te bladeren en controleer op gesloopte objecten, oude funderingen of gewijzigde infrastructuur.</p>
+
+{% if not punten_wgs84 %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem;">
+  <strong>Geen tracépunten beschikbaar</strong> — sla eerst het tracé op.
+</section>
+{% else %}
+
+<!-- Tijdslider -->
+<div style="background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+  <div style="display: flex; align-items: center; gap: 1rem;">
+    <label style="font-weight: 600; min-width: 40px;">Jaar:</label>
+    <input type="range" id="jaar-slider" min="0" max="{{ jaren|length - 1 }}" value="{{ jaren|length - 1 }}" step="1"
+           style="flex: 1;" oninput="wisselJaar(this.value)">
+    <span id="jaar-label" style="font-size: 1.5rem; font-weight: 700; min-width: 60px; text-align: center;">{{ jaren[-1] }}</span>
+  </div>
+  <div style="display: flex; justify-content: space-between; font-size: 0.75em; color: #999; margin-top: 0.25rem; padding: 0 2px;">
+    <span>{{ jaren[0] }}</span>
+    <span>{{ jaren[-1] }}</span>
+  </div>
+</div>
+
+<!-- Knoppen -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+  <button onclick="speelAf()" id="play-btn" class="btn btn-secondary btn-sm">Afspelen</button>
+  {% if topotijdreis_url %}
+    <a href="{{ topotijdreis_url }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Topotijdreis.nl</a>
+  {% endif %}
+</div>
+
+<!-- Kaart -->
+<div id="map" style="height: 550px; border: 1px solid #ddd; border-radius: 8px;"></div>
+
+{% endif %}
+
+<div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata" class="btn btn-secondary">&larr; Brondata</a>
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">Boring detail</a>
+</div>
+
+{% if punten_wgs84 %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
+
+<script>
+const punten = {{ punten_wgs84 | tojson }};
+const jaren = {{ jaren | tojson }};
+
+// RD New projectie voor ArcGIS tiles
+proj4.defs("EPSG:28992", "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs");
+
+const RD = new L.Proj.CRS("EPSG:28992",
+  "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs",
+  {
+    resolutions: [3440.640, 1720.320, 860.160, 430.080, 215.040, 107.520, 53.760,
+                  26.880, 13.440, 6.720, 3.360, 1.680, 0.840, 0.420, 0.210],
+    origin: [-285401.920, 903401.920],
+    bounds: L.bounds([-285401.920, 903401.920], [595401.920, 22598.080])
+  }
+);
+
+const map = L.map('map', { crs: RD });
+
+// OSM als fallback (WGS84 → wordt geprojecteerd)
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap'
+});
+
+// ArcGIS topotijdreis tilelaag
+function maakTilelayer(jaar) {
+  return L.tileLayer(
+    'https://tiles.arcgis.com/tiles/nSZVuSZjHpEZZbRo/arcgis/rest/services/Historische_tijdreis_' + jaar + '/MapServer/tile/{z}/{y}/{x}',
+    { attribution: '&copy; Kadaster / Topotijdreis ' + jaar, maxZoom: 14, minZoom: 0 }
+  );
+}
+
+// Start met meest recent jaar
+let huidigJaar = jaren[jaren.length - 1];
+let huidigLayer = maakTilelayer(huidigJaar);
+huidigLayer.addTo(map);
+
+function wisselJaar(idx) {
+  const jaar = jaren[idx];
+  document.getElementById('jaar-label').textContent = jaar;
+  if (jaar === huidigJaar) return;
+  map.removeLayer(huidigLayer);
+  huidigJaar = jaar;
+  huidigLayer = maakTilelayer(jaar);
+  huidigLayer.addTo(map);
+}
+
+// Afspelen animatie
+let speeltAf = false;
+let speelInterval = null;
+function speelAf() {
+  const btn = document.getElementById('play-btn');
+  const slider = document.getElementById('jaar-slider');
+  if (speeltAf) {
+    clearInterval(speelInterval);
+    speeltAf = false;
+    btn.textContent = 'Afspelen';
+    return;
+  }
+  speeltAf = true;
+  btn.textContent = 'Stop';
+  let idx = 0;
+  slider.value = idx;
+  wisselJaar(idx);
+  speelInterval = setInterval(() => {
+    idx++;
+    if (idx >= jaren.length) {
+      clearInterval(speelInterval);
+      speeltAf = false;
+      btn.textContent = 'Afspelen';
+      return;
+    }
+    slider.value = idx;
+    wisselJaar(idx);
+  }, 1500);
+}
+
+// Tracé tekenen + zoom
+if (punten.length > 0) {
+  const coords = punten.map(p => [p.lat, p.lon]);
+  L.polyline(coords, { color: 'red', weight: 3 }).addTo(map);
+  punten.forEach(p => {
+    if (p.label) {
+      L.circleMarker([p.lat, p.lon], { radius: 5, color: 'red', fillOpacity: 1 })
+        .addTo(map).bindPopup(p.label);
+    }
+  });
+  map.fitBounds(coords, { padding: [60, 60], maxZoom: 11 });
+}
+</script>
+{% endif %}
+{% endblock %}
