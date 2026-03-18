@@ -66,11 +66,14 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
     svg_width = 1200
     svg_height = 500
 
-    # z-bereik: inclusief doorsneden als die er zijn
-    z_min = profiel.diepte_NAP_m - 1.0
+    # z-bereik: moet ALLE segmenten bevatten (inclusief boog-toppen)
+    all_z = [mv.MVin_NAP_m, mv.MVuit_NAP_m, profiel.diepte_NAP_m]
+    for seg in profiel.segmenten:
+        all_z.extend([seg["z_start"], seg["z_end"]])
     if boring.doorsneden:
-        z_min = min(z_min, min(d.NAP_m for d in boring.doorsneden) - 0.5)
-    z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 1.5
+        all_z.extend([d.NAP_m for d in boring.doorsneden])
+    z_min = min(all_z) - 1.0
+    z_max = max(all_z) + 1.0
     x_range = L_totaal if L_totaal > 0 else 1.0
     z_range = z_max - z_min if (z_max - z_min) > 0 else 1.0
 
