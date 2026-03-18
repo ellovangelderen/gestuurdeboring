@@ -230,6 +230,92 @@ def export_csv(
     )
 
 
+# ── Statusmail ─────────────────────────────────────────────────────────────
+
+def _genereer_statusmail_concepten(orders: list[Order]) -> list[dict]:
+    """Groepeer orders per klant en genereer conceptmail-teksten.
+
+    Selecteert orders met status 'waiting_for_approval' of 'delivered'.
+    """
+    from collections import defaultdict
+
+    klant_orders: dict[str, list[Order]] = defaultdict(list)
+    for o in orders:
+        if o.status in ("waiting_for_approval", "delivered"):
+            klant = o.klantcode or "Onbekend"
+            klant_orders[klant].append(o)
+
+    concepten = []
+    for klant, order_lijst in sorted(klant_orders.items()):
+        klant_naam = get_klant_naam(klant)
+        contact = get_akkoord_contact(klant)
+
+        wacht = [o for o in order_lijst if o.status == "waiting_for_approval"]
+        geleverd = [o for o in order_lijst if o.status == "delivered"]
+
+        # Bouw mailtekst in Martien's stijl: direct, zakelijk, bondig
+        regels = []
+        regels.append(f"Beste {contact or klant_naam},")
+        regels.append("")
+
+        if wacht:
+            regels.append(f"Van de volgende {'order staat' if len(wacht) == 1 else 'orders staan'} het ontwerp klaar en wacht{'en' if len(wacht) > 1 else ''} op jullie akkoord:")
+            regels.append("")
+            for o in wacht:
+                boringen = ", ".join(f"{b.type}{b.volgnummer}" for b in sorted(o.boringen, key=lambda b: b.volgnummer))
+                loc = f" — {o.locatie}" if o.locatie else ""
+                regels.append(f"  - {o.ordernummer}{loc} ({boringen})")
+            regels.append("")
+
+        if geleverd:
+            regels.append(f"Daarnaast {'is' if len(geleverd) == 1 else 'zijn'} de volgende {'order' if len(geleverd) == 1 else 'orders'} geleverd maar hebben we nog geen bevestiging ontvangen:")
+            regels.append("")
+            for o in geleverd:
+                datum = o.geleverd_op.strftime("%d-%m-%Y") if o.geleverd_op else "onbekend"
+                regels.append(f"  - {o.ordernummer} (geleverd {datum})")
+            regels.append("")
+
+        regels.append("Kunnen jullie laten weten of alles akkoord is?")
+        regels.append("")
+        regels.append("Met vriendelijke groet,")
+        regels.append("Martien Luijben")
+        regels.append("GestuurdeBoringTekening.nl")
+
+        concepten.append({
+            "klantcode": klant,
+            "klant_naam": klant_naam,
+            "contact": contact,
+            "wacht_akkoord": wacht,
+            "geleverd": geleverd,
+            "totaal": len(wacht) + len(geleverd),
+            "mailtekst": "\n".join(regels),
+        })
+
+    return concepten
+
+
+@router.get("/statusmail", response_class=HTMLResponse)
+def statusmail_overzicht(
+    request: Request,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    workspace_id = get_workspace_id(user)
+    orders = db.query(Order).filter_by(workspace_id=workspace_id).all()
+    concepten = _genereer_statusmail_concepten(orders)
+
+    return templates.TemplateResponse(
+        "order/statusmail.html",
+        {
+            "request": request,
+            "concepten": concepten,
+            "user": user,
+            "totaal_klanten": len(concepten),
+            "totaal_orders": sum(c["totaal"] for c in concepten),
+        },
+    )
+
+
 # ── Order aanmaken ──────────────────────────────────────────────────────────
 
 @router.get("/nieuw", response_class=HTMLResponse)

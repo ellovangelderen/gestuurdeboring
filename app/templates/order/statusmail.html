@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Statusmail — concepten{% endblock %}
+{% block content %}
+<h1>Statusmail concepten</h1>
+<p>{{ totaal_klanten }} klant{{ 'en' if totaal_klanten != 1 else '' }} met {{ totaal_orders }} openstaande order{{ 's' if totaal_orders != 1 else '' }}.</p>
+
+{% if concepten %}
+  {% for c in concepten %}
+  <section class="card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h2 style="margin: 0;">{{ c.klant_naam }} ({{ c.klantcode }})</h2>
+      <span style="font-size: 0.85em; color: #666;">
+        {{ c.wacht_akkoord|length }} wacht akkoord, {{ c.geleverd|length }} geleverd
+      </span>
+    </div>
+
+    {% if c.contact %}
+      <p style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">Contact: {{ c.contact }}</p>
+    {% endif %}
+
+    <div style="position: relative;">
+      <textarea id="mail-{{ c.klantcode }}" readonly
+                style="width: 100%; min-height: 200px; font-family: inherit; font-size: 0.9em;
+                       padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;
+                       background: #fafafa; resize: vertical; white-space: pre-wrap;">{{ c.mailtekst }}</textarea>
+      <button onclick="kopieer('{{ c.klantcode }}')" class="btn btn-primary btn-sm"
+              style="position: absolute; top: 8px; right: 8px;">
+        Kopieer
+      </button>
+    </div>
+
+    <details style="margin-top: 0.5rem; font-size: 0.85em;">
+      <summary>Orders ({{ c.totaal }})</summary>
+      <table class="table" style="margin-top: 0.5rem;">
+        <thead>
+          <tr><th>Order</th><th>Locatie</th><th>Status</th><th>Boringen</th></tr>
+        </thead>
+        <tbody>
+          {% for o in c.wacht_akkoord + c.geleverd %}
+          <tr>
+            <td><a href="/orders/{{ o.id }}">{{ o.ordernummer }}</a></td>
+            <td>{{ o.locatie or '-' }}</td>
+            <td>
+              {% if o.status == 'waiting_for_approval' %}
+                <span class="badge badge-warning">Wacht akkoord</span>
+              {% else %}
+                <span class="badge badge-success">Geleverd</span>
+              {% endif %}
+            </td>
+            <td>{{ o.boringen|map(attribute='type')|join(', ') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </section>
+  {% endfor %}
+{% else %}
+  <p>Geen openstaande orders die om akkoord of bevestiging vragen.</p>
+{% endif %}
+
+<a href="/orders/" class="btn btn-secondary">&larr; Terug naar cockpit</a>
+
+<script>
+function kopieer(klantcode) {
+  const textarea = document.getElementById('mail-' + klantcode);
+  textarea.select();
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    const btn = textarea.nextElementSibling;
+    const orig = btn.textContent;
+    btn.textContent = 'Gekopieerd!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+</script>
+{% endblock %}
