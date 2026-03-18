@@ -390,7 +390,17 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
             cx = (min(xs) + max(xs)) / 2
             cy = (min(ys) + max(ys)) / 2
             lat_c, lon_c = rd_to_wgs84(cx, cy)
-            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=16, tiles_x=4, tiles_y=3)
+            # Zoom bepalen op basis van tracélengte
+            trace_span = max(max(xs) - min(xs), max(ys) - min(ys))
+            if trace_span < 100:
+                zm = 18
+            elif trace_span < 300:
+                zm = 17
+            elif trace_span < 800:
+                zm = 16
+            else:
+                zm = 15
+            b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=zm, tiles_x=5, tiles_y=3)
             if b64:
                 img_bytes = _b64.b64decode(b64.split(",", 1)[1])
                 kaart_url = _bytes_to_tmpfile(img_bytes, ".jpg")
