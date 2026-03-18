@@ -88,6 +88,9 @@
   <div>
     <h2>Lengteprofiel (schematisch)</h2>
     <div class="profiel-blok">
+      {% if lengteprofiel_svg %}
+      {{ lengteprofiel_svg | safe }}
+      {% endif %}
       {% if boring.maaiveld_override %}
       <p>Maaiveld intrede: <strong>{{ boring.maaiveld_override.MVin_NAP_m }} m NAP</strong></p>
       <p>Maaiveld uittrede: <strong>{{ boring.maaiveld_override.MVuit_NAP_m }} m NAP</strong></p>
@@ -99,6 +102,13 @@
       <p>Intrekkracht (Ttot): {{ "{:,.0f}".format(boring.berekening.Ttot_N) }} N (override Sigma)</p>
       {% endif %}
     </div>
+
+    {% if bovenaanzicht_svg %}
+    <h2>Bovenaanzicht trace</h2>
+    <div class="profiel-blok">
+      {{ bovenaanzicht_svg | safe }}
+    </div>
+    {% endif %}
 
     {% if doorsneden %}
     <h2>Doorsneden</h2>

@@ -38,6 +38,11 @@ LAYERS: dict[str, dict] = {
     "KADASTER":          {"color": 150, "linetype": "KG-PERCEEL"},
     "WEGDEK":            {"color": 252, "linetype": "Continuous"},
     "EV-ZONE":           {"color": 1,   "linetype": "Continuous"},
+    # Lengteprofiel lagen
+    "LP-MAAIVELD":       {"color": 3,   "linetype": "Continuous"},
+    "LP-BOORLIJN":       {"color": 1,   "linetype": "Continuous"},
+    "LP-MAATVOERING":    {"color": 7,   "linetype": "Continuous"},
+    "LP-KADER":          {"color": 7,   "linetype": "Continuous"},
 }
 
 
@@ -178,6 +183,136 @@ def _draw_klic_leidingen(msp, order: Order, db: Session) -> None:
                 msp.add_lwpolyline(coords, dxfattribs={"layer": layer, "closed": True})
 
 
+def _draw_lengteprofiel(msp, boring: Boring, order: Order, db: Optional[Session] = None) -> None:
+    """Teken lengteprofiel (verticaal vlak) onder het bovenaanzicht."""
+    from app.geo.profiel import bereken_boorprofiel, trace_totale_afstand, arc_punten
+
+    # Benodigde data beschikbaar?
+    punten = boring.trace_punten
+    if len(punten) < 2:
+        return
+    mv = boring.maaiveld_override
+    if mv is None or mv.MVin_NAP_m is None or mv.MVuit_NAP_m is None:
+        return
+
+    # Totale trace afstand
+    coords = [(p.RD_x, p.RD_y) for p in punten]
+    L_totaal = trace_totale_afstand(coords)
+    if L_totaal < 1.0:
+        return
+
+    try:
+        profiel = bereken_boorprofiel(
+            L_totaal_m=L_totaal,
+            MVin_NAP_m=mv.MVin_NAP_m,
+            MVuit_NAP_m=mv.MVuit_NAP_m,
+            alpha_in_gr=boring.intreehoek_gr or 18.0,
+            alpha_uit_gr=boring.uittreehoek_gr or 22.0,
+            De_mm=boring.De_mm or 160.0,
+        )
+    except Exception:
+        return
+
+    # Y-offset: teken lengteprofiel 500m onder bovenaanzicht oorsprong
+    y_offset = -500.0
+
+    # Maaiveldlijn (groen)
+    msp.add_line(
+        (0, mv.MVin_NAP_m + y_offset),
+        (L_totaal, mv.MVuit_NAP_m + y_offset),
+        dxfattribs={"layer": "LP-MAAIVELD"},
+    )
+
+    # Boorlijn segmenten
+    for seg in profiel.segmenten:
+        if seg["type"] == "lijn":
+            if seg.get("lengte", 0) < 0.001:
+                continue
+            msp.add_line(
+                (seg["x_start"], seg["z_start"] + y_offset),
+                (seg["x_end"], seg["z_end"] + y_offset),
+                dxfattribs={"layer": "LP-BOORLIJN"},
+            )
+        elif seg["type"] == "arc":
+            # ezdxf add_arc verwacht center, radius, start_angle, end_angle in degrees
+            # In ezdxf: hoeken in graden, CCW vanuit positieve x-as
+            # Onze boog gaat van seg start naar seg end.
+            # We discretiseren naar punten en tekenen als LWPOLYLINE voor betrouwbaarheid,
+            # plus een echte ARC entity.
+            cx = seg["cx"]
+            cz = seg["cz"] + y_offset
+            radius = seg["radius"]
+
+            # Bereken start/eind hoek in ezdxf conventie
+            # Van center naar startpunt
+            import math
+            dx_s = seg["x_start"] - seg["cx"]
+            dz_s = seg["z_start"] - seg["cz"]
+            start_deg = math.degrees(math.atan2(dz_s, dx_s))
+
+            dx_e = seg["x_end"] - seg["cx"]
+            dz_e = seg["z_end"] - seg["cz"]
+            end_deg = math.degrees(math.atan2(dz_e, dx_e))
+
+            msp.add_arc(
+                center=(cx, cz),
+                radius=radius,
+                start_angle=start_deg,
+                end_angle=end_deg,
+                dxfattribs={"layer": "LP-BOORLIJN"},
+            )
+
+    # Maatvoering: NAP labels
+    text_h = 2.0
+    # Intree maaiveld label
+    msp.add_text(
+        f"MV {mv.MVin_NAP_m:+.2f} NAP",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (0, mv.MVin_NAP_m + y_offset + 2)},
+    )
+    # Uittree maaiveld label
+    msp.add_text(
+        f"MV {mv.MVuit_NAP_m:+.2f} NAP",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (L_totaal, mv.MVuit_NAP_m + y_offset + 2)},
+    )
+    # Diepte label
+    msp.add_text(
+        f"Diepte {profiel.diepte_NAP_m:+.2f} NAP",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
+                    "insert": (L_totaal / 2, profiel.diepte_NAP_m + y_offset - 3)},
+    )
+    # Hoek labels
+    msp.add_text(
+        f"Intree {boring.intreehoek_gr or 18.0:.0f} graden",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (5, mv.MVin_NAP_m + y_offset - 5)},
+    )
+    msp.add_text(
+        f"Uittree {boring.uittreehoek_gr or 22.0:.0f} graden",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (L_totaal - 30, mv.MVuit_NAP_m + y_offset - 5)},
+    )
+    # Afstand label
+    msp.add_text(
+        f"L = {L_totaal:.1f} m",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
+                    "insert": (L_totaal / 2, mv.MVin_NAP_m + y_offset + 5)},
+    )
+    # Rv label
+    msp.add_text(
+        f"Rv = {profiel.Rv_m:.0f} m",
+        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
+                    "insert": (L_totaal / 2, profiel.diepte_NAP_m + y_offset - 6)},
+    )
+
+    # Kader rond lengteprofiel
+    z_min = profiel.diepte_NAP_m - 10
+    z_max = max(mv.MVin_NAP_m, mv.MVuit_NAP_m) + 10
+    msp.add_lwpolyline(
+        [(-10, z_min + y_offset), (L_totaal + 10, z_min + y_offset),
+         (L_totaal + 10, z_max + y_offset), (-10, z_max + y_offset)],
+        dxfattribs={"layer": "LP-KADER"},
+        close=True,
+    )
+
+
 def _draw_ev_zones(msp, order: Order, db: Session) -> None:
     """Tekent EV-zones als gesloten LWPOLYLINE op laag EV-ZONE."""
     from shapely import from_wkt
@@ -233,6 +368,7 @@ def generate_dxf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     _draw_boorgat(msp, boring)
     _draw_sensorpunten(msp, boring)
     _draw_titelblok(msp, boring, order)
+    _draw_lengteprofiel(msp, boring, order, db)
     if db is not None:
         _draw_klic_leidingen(msp, order, db)
         _draw_ev_zones(msp, order, db)

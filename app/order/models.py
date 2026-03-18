@@ -107,6 +107,11 @@ class Boring(Base):
     def uittreehoek_pct(self) -> float:
         return round(math.tan(math.radians(self.uittreehoek_gr)) * 100, 1)
 
+    @property
+    def Rv_m(self) -> float:
+        """Minimale buigradius in meters: Rv = 1200 x De."""
+        return 1200.0 * (self.De_mm or 160.0) / 1000.0
+
 
 class KLICUpload(Base):
     __tablename__ = "klic_uploads"
