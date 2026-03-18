@@ -106,6 +106,82 @@ def _add_image(doc, bestandspad: str, bijschrift: str = "",
         )
 
 
+def _generate_werkplan_kaart(boring) -> str | None:
+    """Genereer een OSM kaart als tijdelijk JPG bestand voor het werkplan.
+
+    Returns: pad naar tijdelijk bestand, of None.
+    """
+    trace_punten = [p for p in boring.trace_punten if getattr(p, 'variant', 0) == 0]
+    if len(trace_punten) < 2:
+        return None
+    try:
+        import tempfile
+        import math as _m
+        from app.geo.coords import rd_to_wgs84
+        from app.documents.pdf_generator import _fetch_map_image_b64
+
+        xs = [p.RD_x for p in trace_punten]
+        ys = [p.RD_y for p in trace_punten]
+        cx = (min(xs) + max(xs)) / 2
+        cy = (min(ys) + max(ys)) / 2
+        lat_c, lon_c = rd_to_wgs84(cx, cy)
+
+        trace_span = max(max(xs) - min(xs), max(ys) - min(ys))
+        zm = 19 if trace_span < 500 else 18
+
+        b64 = _fetch_map_image_b64(lat_c, lon_c, zoom=zm, tiles_x=7, tiles_y=4)
+        if not b64:
+            return None
+
+        import base64, io
+        from PIL import Image, ImageDraw, ImageFont
+
+        img_bytes = base64.b64decode(b64.split(",", 1)[1])
+        img = Image.open(io.BytesIO(img_bytes))
+        draw = ImageDraw.Draw(img)
+        img_w, img_h = img.size
+        mpp = 40075016.686 * _m.cos(_m.radians(lat_c)) / (256.0 * (2 ** zm))
+
+        def rd_to_px(rx, ry):
+            return int(img_w/2 + (rx - cx)/mpp), int(img_h/2 - (ry - cy)/mpp)
+
+        # Tracélijn
+        tpx = [rd_to_px(p.RD_x, p.RD_y) for p in trace_punten]
+        if len(tpx) >= 2:
+            draw.line(tpx, fill=(204, 0, 0), width=5)
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
+        except Exception:
+            font = ImageFont.load_default()
+        for i, p in enumerate(trace_punten):
+            px, py = tpx[i]
+            draw.ellipse([px-5, py-5, px+5, py+5], fill=(204, 0, 0), outline=(255, 255, 255))
+            if p.label:
+                draw.rectangle([px+8, py-18, px+8+len(p.label)*10, py], fill=(255, 255, 255))
+                draw.text((px+8, py-18), p.label, fill=(204, 0, 0), font=font)
+
+        # Crop rond tracé
+        margin_px = 120
+        trace_xs = [t[0] for t in tpx]
+        trace_ys = [t[1] for t in tpx]
+        cl = max(0, min(trace_xs) - margin_px)
+        ct = max(0, min(trace_ys) - margin_px)
+        cr = min(img_w, max(trace_xs) + margin_px)
+        cb = min(img_h, max(trace_ys) + margin_px)
+        if (cb - ct) < (cr - cl) * 0.4:
+            extra = int(((cr - cl) * 0.4 - (cb - ct)) / 2)
+            ct = max(0, ct - extra)
+            cb = min(img_h, cb + extra)
+        img = img.crop((cl, ct, cr, cb))
+
+        f = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        img.save(f, format="JPEG", quality=88)
+        f.flush()
+        return f.name
+    except Exception:
+        return None
+
+
 def _get_afbeeldingen(boring: Boring, categorie: str) -> list:
     """Haal afbeeldingen op voor een boring per categorie."""
     return [
@@ -465,18 +541,22 @@ def generate_werkplan(order: Order, boring: Boring,
     else:
         _add_styled_paragraph(doc, f"[Beschrijving van de locatie: {locatie}]", space_after=6)
 
-    # Luchtfoto uit DB of placeholder
+    # Luchtfoto: eerst uit DB, dan auto-genereren uit tracé
     luchtfotos = _get_afbeeldingen(boring, "luchtfoto")
     if luchtfotos:
         for foto in luchtfotos:
             _add_image(doc, foto.bestandspad, foto.bijschrift or "")
     else:
-        _add_styled_paragraph(
-            doc,
-            "[Voeg hier een luchtfoto of Google Maps screenshot in]",
-            space_after=12,
-            color=RGBColor(0xCC, 0x00, 0x00),
-        )
+        kaart_path = _generate_werkplan_kaart(boring)
+        if kaart_path:
+            _add_image(doc, kaart_path, "Situatiekaart tracé (automatisch gegenereerd)", width_cm=14.0)
+        else:
+            _add_styled_paragraph(
+                doc,
+                "[Voeg hier een luchtfoto of Google Maps screenshot in]",
+                space_after=12,
+                color=RGBColor(0xCC, 0x00, 0x00),
+            )
 
     # 2.2 Historie
     _add_heading(doc, "2.2.  Historie", level=2)
@@ -610,17 +690,22 @@ def generate_werkplan(order: Order, boring: Boring,
                         color=RGBColor(0xCC, 0x00, 0x00),
                     )
 
-    # KLIC screenshot uit DB (altijd, als fallback of aanvulling)
+    # KLIC screenshot/kaart
     klic_fotos = _get_afbeeldingen(boring, "klic")
     if klic_fotos:
         for foto in klic_fotos:
             _add_image(doc, foto.bestandspad, foto.bijschrift or "Screenshot van de KLIC")
-    elif not klic_data_gevuld:
-        _add_styled_paragraph(
-            doc,
-            "[Voeg hier een screenshot van de KLIC viewer in + analyse]",
-            space_after=6,
-            color=RGBColor(0xCC, 0x00, 0x00),
+    else:
+        # Auto-genereer kaart als situatiekaart beschikbaar
+        kaart_path = _generate_werkplan_kaart(boring)
+        if kaart_path:
+            _add_image(doc, kaart_path, "Situatie K&L (automatisch gegenereerd)", width_cm=14.0)
+        elif not klic_data_gevuld:
+            _add_styled_paragraph(
+                doc,
+                "[Voeg hier een screenshot van de KLIC viewer in + analyse]",
+                space_after=6,
+                color=RGBColor(0xCC, 0x00, 0x00),
         )
 
     # EV-partijen uit platform
