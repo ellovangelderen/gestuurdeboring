@@ -185,7 +185,7 @@ def _draw_klic_leidingen(msp, order: Order, db: Session) -> None:
 
 def _draw_lengteprofiel(msp, boring: Boring, order: Order, db: Optional[Session] = None) -> None:
     """Teken lengteprofiel (verticaal vlak) onder het bovenaanzicht."""
-    from app.geo.profiel import bereken_boorprofiel, trace_totale_afstand, arc_punten
+    from app.geo.profiel import bereken_boorprofiel, bereken_boorprofiel_z, trace_totale_afstand, arc_punten
 
     # Benodigde data beschikbaar?
     punten = boring.trace_punten
@@ -202,14 +202,23 @@ def _draw_lengteprofiel(msp, boring: Boring, order: Order, db: Optional[Session]
         return
 
     try:
-        profiel = bereken_boorprofiel(
-            L_totaal_m=L_totaal,
-            MVin_NAP_m=mv.MVin_NAP_m,
-            MVuit_NAP_m=mv.MVuit_NAP_m,
-            alpha_in_gr=boring.intreehoek_gr or 18.0,
-            alpha_uit_gr=boring.uittreehoek_gr or 22.0,
-            De_mm=boring.De_mm or 160.0,
-        )
+        if boring.type == "Z" and boring.booghoek_gr:
+            profiel = bereken_boorprofiel_z(
+                L_totaal_m=L_totaal,
+                MVin_NAP_m=mv.MVin_NAP_m,
+                MVuit_NAP_m=mv.MVuit_NAP_m,
+                booghoek_gr=boring.booghoek_gr,
+                De_mm=boring.De_mm or 160.0,
+            )
+        else:
+            profiel = bereken_boorprofiel(
+                L_totaal_m=L_totaal,
+                MVin_NAP_m=mv.MVin_NAP_m,
+                MVuit_NAP_m=mv.MVuit_NAP_m,
+                alpha_in_gr=boring.intreehoek_gr or 18.0,
+                alpha_uit_gr=boring.uittreehoek_gr or 22.0,
+                De_mm=boring.De_mm or 160.0,
+            )
     except Exception:
         return
 
@@ -280,26 +289,48 @@ def _draw_lengteprofiel(msp, boring: Boring, order: Order, db: Optional[Session]
         dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
                     "insert": (L_totaal / 2, profiel.diepte_NAP_m + y_offset - 3)},
     )
-    # Hoek labels
-    msp.add_text(
-        f"Intree {boring.intreehoek_gr or 18.0:.0f} graden",
-        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (5, mv.MVin_NAP_m + y_offset - 5)},
-    )
-    msp.add_text(
-        f"Uittree {boring.uittreehoek_gr or 22.0:.0f} graden",
-        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (L_totaal - 30, mv.MVuit_NAP_m + y_offset - 5)},
-    )
+    # Hoek/parameter labels
+    if boring.type == "Z" and boring.booghoek_gr:
+        # Boogzinker: booghoek + booglengte
+        msp.add_text(
+            f"Booghoek {boring.booghoek_gr:.1f} graden",
+            dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (5, mv.MVin_NAP_m + y_offset - 5)},
+        )
+        if boring.stand:
+            msp.add_text(
+                f"Stand {boring.stand}",
+                dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (L_totaal - 30, mv.MVuit_NAP_m + y_offset - 5)},
+            )
+        # Booglengte label (als beschikbaar in segmenten)
+        for seg in profiel.segmenten:
+            if seg["type"] == "arc" and "booglengte" in seg:
+                msp.add_text(
+                    f"Booglengte = {seg['booglengte']:.1f} m",
+                    dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
+                                "insert": (L_totaal / 2, profiel.diepte_NAP_m + y_offset - 6)},
+                )
+                break
+    else:
+        # B/N type: intree/uittreehoek
+        msp.add_text(
+            f"Intree {boring.intreehoek_gr or 18.0:.0f} graden",
+            dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (5, mv.MVin_NAP_m + y_offset - 5)},
+        )
+        msp.add_text(
+            f"Uittree {boring.uittreehoek_gr or 22.0:.0f} graden",
+            dxfattribs={"layer": "LP-MAATVOERING", "height": text_h, "insert": (L_totaal - 30, mv.MVuit_NAP_m + y_offset - 5)},
+        )
+        # Rv label
+        msp.add_text(
+            f"Rv = {profiel.Rv_m:.0f} m",
+            dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
+                        "insert": (L_totaal / 2, profiel.diepte_NAP_m + y_offset - 6)},
+        )
     # Afstand label
     msp.add_text(
         f"L = {L_totaal:.1f} m",
         dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
                     "insert": (L_totaal / 2, mv.MVin_NAP_m + y_offset + 5)},
-    )
-    # Rv label
-    msp.add_text(
-        f"Rv = {profiel.Rv_m:.0f} m",
-        dxfattribs={"layer": "LP-MAATVOERING", "height": text_h,
-                    "insert": (L_totaal / 2, profiel.diepte_NAP_m + y_offset - 6)},
     )
 
     # Kader rond lengteprofiel

@@ -249,6 +249,121 @@ def arc_punten(cx: float, cz: float, radius: float,
     return punten
 
 
+def bereken_boorprofiel_z(
+    L_totaal_m: float,
+    MVin_NAP_m: float,
+    MVuit_NAP_m: float,
+    booghoek_gr: float,
+    De_mm: float,
+    dekking_min_m: float = 3.0,
+) -> BoorProfiel:
+    """Bereken boorprofiel voor boogzinker (type Z): 1 enkele ARC.
+
+    Een boogzinker is een simpele gebogen boring: één ARC van intree naar uittree,
+    zonder horizontaal segment of aparte schuine lijnen.
+
+    Parameters:
+        L_totaal_m: horizontale afstand intree-uittree (uit tracépunten)
+        MVin_NAP_m: maaiveld intree (m NAP)
+        MVuit_NAP_m: maaiveld uittree (m NAP)
+        booghoek_gr: booghoek in graden (standaard 5, 7.5, of 10)
+        De_mm: buitendiameter buis (mm)
+        dekking_min_m: minimale gronddekking (m)
+    """
+    booghoek_rad = math.radians(booghoek_gr)
+
+    # Boogradius: volgt uit L_totaal en booghoek
+    # De chord (koorde) = L_totaal_m. Voor een cirkelboog: chord = 2 * R * sin(theta/2)
+    # Dus R = L_totaal / (2 * sin(booghoek/2))
+    half_hoek = booghoek_rad / 2
+    if half_hoek < 0.001:
+        # Vrijwel recht — degenereer naar lijn
+        return BoorProfiel(
+            Rv_m=0.0,
+            L_totaal_m=L_totaal_m,
+            diepte_NAP_m=min(MVin_NAP_m, MVuit_NAP_m) - dekking_min_m,
+            segmenten=[{
+                "type": "lijn",
+                "x_start": 0.0, "z_start": MVin_NAP_m,
+                "x_end": L_totaal_m, "z_end": MVuit_NAP_m,
+                "horizontaal": True, "lengte": L_totaal_m,
+            }],
+        )
+
+    R = L_totaal_m / (2 * math.sin(half_hoek))
+
+    # De boog zakt onder het maaiveld. De sagitta (pijlhoogte) = R * (1 - cos(theta/2))
+    sagitta = R * (1 - math.cos(half_hoek))
+
+    # Gemiddeld maaiveld als referentie
+    mv_gem = (MVin_NAP_m + MVuit_NAP_m) / 2
+
+    # Diepste punt van de boog = maaiveld - dekking - sagitta geeft de center positie
+    # De boog hangt onder het maaiveld; diepste punt = center_z - R
+    # We positioneren zodat het diepste punt op dekking_min onder laagste maaiveld zit
+    diepte_NAP = min(MVin_NAP_m, MVuit_NAP_m) - dekking_min_m
+
+    # Center van de boog zit boven het diepste punt op afstand R
+    # Maar de boog moet intree en uittree verbinden.
+    # Horizontaal: center op L_totaal/2
+    cx = L_totaal_m / 2
+
+    # Verticaal: center boven de boorlijn, boog hangt eronder
+    # Het diepste punt van de boog = cz - R (bij symmetrische boog)
+    # We willen dat het diepste punt = diepte_NAP, maar we moeten ook
+    # de start/eindpunten correct positioneren.
+    #
+    # De boog gaat van intree (0, z_in) naar uittree (L, z_uit).
+    # Met center op (cx, cz) en radius R:
+    #   z_in = cz - R * cos(half_hoek)  (boog begint half_hoek links van onderste punt)
+    #   z_uit = cz - R * cos(half_hoek)  (idem, symmetrisch)
+    #
+    # Dus z_in = z_uit = cz - R*cos(half_hoek). Dit is symmetrisch.
+    # De intree en uittree liggen op hetzelfde NAP-niveau op de boog.
+    # Dat is prima voor een boogzinker (maaiveld verschilt, maar de buis-ingang/-uitgang zit onder maaiveld).
+
+    # We kiezen cz zodat het laagste punt precies op diepte_NAP zit:
+    cz = diepte_NAP + R  # laagste punt boog = cz - R = diepte_NAP
+
+    # z van intree en uittree op de boog
+    z_boog = cz - R * math.cos(half_hoek)
+
+    # Booglengte (werkelijke buislengte)
+    booglengte = R * booghoek_rad
+
+    # Start- en eindhoeken voor de ARC (gemeten vanuit center, standaard math conventie)
+    # Center is boven, boog hangt eronder.
+    # Startpunt: (0, z_boog) → relatief tot center: (-L/2, z_boog - cz) = (-L/2, -R*cos(half))
+    # Eindpunt:  (L, z_boog) → relatief: (+L/2, -R*cos(half))
+    # Starthoek: atan2(-R*cos(half), -L/2) = atan2(-R*cos(half), -R*sin(half))
+    #          = π + half_hoek (in het 3e kwadrant)
+    start_hoek_rad = math.pi + half_hoek
+    eind_hoek_rad = 2 * math.pi - half_hoek  # = π - half vanuit negatief
+
+    segmenten = [{
+        "type": "arc",
+        "cx": cx,
+        "cz": cz,
+        "radius": R,
+        "start_hoek_gr": math.degrees(start_hoek_rad),
+        "eind_hoek_gr": math.degrees(eind_hoek_rad),
+        "start_hoek_rad": start_hoek_rad,
+        "eind_hoek_rad": eind_hoek_rad,
+        "x_start": 0.0,
+        "z_start": z_boog,
+        "x_end": L_totaal_m,
+        "z_end": z_boog,
+        "booglengte": booglengte,
+    }]
+
+    return BoorProfiel(
+        Rv_m=R,
+        L_totaal_m=L_totaal_m,
+        diepte_NAP_m=diepte_NAP,
+        segmenten=segmenten,
+    )
+
+
 def trace_totale_afstand(punten: list[tuple[float, float]]) -> float:
     """Bereken totale horizontale afstand langs trace-punten (RD coords)."""
     if len(punten) < 2:

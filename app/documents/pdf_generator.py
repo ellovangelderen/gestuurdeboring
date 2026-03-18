@@ -23,7 +23,7 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
 
     Returns lege string als data ontbreekt (geen trace, geen maaiveld).
     """
-    from app.geo.profiel import bereken_boorprofiel, trace_totale_afstand, arc_punten
+    from app.geo.profiel import bereken_boorprofiel, bereken_boorprofiel_z, trace_totale_afstand, arc_punten
 
     punten = boring.trace_punten
     if len(punten) < 2:
@@ -38,14 +38,23 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         return ""
 
     try:
-        profiel = bereken_boorprofiel(
-            L_totaal_m=L_totaal,
-            MVin_NAP_m=mv.MVin_NAP_m,
-            MVuit_NAP_m=mv.MVuit_NAP_m,
-            alpha_in_gr=boring.intreehoek_gr or 18.0,
-            alpha_uit_gr=boring.uittreehoek_gr or 22.0,
-            De_mm=boring.De_mm or 160.0,
-        )
+        if boring.type == "Z" and boring.booghoek_gr:
+            profiel = bereken_boorprofiel_z(
+                L_totaal_m=L_totaal,
+                MVin_NAP_m=mv.MVin_NAP_m,
+                MVuit_NAP_m=mv.MVuit_NAP_m,
+                booghoek_gr=boring.booghoek_gr,
+                De_mm=boring.De_mm or 160.0,
+            )
+        else:
+            profiel = bereken_boorprofiel(
+                L_totaal_m=L_totaal,
+                MVin_NAP_m=mv.MVin_NAP_m,
+                MVuit_NAP_m=mv.MVuit_NAP_m,
+                alpha_in_gr=boring.intreehoek_gr or 18.0,
+                alpha_uit_gr=boring.uittreehoek_gr or 22.0,
+                De_mm=boring.De_mm or 160.0,
+            )
     except Exception:
         return ""
 
@@ -112,11 +121,24 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         f'<text x="{tx(L_totaal) + 2:.1f}" y="{tz(mv.MVuit_NAP_m) - 4:.1f}" '
         f'font-size="7" text-anchor="start" fill="#333">MV {mv.MVuit_NAP_m:+.2f}</text>'
     )
-    labels.append(
-        f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
-        f'font-size="7" text-anchor="middle" fill="#333">'
-        f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Rv={profiel.Rv_m:.0f}m</text>'
-    )
+    # Diepte label met boog-specifieke info
+    if boring.type == "Z" and boring.booghoek_gr:
+        booglengte_str = ""
+        for seg in profiel.segmenten:
+            if seg["type"] == "arc" and "booglengte" in seg:
+                booglengte_str = f" | Booglengte={seg['booglengte']:.1f}m"
+                break
+        labels.append(
+            f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
+            f'font-size="7" text-anchor="middle" fill="#333">'
+            f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Booghoek={boring.booghoek_gr:.1f}{booglengte_str}</text>'
+        )
+    else:
+        labels.append(
+            f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(profiel.diepte_NAP_m) + 14:.1f}" '
+            f'font-size="7" text-anchor="middle" fill="#333">'
+            f'Diepte {profiel.diepte_NAP_m:+.2f} NAP | Rv={profiel.Rv_m:.0f}m</text>'
+        )
     labels.append(
         f'<text x="{tx(L_totaal / 2):.1f}" y="{tz(z_max) + 12:.1f}" '
         f'font-size="8" text-anchor="middle" fill="#000" font-weight="bold">'
@@ -236,12 +258,13 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
         "doorsneden": doorsneden,
         "r_boorgat_mm": boring.Dg_mm / 2,
         "r_buis_mm": boring.De_mm / 2,
-        "intreehoek_pct": _hoek_pct(boring.intreehoek_gr),
-        "uittreehoek_pct": _hoek_pct(boring.uittreehoek_gr),
+        "intreehoek_pct": _hoek_pct(boring.intreehoek_gr) if boring.type != "Z" else 0,
+        "uittreehoek_pct": _hoek_pct(boring.uittreehoek_gr) if boring.type != "Z" else 0,
         "ev_zones": ev_zones,
         "has_ev_zones": len(ev_zones) > 0,
         "lengteprofiel_svg": lengteprofiel_svg,
         "bovenaanzicht_svg": bovenaanzicht_svg,
+        "is_boogzinker": boring.type == "Z",
     }
 
     template = _env.get_template("tekening.html")
