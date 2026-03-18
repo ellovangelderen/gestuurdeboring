@@ -1,6 +1,6 @@
 # TEST_CONTEXT_HDD.md — HDD Ontwerp Platform
 **Projectspecifieke testcontext voor gebruik met TEST_AGENT_v2.md**
-Versie: 1.0 | 2026-03-14
+Versie: 2.0 | 2026-03-18 (volledige backlog afgerond)
 
 ---
 
@@ -71,24 +71,51 @@ Authorization: Basic base64(gebruiker:wachtwoord)
 ## 4. Applicatieroutes (scope)
 
 ```
-GET  /                                    Redirect naar /api/v1/ (vereist auth)
-GET  /api/v1/projecten/nieuw              Aanmaakformulier
-POST /api/v1/projecten/nieuw              Project opslaan
-GET  /api/v1/projecten/{id}              Projectdetail + voortgang
-GET  /api/v1/projecten/{id}/trace        Tracé invoer + Leaflet kaart
-GET  /api/v1/projecten/{id}/brondata     KLIC upload + overrides (NAP, grondtype, Ttot)
-GET  /api/v1/projecten/{id}/eisen        Eisenprofiel selectie
-GET  /api/v1/projecten/{id}/review       Kaart + lengteprofiel overzicht
-GET  /api/v1/projecten/{id}/output       Download pagina
-GET  /api/v1/projecten/{id}/dxf          DXF download (binary response)
-GET  /api/v1/projecten/{id}/pdf          PDF download (binary response)
-POST /api/v1/projecten/{id}/klic/{uid}/verwerken  KLIC parsing triggeren
-GET  /api/v1/projecten/{id}/klic/status  JSON: verwerkt, aantallen, waarschuwingen
-POST /api/v1/projecten/{id}/maaiveld/ahn5         AHN5 maaiveld ophalen
-POST /api/v1/projecten/{id}/ev-mailreferentie     EV mailreferentie opslaan
+# Cockpit
+GET  /orders/                                          Cockpit (orderlijst + stats)
+GET  /orders/export/csv                                CSV export
+GET  /orders/statusmail                                Statusmail concepten per klant
+GET  /orders/nieuw                                     Nieuw order formulier
+POST /orders/nieuw                                     Order aanmaken
+
+# Order
+GET  /orders/{id}                                      Order detail
+POST /orders/{id}/update                               Order bewerken
+GET  /orders/{id}/factuur                              Factuur concept (SnelStart)
+POST /orders/{id}/klic                                 KLIC ZIP/XML/GML uploaden
+
+# Boring
+GET  /orders/{id}/boringen/{volgnr}                    Boring detail
+POST /orders/{id}/boringen/{volgnr}/update             Boring bewerken
+GET  /orders/{id}/boringen/{volgnr}/trace              Tracé invoer (kaart-klik)
+POST /orders/{id}/boringen/{volgnr}/trace              Tracé opslaan
+
+# Brondata
+GET  /orders/{id}/boringen/{volgnr}/brondata           KLIC + maaiveld + doorsneden
+POST /orders/{id}/boringen/{volgnr}/maaiveld           Maaiveld handmatig
+POST /orders/{id}/boringen/{volgnr}/maaiveld/ahn5      AHN5 ophalen (JSON)
+
+# Analyse-tools
+GET  /orders/{id}/boringen/{volgnr}/conflictcheck      Conflictcheck K&L 3D
+GET  /orders/{id}/boringen/{volgnr}/sleufloze           Sleufloze leidingen
+GET  /orders/{id}/boringen/{volgnr}/gwsw               GWSW riool BOB
+GET  /orders/{id}/boringen/{volgnr}/topotijdreis        Historische kaarten
+GET  /orders/{id}/boringen/{volgnr}/vergunning          Vergunningscheck
+GET  /orders/{id}/boringen/{volgnr}/sonderingen         Dinoloket/BRO
+
+# Varianten + As-Built
+GET  /orders/{id}/boringen/{volgnr}/varianten           Tracévarianten vergelijken
+POST /orders/{id}/boringen/{volgnr}/varianten/nieuw     Variant toevoegen
+GET  /orders/{id}/boringen/{volgnr}/asbuilt             As-Built invoer
+POST /orders/{id}/boringen/{volgnr}/asbuilt             As-Built opslaan
+
+# Downloads
+GET  /orders/{id}/boringen/{volgnr}/dxf                DXF download
+GET  /orders/{id}/boringen/{volgnr}/pdf                PDF download (A3 4-zone)
 ```
 
 Alle routes vereisen HTTPBasic auth. Zonder auth → 401 + `WWW-Authenticate: Basic` header.
+Huidige test suite: **199 tests groen, 15 skipped (KLIC testdata).**
 
 ---
 

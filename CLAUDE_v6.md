@@ -50,30 +50,43 @@ Model Agent → Architect Agent (jij) → Builder Agent → Release Agent
 | Drive sync | input ophalen, output wegschrijven | handmatig upload fallback |
 | Auth | HTTPBasic, 2 gebruikers in `.env`, test-user alleen in development | — |
 
-### Backlog (na skeleton, volgorde met Martien)
+### Backlog — Status per 18 maart 2026
 
-| # | Feature | Waarde | Override vervangt |
+| # | Feature | Status | Tests |
 |---|---|---|---|
-| 0 | Datamodel refactor: Order → Boring[] + type B/N/Z/C + tekenaar + KLIC versioning | FUNDAMENT | Huidige 1-project-1-boring model |
-| 1 | Werkplan generator (standalone, Claude API) | ★★★★★ Martien | ~2u schrijven per project |
-| 2 | Cockpit UI — orderoverzicht als startpagina | ★★★★★ Ello | Lineaire stap-voor-stap workflow |
-| 3 | KLIC IMKL 2.0 parser | KERN | Placeholder leidingen |
-| 3b | EV-zone DXF rendering + ontwerp-workflow | ★★★★★ WETTELIJK | EV-waarschuwing handmatig |
-| 4 | Wekelijkse statusmail opdrachtgevers | ★★★★ Bread&butter | Handmatig mailen/bellen |
-| 5 | GWSW riool BOB + gemeente-mail auto | ★★★★ Martien | Handmatig mailen |
-| 6 | Sleufloze leidingen detectie KLIC PDF | ★★★★ Martien | Handmatig uitzoeken |
-| 7 | Conflictcheck K&L 3D afstand | KERN | Altijd WAARSCHUWING |
-| 8 | Boogzinker profiel (type Z) | ★★★★ Martien | Handmatig tekenen |
-| 9 | Boorprofiel geometrie ARCs + tangentiaal | KERN | Handmatige hoeken |
-| 10 | AHN5 maaiveld + PDOK waterschap URL auto | KERN | Handmatig MVin/MVuit + knip/plak URLs |
-| 11 | Topotijdreis historische kaarten + wijzigingsdetectie | ★★★★ Martien | Handmatige controle |
-| 12 | Tracévarianten vergelijken + PDF | ★★★★ Martien | Telefonisch overleg |
-| 13 | SnelStart koppeling facturatie | ★★★ Bread&butter | Handmatig factureren |
-| 14 | Vergunningscheck omgevingswet.overheid.nl | ★★★ Martien | Handmatig uitzoeken |
-| 15 | Dinoloket sonderingen REST API | ★★★ Martien | Handmatig Dinoloket |
-| 16 | GEF/CPT parser + Robertson classificatie | OPTIONEEL | Handmatig grondtype |
-| 17 | Intrekkrachtberekening NEN 3651 (Sigma-transparant) | OPTIONEEL | Handmatig Sigma |
-| 18 | As-Built revisietekeningen | ★★★ Martien | Handmatig revisie in AutoCAD |
+| 0 | Datamodel refactor: Order → Boring[] | **DONE** | 57 |
+| 1 | Werkplan generator (Claude API) | **DONE** | — |
+| 2 | Cockpit UI — orderoverzicht | **DONE** | 67 |
+| 3 | KLIC IMKL 2.0 parser | **DONE** | 82 |
+| 3b | EV-zone DXF rendering | **DONE** | 87 |
+| 4 | Statusmail concepten (kopieerbaar) | **DONE** | 136 |
+| 5 | GWSW riool BOB + gemeente-mail | **DONE** | 164 |
+| 6 | Sleufloze leidingen detectie | **DONE** | 171 |
+| 7 | Conflictcheck K&L 3D | **DONE** | 146 |
+| 8 | Boogzinker profiel (type Z) | **DONE** | 126 |
+| 9 | Boorprofiel geometrie ARCs | **DONE** | 99 |
+| 10 | AHN5 maaiveld + PDOK + waterschap | **DONE** | 116 |
+| 11 | Topotijdreis historische kaarten | **DONE** | 154 |
+| 12 | Tracévarianten vergelijken | **DONE** | 178 |
+| 13 | SnelStart concept-factuur | **DONE** | 183 |
+| 14 | Vergunningscheck (link-out portalen) | **DONE** | 190 |
+| 15 | Dinoloket sonderingen (link-out) | **DONE** | 199 |
+| 16 | GEF/CPT parser | OPTIONEEL | — |
+| 17 | NEN 3651 berekeningen | OPTIONEEL | — |
+| 18 | As-Built revisietekeningen | **DONE** | 199 |
+
+### Volgende backlog — Excel-analyse (docs/Backlog/BACKLOG_EXCEL_ANALYSE.md)
+
+| # | Item | Type |
+|---|---|---|
+| B1 | Rv per segment apart | BESLISSING Martien |
+| B2 | Bundelfactor Dg berekening | BESLISSING Martien |
+| B3 | Ruimfactoren per boringtype | BESLISSING Martien |
+| B4 | Boormachine selectie | BESLISSING Martien |
+| B5 | Type W als boringtype | BESLISSING Martien |
+| B6 | Standaard K&L dieptes fallback | BESLISSING Martien |
+| V1-V6 | Klantcodes, EV handmatig, PDOK URLs | VERRIJKING |
+| T1-T5 | CSV export, AutoCAD script, horizontale bocht | TOEKOMSTIG |
 
 Noten:
 - Item 0: MOET EERST. Alles hangt af van het nieuwe datamodel.
@@ -116,7 +129,8 @@ Noten:
 | Auth | FastAPI HTTPBasic + `.env` | 2 vaste gebruikers, geen token overhead |
 | Hosting | Railway — hdd.inodus.nl | Managed, autodeploy bij git push |
 | CI/CD | Railway autodeploy (git push → live) | Geen Docker, geen pipeline file |
-| SnelStart REST API (backlog 13) | Facturatie koppeling | Handmatig factureren vervangen |
+| SnelStart | Concept-factuur (kopieerbaar) | Martien voert zelf in via webportal |
+| SVG→PNG | cairosvg | SVG rendering voor PDF (WeasyPrint ondersteunt geen inline SVG) |
 
 ---
 
@@ -124,21 +138,34 @@ Noten:
 
 ```
 hdd-platform/
-├── backend/
-│   └── app/
-│       ├── core/           # workspace middleware, auth, config
-│       ├── project/        # project CRUD (legacy)
-│       ├── order/          # order CRUD + cockpit (vervangt project/)
-│       ├── boring/         # boring CRUD per order
-│       ├── geo/            # KLIC GML parser, geometrie, conflict
-│       ├── rules/          # eisenprofielen seed
-│       ├── design/         # boorprofiel geometrie engine
-│       ├── calculations/   # LEEG → backlog 17
-│       ├── documents/      # PDF + DXF generator
-│       ├── ai_assist/      # LEEG → backlog 1
-│       ├── statusmail/     # wekelijkse statusmail generator
-│       ├── drive/          # Google Drive sync
-│       └── api/            # FastAPI routes
+├── app/
+│   ├── core/               # workspace middleware, auth, config, database
+│   ├── project/            # project CRUD (legacy)
+│   ├── order/              # order CRUD + cockpit + alle boring routes
+│   │   ├── router.py       # ~1700 regels: cockpit, trace, brondata, AHN5,
+│   │   │                   #   conflictcheck, topotijdreis, GWSW, sleufloze,
+│   │   │                   #   varianten, asbuilt, vergunning, sonderingen,
+│   │   │                   #   factuur, statusmail, DXF/PDF download
+│   │   ├── models.py       # Order, Boring, TracePunt, MaaiveldOverride,
+│   │   │                   #   KLICUpload, KLICLeiding, AsBuiltPunt, etc.
+│   │   └── klantcodes.py   # 16+ klantcodes + contactpersonen + logo's
+│   ├── geo/                # geospatiale services
+│   │   ├── ahn5.py         # AHN5 PDOK WCS maaiveld ophalen
+│   │   ├── coords.py       # RD ↔ WGS84 (pyproj)
+│   │   ├── profiel.py      # 5-segment + boogzinker geometrie
+│   │   ├── conflictcheck.py # 3D afstand boortracé vs K&L
+│   │   ├── klic_parser.py  # IMKL 2.0 ZIP/GML parser
+│   │   ├── gwsw.py         # PDOK GWSW riool BOB API
+│   │   ├── waterschap.py   # waterschap detectie via PDOK WMS
+│   │   └── pdok_urls.py    # PDOK URL generatie
+│   ├── documents/          # PDF (WeasyPrint) + DXF (ezdxf) generatie
+│   ├── rules/              # eisenprofielen seed
+│   └── templates/          # Jinja2 HTML templates
+│       ├── order/          # 15+ pagina's (cockpit, trace, brondata, etc.)
+│       └── documents/      # tekening.html (A3 4-zone PDF layout)
+├── static/logos/           # Logo3D.jpg, gbt_logo.svg, Mook BV.jpg
+├── tests/                  # 199 tests, 15+ testbestanden
+├── docs/                   # architectuur, backlog, testhandleiding, mails
 ├── frontend/
 │   └── src/
 │       ├── components/
