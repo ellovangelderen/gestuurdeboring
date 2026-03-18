@@ -946,6 +946,167 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── Dinoloket sonderingen ─────────────────────────────────────────────────
+
+@router.get("/{order_id}/boringen/{volgnr}/sonderingen", response_class=HTMLResponse)
+def sonderingen_pagina(
+    request: Request,
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dinoloket sonderingen: links naar BRO/Dinoloket + uploadoptie."""
+    order = fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    intree = next((p for p in boring.trace_punten
+                   if getattr(p, 'variant', 0) == 0 and p.type == "intree"), None)
+    uittree = next((p for p in boring.trace_punten
+                    if getattr(p, 'variant', 0) == 0 and p.type == "uittree"), None)
+
+    links = []
+    if intree:
+        from app.geo.coords import rd_to_wgs84
+        lat, lon = rd_to_wgs84(intree.RD_x, intree.RD_y)
+
+        links.append({
+            "naam": "DINOloket",
+            "omschrijving": "Sonderingen, boringen, grondwatermetingen in de buurt van het tracé",
+            "url": f"https://www.dinoloket.nl/ondergrondgegevens?coordinates=({lon:.4f},{lat:.4f})&zoom=15",
+        })
+        links.append({
+            "naam": "BRO Bodemkundige boormonsterbeschrijving",
+            "omschrijving": "Basisregistratie Ondergrond — geotechnische gegevens",
+            "url": f"https://www.broloket.nl/ondergrondgegevens?locatie={lat:.6f},{lon:.6f}",
+        })
+        links.append({
+            "naam": "PDOK BRO Viewer",
+            "omschrijving": "Kaart met alle BRO-objecten (sonderingen, boringen)",
+            "url": f"https://basisregistratieondergrond.nl/inhoud-bro/registratieobjecten/bodem-grondonderzoek/geotechnisch-sondeeronderzoek-cpt/",
+        })
+
+    # Referentie sonderingen uit CLAUDE_v6.md
+    ref_sonderingen = []
+    if intree and uittree:
+        ref_sonderingen = [
+            {"naam": "CPT000000026582 (intrede)", "rd_x": 103851, "rd_y": 489230, "nap": "+4.28"},
+            {"naam": "CPT000000026578 (uittrede)", "rd_x": 103923, "rd_y": 489219, "nap": "+4.31"},
+        ]
+
+    return templates.TemplateResponse(
+        "order/sonderingen.html",
+        {
+            "request": request,
+            "order": order,
+            "boring": boring,
+            "user": user,
+            "links": links,
+            "intree": intree,
+            "ref_sonderingen": ref_sonderingen,
+        },
+    )
+
+
+# ── As-Built ─────────────────────────────────────────────────────────────
+
+@router.get("/{order_id}/boringen/{volgnr}/asbuilt", response_class=HTMLResponse)
+def asbuilt_pagina(
+    request: Request,
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """As-Built: werkelijke meetpunten invoeren en vergelijken met ontwerp."""
+    from app.order.models import AsBuiltPunt
+    order = fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    ontwerp_punten = [p for p in boring.trace_punten if getattr(p, 'variant', 0) == 0]
+    asbuilt_punten = boring.asbuilt_punten or []
+
+    # WGS84 voor kaart
+    punten_wgs = {"ontwerp": [], "asbuilt": []}
+    try:
+        from app.geo.coords import rd_to_wgs84
+        for p in ontwerp_punten:
+            lat, lon = rd_to_wgs84(p.RD_x, p.RD_y)
+            punten_wgs["ontwerp"].append({"label": p.label, "lat": lat, "lon": lon,
+                                           "rd_x": p.RD_x, "rd_y": p.RD_y})
+        for p in asbuilt_punten:
+            lat, lon = rd_to_wgs84(p.RD_x, p.RD_y)
+            punten_wgs["asbuilt"].append({"label": p.label, "lat": lat, "lon": lon,
+                                           "rd_x": p.RD_x, "rd_y": p.RD_y})
+    except Exception:
+        pass
+
+    # Delta's berekenen
+    deltas = []
+    for ab in asbuilt_punten:
+        ontw = next((p for p in ontwerp_punten if p.label == ab.label), None)
+        if ontw:
+            import math
+            afwijking = math.sqrt((ab.RD_x - ontw.RD_x)**2 + (ab.RD_y - ontw.RD_y)**2)
+            deltas.append({"label": ab.label, "afwijking_m": round(afwijking, 2),
+                           "ontwerp_x": ontw.RD_x, "ontwerp_y": ontw.RD_y,
+                           "asbuilt_x": ab.RD_x, "asbuilt_y": ab.RD_y})
+
+    return templates.TemplateResponse(
+        "order/asbuilt.html",
+        {
+            "request": request,
+            "order": order,
+            "boring": boring,
+            "user": user,
+            "ontwerp_punten": ontwerp_punten,
+            "asbuilt_punten": asbuilt_punten,
+            "punten_wgs": punten_wgs,
+            "deltas": deltas,
+        },
+    )
+
+
+@router.post("/{order_id}/boringen/{volgnr}/asbuilt")
+def asbuilt_opslaan(
+    order_id: str,
+    volgnr: int,
+    RD_x_list: str = Form(...),
+    RD_y_list: str = Form(...),
+    label_list: str = Form(...),
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sla as-built meetpunten op en verhoog revisienummer."""
+    from app.order.models import AsBuiltPunt
+    fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    try:
+        xs = [float(v.strip()) for v in RD_x_list.split(",") if v.strip()]
+        ys = [float(v.strip()) for v in RD_y_list.split(",") if v.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ongeldige coördinaten")
+    labels = [v.strip() for v in label_list.split(",") if v.strip()]
+
+    # Verwijder bestaande as-built punten
+    for p in boring.asbuilt_punten:
+        db.delete(p)
+    db.flush()
+
+    for i, (x, y, lbl) in enumerate(zip(xs, ys, labels)):
+        db.add(AsBuiltPunt(boring_id=boring.id, volgorde=i, label=lbl, RD_x=x, RD_y=y))
+
+    # Verhoog revisie
+    if not boring.revisie or boring.revisie < 1:
+        boring.revisie = 1
+    else:
+        boring.revisie += 1
+
+    db.commit()
+    return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/asbuilt", status_code=303)
+
+
 # ── Vergunningscheck ──────────────────────────────────────────────────────
 
 @router.get("/{order_id}/boringen/{volgnr}/vergunning", response_class=HTMLResponse)
@@ -1494,7 +1655,8 @@ def download_dxf_boring(
     boring = fetch_boring(order_id, volgnr, db)
     dxf_bytes = generate_dxf(boring, order, db)
     ordernr = order.ordernummer or order.id[:8]
-    filename = f"{ordernr}-{boring.volgnummer:02d}-rev.1.dxf"
+    rev = boring.revisie or 0
+    filename = f"{ordernr}-{boring.volgnummer:02d}-rev.{rev}.dxf"
     from fastapi.responses import Response as Resp
     return Resp(
         content=dxf_bytes,

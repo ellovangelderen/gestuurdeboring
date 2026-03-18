@@ -67,6 +67,7 @@ class Boring(Base):
     booghoek_gr = Column(Float, nullable=True)
     stand = Column(Integer, nullable=True)
     # Meta
+    revisie = Column(Integer, default=0)     # 0=ontwerp, 1+=as-built revisies
     status = Column(String, default="concept")
     aangemaakt_door = Column(String, nullable=True)
     aangemaakt_op = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -85,6 +86,9 @@ class Boring(Base):
     werkplan_afbeeldingen = relationship("WerkplanAfbeelding", back_populates="boring",
                                          order_by="WerkplanAfbeelding.volgorde",
                                          cascade="all, delete-orphan")
+    asbuilt_punten = relationship("AsBuiltPunt", back_populates="boring",
+                                   order_by="AsBuiltPunt.volgorde",
+                                   cascade="all, delete-orphan")
 
     # Properties
     @property
@@ -266,6 +270,21 @@ class EVZone(Base):
     netwerk_href = Column(String)
 
     order = relationship("Order", back_populates="ev_zones")
+
+
+class AsBuiltPunt(Base):
+    """Werkelijke meetpunten na uitvoering boring (as-built)."""
+    __tablename__ = "asbuilt_punten"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    boring_id = Column(String, ForeignKey("boringen.id"), nullable=False)
+    volgorde = Column(Integer, nullable=False)
+    label = Column(String)           # A, Tv1, Th1, B etc.
+    RD_x = Column(Float, nullable=False)
+    RD_y = Column(Float, nullable=False)
+    NAP_z = Column(Float, nullable=True)  # werkelijke NAP hoogte (optioneel)
+
+    boring = relationship("Boring", back_populates="asbuilt_punten")
 
 
 class WerkplanAfbeelding(Base):

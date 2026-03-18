@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}As-Built — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>As-Built — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>Werkelijke meetpunten invoeren na uitvoering. Revisie: <strong>{{ boring.revisie or 0 }}</strong></p>
+
+{% if not ontwerp_punten %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem;">
+  <strong>Geen ontwerp-tracé beschikbaar</strong> — sla eerst het tracé op.
+</section>
+{% else %}
+
+<!-- Kaart: ontwerp (grijs) + as-built (groen) -->
+<div id="map" style="height: 400px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 1rem;"></div>
+
+{% if deltas %}
+<!-- Vergelijkingstabel -->
+<section class="card" style="margin-bottom: 1rem;">
+  <h2>Afwijking ontwerp vs. werkelijk</h2>
+  <table class="table">
+    <thead><tr><th>Punt</th><th>Ontwerp X</th><th>Ontwerp Y</th><th>As-Built X</th><th>As-Built Y</th><th>Afwijking</th></tr></thead>
+    <tbody>
+      {% for d in deltas %}
+      <tr>
+        <td><strong>{{ d.label }}</strong></td>
+        <td>{{ "%.2f"|format(d.ontwerp_x) }}</td>
+        <td>{{ "%.2f"|format(d.ontwerp_y) }}</td>
+        <td>{{ "%.2f"|format(d.asbuilt_x) }}</td>
+        <td>{{ "%.2f"|format(d.asbuilt_y) }}</td>
+        <td style="font-weight: bold; color: {% if d.afwijking_m > 2 %}#dc3545{% elif d.afwijking_m > 0.5 %}#856404{% else %}#28a745{% endif %};">
+          {{ d.afwijking_m }} m
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<!-- Invoerformulier -->
+<section class="card" style="margin-bottom: 1rem;" x-data="asbuiltForm()">
+  <h2>Werkelijke meetpunten invoeren</h2>
+  <p style="font-size: 0.85em; color: #666;">Klik op de kaart of voer RD-coördinaten handmatig in. Labels moeten overeenkomen met het ontwerp.</p>
+
+  <form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/asbuilt">
+    <table class="table" style="font-size: 0.9em;">
+      <thead><tr><th>Label</th><th>RD X</th><th>RD Y</th><th>Ontwerp ref.</th></tr></thead>
+      <tbody>
+        <template x-for="(p, i) in punten" :key="i">
+          <tr :style="actief === i ? 'background: #f0f7ff;' : ''" @click="actief = i" style="cursor: pointer;">
+            <td><strong x-text="p.label"></strong></td>
+            <td><input type="number" x-model="p.x" step="0.01" style="width: 110px;" required></td>
+            <td><input type="number" x-model="p.y" step="0.01" style="width: 110px;" required></td>
+            <td style="font-size: 0.8em; color: #666;" x-text="p.ref"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+    <input type="hidden" name="RD_x_list" :value="punten.map(p=>p.x).join(',')">
+    <input type="hidden" name="RD_y_list" :value="punten.map(p=>p.y).join(',')">
+    <input type="hidden" name="label_list" :value="punten.map(p=>p.label).join(',')">
+    <button type="submit" class="btn btn-primary">As-Built opslaan (revisie {{ (boring.revisie or 0) + 1 }})</button>
+  </form>
+</section>
+
+{% endif %}
+
+<div style="display: flex; gap: 0.5rem;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">&larr; Boring detail</a>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+
+<script>
+const puntenWgs = {{ punten_wgs | tojson }};
+
+proj4.defs("EPSG:28992", "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs");
+
+function wgs84ToRD(lat, lon) {
+  const r = proj4("EPSG:4326", "EPSG:28992", [lon, lat]);
+  return { x: Math.round(r[0] * 100) / 100, y: Math.round(r[1] * 100) / 100 };
+}
+
+const map = L.map('map');
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
+
+const allCoords = [];
+
+// Ontwerp (grijs gestreept)
+if (puntenWgs.ontwerp.length >= 2) {
+  const coords = puntenWgs.ontwerp.map(p => [p.lat, p.lon]);
+  L.polyline(coords, { color: '#999', weight: 3, dashArray: '6,4' }).addTo(map);
+  puntenWgs.ontwerp.forEach(p => {
+    L.circleMarker([p.lat, p.lon], { radius: 4, color: '#999' }).addTo(map).bindPopup('Ontwerp: ' + p.label);
+  });
+  allCoords.push(...coords);
+}
+
+// As-Built (groen)
+if (puntenWgs.asbuilt.length >= 2) {
+  const coords = puntenWgs.asbuilt.map(p => [p.lat, p.lon]);
+  L.polyline(coords, { color: '#28a745', weight: 3 }).addTo(map);
+  puntenWgs.asbuilt.forEach(p => {
+    L.circleMarker([p.lat, p.lon], { radius: 5, color: '#28a745', fillOpacity: 1 }).addTo(map).bindPopup('As-Built: ' + p.label);
+  });
+  allCoords.push(...coords);
+}
+
+if (allCoords.length > 0) map.fitBounds(allCoords, { padding: [40, 40] });
+else map.setView([52.38, 4.64], 14);
+
+// As-Built form data
+function asbuiltForm() {
+  const ontwerp = puntenWgs.ontwerp;
+  const existing = puntenWgs.asbuilt;
+  return {
+    actief: 0,
+    punten: ontwerp.map(o => {
+      const ab = existing.find(e => e.label === o.label);
+      return {
+        label: o.label,
+        x: ab ? ab.rd_x : '',
+        y: ab ? ab.rd_y : '',
+        ref: o.rd_x.toFixed(2) + ', ' + o.rd_y.toFixed(2),
+      };
+    }),
+  };
+}
+
+// Kaart-klik
+map.on('click', function(e) {
+  const rd = wgs84ToRD(e.latlng.lat, e.latlng.lng);
+  const formEl = document.querySelector('[x-data]');
+  if (formEl && formEl._x_dataStack) {
+    const data = formEl._x_dataStack[0];
+    data.punten[data.actief].x = rd.x;
+    data.punten[data.actief].y = rd.y;
+    if (data.actief < data.punten.length - 1) data.actief++;
+  }
+});
+</script>
+{% endblock %}

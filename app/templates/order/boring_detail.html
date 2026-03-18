@@ -41,7 +41,8 @@
   <li class="{{ 'ok' if boring.trace_punten else 'leeg' }}">
     <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/trace">Trace invoeren</a>
     {% if boring.trace_punten %} — {{ boring.trace_punten|length }} punten
-      · <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/varianten">Varianten vergelijken</a>
+      · <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/varianten">Varianten</a>
+      · <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/asbuilt">As-Built</a>
     {% else %} — Nog niet ingevuld{% endif %}
   </li>
   <li class="{{ 'ok' if boring.maaiveld_override else 'leeg' }}">
