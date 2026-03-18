@@ -22,6 +22,17 @@
   </dl>
 </div>
 
+{% if order.ev_partijen %}
+<div class="card" style="border-left: 4px solid #dc3545; background: #fff5f5; padding: 12px; margin-bottom: 16px;">
+  <strong style="color: #dc3545;">WAARSCHUWING: EV-leidingen aanwezig</strong>
+  <ul style="margin: 4px 0 0 0;">
+    {% for ep in order.ev_partijen %}
+    <li>{{ ep.naam }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 <h2>Boringen ({{ boringen|length }})</h2>
 {% if boringen %}
 <table class="table">

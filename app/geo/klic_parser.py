@@ -220,15 +220,17 @@ def _build_alle_beheerder_codes(root) -> set[str]:
 
 # ── Backlog 3: EV-detectie ──────────────────────────────────────────────────
 
-def _build_ev_index(root, beheerder_index: dict[str, str]) -> tuple[dict[str, dict], list[dict]]:
+def _build_ev_index(root, beheerder_index: dict[str, str]) -> tuple[dict[str, dict], list[dict], list[dict]]:
     """Parse AanduidingEisVoorzorgsmaatregel en Belanghebbende elementen.
 
     Returns:
         - ev_network_index: {netwerk_href: {ev_verplicht, contactgegevens}}
         - ev_partijen: [{beheerder, contactgegevens}] voor order-level weergave
+        - ev_zone_data: [{geometrie_wkt, netwerk_href, beheerder}] voor EVZone records
     """
-    # Stap 1: Verzamel contactgegevens uit AanduidingEisVoorzorgsmaatregel
+    # Stap 1: Verzamel contactgegevens + geometrie uit AanduidingEisVoorzorgsmaatregel
     ev_contacts: dict[str, str] = {}  # netwerk_href -> contactgegevens
+    ev_zone_data: list[dict] = []
     for fm in root.iter(_tag(NS_GML, "featureMember")):
         for child in fm:
             if child.tag == _tag(NS_IMKL, "AanduidingEisVoorzorgsmaatregel"):
@@ -252,6 +254,23 @@ def _build_ev_index(root, beheerder_index: dict[str, str]) -> tuple[dict[str, di
                     email = email_el.text if email_el is not None and email_el.text else ""
 
                 ev_contacts[net_href] = " | ".join(filter(None, [naam, telefoon, email]))
+
+                # Extraheer geometrie voor EV-zone
+                wkt = _extract_geometry_wkt(child)
+                if wkt:
+                    # Bronhouder code uit netwerk_href
+                    bronhouder_code = ""
+                    net_id = _href_suffix(net_href)
+                    if net_id:
+                        parts = net_id.replace("nl.imkl-", "").split(".")
+                        if parts:
+                            bronhouder_code = parts[0]
+                    beheerder_naam = beheerder_index.get(bronhouder_code, bronhouder_code)
+                    ev_zone_data.append({
+                        "geometrie_wkt": wkt,
+                        "netwerk_href": net_href,
+                        "beheerder": beheerder_naam,
+                    })
 
     # Stap 2: Verzamel netwerken met EV uit Belanghebbende
     ev_network_index: dict[str, dict] = {}
@@ -297,7 +316,7 @@ def _build_ev_index(root, beheerder_index: dict[str, str]) -> tuple[dict[str, di
                 "contactgegevens": contactgegevens,
             }
 
-    return ev_network_index, ev_partijen
+    return ev_network_index, ev_partijen, ev_zone_data
 
 
 # ── Backlog 3: Diepte uit tekstvelden ───────────────────────────────────────
@@ -422,7 +441,7 @@ def _parse_gml_file(
     beheerder_index = _build_beheerder_index(root)
     network_pdf_set = _build_network_pdf_index(root)
     alle_beheerder_codes = _build_alle_beheerder_codes(root)
-    ev_index, ev_partijen = _build_ev_index(root, beheerder_index)
+    ev_index, ev_partijen, ev_zone_data = _build_ev_index(root, beheerder_index)
     label_index = _build_label_index(root)
 
     count_primair = 0
@@ -539,6 +558,7 @@ def _parse_gml_file(
         "beheerders_set": beheerders,
         "alle_beheerders_set": alle_beheerder_codes,
         "ev_partijen": ev_partijen,
+        "ev_zone_data": ev_zone_data,
         "fout": None,
     }
 
@@ -558,6 +578,24 @@ def _store_ev_partijen(order_id: str, ev_partijen: list[dict], db: Session) -> N
             volgorde=i,
         )
         db.add(partij)
+    db.flush()
+
+
+def _store_ev_zones(order_id: str, klic_upload_id: str, ev_zone_data: list[dict], db: Session) -> None:
+    """Sla EV-zones op als EVZone records."""
+    from app.order.models import EVZone
+    # Verwijder bestaande EV-zones voor deze order (idempotent)
+    db.query(EVZone).filter_by(order_id=order_id).delete()
+    db.flush()
+    for zd in ev_zone_data:
+        zone = EVZone(
+            order_id=order_id,
+            klic_upload_id=klic_upload_id,
+            beheerder=zd.get("beheerder", ""),
+            geometrie_wkt=zd["geometrie_wkt"],
+            netwerk_href=zd.get("netwerk_href", ""),
+        )
+        db.add(zone)
     db.flush()
 
 
@@ -592,6 +630,10 @@ def verwerk_klic_gml(
         # Sla EV-partijen op
         if resultaat.get("ev_partijen"):
             _store_ev_partijen(order_id, resultaat["ev_partijen"], db)
+
+        # Sla EV-zones op
+        if resultaat.get("ev_zone_data"):
+            _store_ev_zones(order_id, klic_upload_id, resultaat["ev_zone_data"], db)
 
         upload.verwerkt = True
         upload.verwerk_fout = None
@@ -650,6 +692,7 @@ def verwerk_klic_zip(
             alle_beheerders_in_levering: set[str] = set()
 
             alle_ev_partijen: list[dict] = []
+            alle_ev_zone_data: list[dict] = []
 
             for gml_naam in gml_namen:
                 gml_pad_file = Path(tmpdir) / gml_naam
@@ -668,10 +711,15 @@ def verwerk_klic_zip(
                 alle_beheerders_in_leidingen.update(resultaat["beheerders_set"])
                 alle_beheerders_in_levering.update(resultaat["alle_beheerders_set"])
                 alle_ev_partijen.extend(resultaat.get("ev_partijen", []))
+                alle_ev_zone_data.extend(resultaat.get("ev_zone_data", []))
 
         # Sla EV-partijen op
         if alle_ev_partijen:
             _store_ev_partijen(project_id, alle_ev_partijen, db)
+
+        # Sla EV-zones op
+        if alle_ev_zone_data:
+            _store_ev_zones(project_id, klic_upload_id, alle_ev_zone_data, db)
 
         # aantal_beheerders = alle Beheerder-entiteiten in de levering
         upload.verwerkt = True

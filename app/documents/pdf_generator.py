@@ -1,8 +1,10 @@
 """PDF generator — WeasyPrint + Jinja2."""
 import math
 from pathlib import Path
+from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
+from sqlalchemy.orm import Session
 from weasyprint import HTML
 
 from app.order.models import Boring, Order
@@ -16,7 +18,7 @@ def _hoek_pct(graden: float) -> float:
     return round(math.tan(math.radians(graden)) * 100, 1)
 
 
-def generate_pdf(boring: Boring, order: Order) -> bytes:
+def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> bytes:
     """Genereer PDF als bytes voor een boring."""
     from datetime import date
 
@@ -32,6 +34,12 @@ def generate_pdf(boring: Boring, order: Order) -> bytes:
             "grondtype": d.grondtype,
         })
 
+    # EV-zones ophalen als db beschikbaar
+    ev_zones = []
+    if db is not None:
+        from app.order.models import EVZone
+        ev_zones = db.query(EVZone).filter_by(order_id=order.id).all()
+
     context = {
         "boring": boring,
         "order": order,
@@ -42,6 +50,8 @@ def generate_pdf(boring: Boring, order: Order) -> bytes:
         "r_buis_mm": boring.De_mm / 2,
         "intreehoek_pct": _hoek_pct(boring.intreehoek_gr),
         "uittreehoek_pct": _hoek_pct(boring.uittreehoek_gr),
+        "ev_zones": ev_zones,
+        "has_ev_zones": len(ev_zones) > 0,
     }
 
     template = _env.get_template("tekening.html")

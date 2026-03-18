@@ -37,6 +37,7 @@ LAYERS: dict[str, dict] = {
     "PERSRIOOL":         {"color": 210, "linetype": "RI-PERS"},
     "KADASTER":          {"color": 150, "linetype": "KG-PERCEEL"},
     "WEGDEK":            {"color": 252, "linetype": "Continuous"},
+    "EV-ZONE":           {"color": 1,   "linetype": "Continuous"},
 }
 
 
@@ -177,6 +178,51 @@ def _draw_klic_leidingen(msp, order: Order, db: Session) -> None:
                 msp.add_lwpolyline(coords, dxfattribs={"layer": layer, "closed": True})
 
 
+def _draw_ev_zones(msp, order: Order, db: Session) -> None:
+    """Tekent EV-zones als gesloten LWPOLYLINE op laag EV-ZONE."""
+    from shapely import from_wkt
+    from shapely.geometry import Polygon, MultiPolygon
+    from app.order.models import EVZone
+
+    zones = db.query(EVZone).filter_by(order_id=order.id).all()
+    for zone in zones:
+        if not zone.geometrie_wkt:
+            continue
+        try:
+            geom = from_wkt(zone.geometrie_wkt)
+        except Exception:
+            continue
+
+        if geom is None or geom.is_empty:
+            continue
+
+        polygons = []
+        if isinstance(geom, Polygon):
+            polygons = [geom]
+        elif isinstance(geom, MultiPolygon):
+            polygons = list(geom.geoms)
+
+        for poly in polygons:
+            coords = list(poly.exterior.coords)
+            if len(coords) >= 3:
+                msp.add_lwpolyline(
+                    coords,
+                    dxfattribs={"layer": "EV-ZONE", "const_width": 0.5},
+                    close=True,
+                )
+                # Voeg tekst "EV-ZONE" bij centroid
+                centroid = poly.centroid
+                msp.add_text(
+                    "EV-ZONE",
+                    dxfattribs={
+                        "layer": "EV-ZONE",
+                        "height": 3.0,
+                        "insert": (centroid.x, centroid.y),
+                        "color": 1,
+                    },
+                )
+
+
 def generate_dxf(boring: Boring, order: Order, db: Optional[Session] = None) -> bytes:
     """Genereer DXF R2013 bytes voor een boring."""
     doc = ezdxf.new("R2013")
@@ -189,6 +235,7 @@ def generate_dxf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     _draw_titelblok(msp, boring, order)
     if db is not None:
         _draw_klic_leidingen(msp, order, db)
+        _draw_ev_zones(msp, order, db)
 
     buf = io.StringIO()
     doc.write(buf)

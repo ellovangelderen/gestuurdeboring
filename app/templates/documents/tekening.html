@@ -131,6 +131,16 @@
   </div>
 </div>
 
+{% if has_ev_zones %}
+<div style="border: 2pt solid #dc3545; background: #fff5f5; padding: 3mm; margin-top: 4mm; margin-bottom: 4mm;">
+  <strong style="color: #dc3545;">WAARSCHUWING: EV-ZONES AANWEZIG</strong><br>
+  Er zijn Eis Voorzorgsmaatregel (EV) zones gedetecteerd in de KLIC-melding. Neem contact op met de betreffende netbeheerder(s) voordat werkzaamheden worden gestart.
+  {% for zone in ev_zones %}
+  <br>- {{ zone.beheerder or 'Onbekend' }}
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- KLIC disclaimer -->
 <div class="opmerkingen">
   <strong>OPMERKINGEN:</strong><br>

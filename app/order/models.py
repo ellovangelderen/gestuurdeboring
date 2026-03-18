@@ -39,6 +39,7 @@ class Order(Base):
     boringen = relationship("Boring", back_populates="order", cascade="all, delete-orphan")
     klic_uploads = relationship("KLICUpload", back_populates="order", cascade="all, delete-orphan")
     ev_partijen = relationship("EVPartij", back_populates="order", cascade="all, delete-orphan")
+    ev_zones = relationship("EVZone", back_populates="order", cascade="all, delete-orphan")
     email_contacten = relationship("EmailContact", back_populates="order", cascade="all, delete-orphan")
 
 
@@ -246,6 +247,19 @@ class EmailContact(Base):
     volgorde = Column(Integer)
 
     order = relationship("Order", back_populates="email_contacten")
+
+
+class EVZone(Base):
+    __tablename__ = "ev_zones"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    order_id = Column(String, ForeignKey("orders.id"), nullable=False)
+    klic_upload_id = Column(String, ForeignKey("klic_uploads.id"), nullable=False)
+    beheerder = Column(String)
+    geometrie_wkt = Column(Text, nullable=False)
+    netwerk_href = Column(String)
+
+    order = relationship("Order", back_populates="ev_zones")
 
 
 class WerkplanAfbeelding(Base):

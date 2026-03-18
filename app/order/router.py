@@ -768,7 +768,7 @@ def download_pdf_boring(
     from app.documents.pdf_generator import generate_pdf
     order = fetch_order(order_id, db)
     boring = fetch_boring(order_id, volgnr, db)
-    pdf_bytes = generate_pdf(boring, order)
+    pdf_bytes = generate_pdf(boring, order, db=db)
     ordernr = order.ordernummer or order.id[:8]
     filename = f"{ordernr}-{boring.volgnummer:02d}-rev.1.pdf"
     from fastapi.responses import Response as Resp
