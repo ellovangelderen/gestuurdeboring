@@ -77,6 +77,10 @@
 <p class="empty">Geen boringen bij deze order.</p>
 {% endif %}
 
+<div style="margin: 1rem 0;">
+  <a href="/orders/{{ order.id }}/factuur" class="btn btn-secondary">Factuur concept</a>
+</div>
+
 <hr>
 <h2>Order bewerken</h2>
 <form method="post" action="/orders/{{ order.id }}/update">

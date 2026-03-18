@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Factuur concept — {{ order.ordernummer }}{% endblock %}
+{% block content %}
+<h1>Factuur concept — {{ order.ordernummer }}</h1>
+<p>Concept-factuur voor SnelStart. Kopieer de gegevens of pas aan.</p>
+
+<section class="card" style="margin-bottom: 1.5rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem;">
+
+  <!-- Factuurkop -->
+  <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+    <div>
+      <div style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase;">Aan</div>
+      <div style="font-size: 1.1em; font-weight: bold;">{{ klant_naam }}</div>
+      <div style="font-size: 0.9em; color: #666;">{{ order.opdrachtgever or '' }}</div>
+      <div style="font-size: 0.85em; color: #666;">t.a.v. {{ order.akkoord_contact or '—' }}</div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase;">Factuur</div>
+      <div style="font-size: 0.9em;">
+        <strong>Nr:</strong> {{ factuurnummer }}<br>
+        <strong>Datum:</strong> {{ datum_vandaag }}<br>
+        <strong>Order:</strong> {{ order.ordernummer }}<br>
+        {% if order.locatie %}<strong>Locatie:</strong> {{ order.locatie }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Factuurregels -->
+  <table class="table" style="margin-bottom: 1rem;">
+    <thead>
+      <tr>
+        <th style="width: 60%;">Omschrijving</th>
+        <th style="width: 10%; text-align: center;">Aantal</th>
+        <th style="width: 10%; text-align: center;">Eenheid</th>
+        <th style="width: 20%; text-align: right;">Bedrag (excl. BTW)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in regels %}
+      <tr>
+        <td>{{ r.omschrijving }}</td>
+        <td style="text-align: center;">{{ r.aantal }}</td>
+        <td style="text-align: center;">{{ r.eenheid }}</td>
+        <td style="text-align: right; color: #999;">{{ r.prijs or 'invullen' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p style="font-size: 0.85em; color: #666;">Bedragen moeten handmatig worden ingevuld. SnelStart API-koppeling volgt later.</p>
+</section>
+
+<!-- Kopieerbare tekst-versie -->
+<section class="card" style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+  <h2>Kopieerbaar overzicht</h2>
+  <textarea id="factuur-tekst" readonly style="width: 100%; min-height: 180px; font-family: 'Courier New', monospace;
+    font-size: 0.85em; line-height: 1.5; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;
+    background: #f8f9fa; resize: vertical;">FACTUUR {{ factuurnummer }}
+Datum: {{ datum_vandaag }}
+Klant: {{ klant_naam }}
+Order: {{ order.ordernummer }}
+Locatie: {{ order.locatie or '—' }}
+
+REGELS:
+{% for r in regels %}{{ r.aantal }}× {{ r.omschrijving }}
+{% endfor %}
+Betaalvoorwaarden: 14 dagen netto
+BTW: 21%</textarea>
+  <button onclick="kopieer()" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Kopieer</button>
+</section>
+
+<div style="display: flex; gap: 0.5rem;">
+  <a href="/orders/{{ order.id }}" class="btn btn-secondary">&larr; Order detail</a>
+</div>
+
+<script>
+function kopieer() {
+  const el = document.getElementById('factuur-tekst');
+  navigator.clipboard.writeText(el.value).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Gekopieerd!';
+    btn.style.background = '#28a745';
+    setTimeout(() => { btn.textContent = 'Kopieer'; btn.style.background = ''; }, 2000);
+  });
+}
+</script>
+{% endblock %}

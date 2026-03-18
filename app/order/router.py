@@ -946,6 +946,70 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── Facturatie (concept) ───────────────────────────────────────────────────
+
+@router.get("/{order_id}/factuur", response_class=HTMLResponse)
+def factuur_concept(
+    request: Request,
+    order_id: str,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Concept-factuur voor een order."""
+    order = fetch_order(order_id, db)
+    klant_naam = get_klant_naam(order.klantcode or "")
+
+    # Factuurregels op basis van boringen
+    regels = []
+    for b in sorted(order.boringen, key=lambda b: b.volgnummer):
+        type_label = {"B": "Gestuurde boring", "N": "Nano boring",
+                      "Z": "Boogzinker", "C": "Calculatie"}.get(b.type, b.type)
+
+        # Bereken trace lengte als beschikbaar
+        lengte = ""
+        if b.trace_punten:
+            from app.geo.profiel import trace_totale_afstand
+            coords = [(p.RD_x, p.RD_y) for p in b.trace_punten
+                      if getattr(p, 'variant', 0) == 0]
+            if len(coords) >= 2:
+                lengte = f"{trace_totale_afstand(coords):.1f}m"
+
+        regels.append({
+            "omschrijving": f"{type_label} {order.ordernummer}-{b.volgnummer:02d}"
+                           f"{' — ' + order.locatie if order.locatie else ''}"
+                           f"{' (' + lengte + ')' if lengte else ''}",
+            "aantal": 1,
+            "eenheid": "stuk",
+            "prijs": "",  # Martien vult dit in
+        })
+
+    # Werkplan als apart item als er een werkplan-boring is
+    if any(b.type == "B" for b in order.boringen):
+        regels.append({
+            "omschrijving": f"Werkplan {order.ordernummer} — {order.locatie or ''}",
+            "aantal": 1,
+            "eenheid": "stuk",
+            "prijs": "",
+        })
+
+    factuurnummer = f"F-{order.ordernummer}" if order.ordernummer else ""
+    from datetime import date
+    datum_vandaag = date.today().strftime("%d-%m-%Y")
+
+    return templates.TemplateResponse(
+        "order/factuur.html",
+        {
+            "request": request,
+            "order": order,
+            "user": user,
+            "klant_naam": klant_naam,
+            "regels": regels,
+            "factuurnummer": factuurnummer,
+            "datum_vandaag": datum_vandaag,
+        },
+    )
+
+
 # ── Tracévarianten ────────────────────────────────────────────────────────
 
 @router.get("/{order_id}/boringen/{volgnr}/varianten", response_class=HTMLResponse)
