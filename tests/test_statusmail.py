@@ -46,15 +46,14 @@ def test_tc_sm_b_groepering_per_klant(client, workspace, db):
     _maak_orders(db)
     resp = client.get("/orders/statusmail", auth=AUTH)
     assert resp.status_code == 200
-    # 3D en RD moeten verschijnen (hebben wacht/geleverd orders)
+    # 3D, RD en IE moeten verschijnen (alle actieve statussen)
     assert "3D-Drilling" in resp.text
     assert "R&amp;D Drilling" in resp.text or "R&D Drilling" in resp.text
-    # IE niet (alleen in_progress)
-    assert "Infra Elite" not in resp.text
+    assert "Infra Elite" in resp.text
 
 
-def test_tc_sm_c_alleen_relevante_statussen(workspace, db):
-    """TC-sm-C: Alleen orders met status wacht_akkoord of delivered."""
+def test_tc_sm_c_alle_actieve_statussen(workspace, db):
+    """TC-sm-C: Alle actieve orders zitten in concepten, maar niet done/cancelled."""
     from app.order.router import _genereer_statusmail_concepten
     orders = _maak_orders(db)
     concepten = _genereer_statusmail_concepten(orders)
@@ -63,12 +62,14 @@ def test_tc_sm_c_alleen_relevante_statussen(workspace, db):
     for c in concepten:
         alle_orders_in_concepten.extend(c["wacht_akkoord"])
         alle_orders_in_concepten.extend(c["geleverd"])
+        alle_orders_in_concepten.extend(c["in_uitvoering"])
+        alle_orders_in_concepten.extend(c["ontvangen"])
 
     statussen = {o.status for o in alle_orders_in_concepten}
-    assert statussen <= {"waiting_for_approval", "delivered"}
-    # 'done' en 'in_progress' mogen er niet in zitten
+    # Actieve statussen mogen erin
+    assert statussen <= {"order_received", "in_progress", "waiting_for_approval", "delivered"}
+    # 'done' mag er niet in zitten
     assert "done" not in statussen
-    assert "in_progress" not in statussen
 
 
 def test_tc_sm_d_mailtekst_bevat_ordernummers(workspace, db):
@@ -91,10 +92,13 @@ def test_tc_sm_e_mailtekst_toon(workspace, db):
 
     concept_3d = next(c for c in concepten if c["klantcode"] == "3D")
     tekst = concept_3d["mailtekst"]
-    assert "Beste Michel Visser" in tekst
+    assert "Hallo Michel Visser" in tekst
+    assert "Hierbij" in tekst
     assert "Met vriendelijke groet" in tekst
     assert "Martien Luijben" in tekst
-    assert "akkoord" in tekst.lower()
+    # Heeft een onderwerpregel
+    assert "onderwerp" in concept_3d
+    assert "Statusoverzicht" in concept_3d["onderwerp"]
 
 
 def test_tc_sm_f_contact_uit_klantcodes(workspace, db):
@@ -105,7 +109,7 @@ def test_tc_sm_f_contact_uit_klantcodes(workspace, db):
 
     concept_rd = next(c for c in concepten if c["klantcode"] == "RD")
     assert concept_rd["contact"] == "Marcel van Hoolwerff"
-    assert "Marcel van Hoolwerff" in concept_rd["mailtekst"]
+    assert "Hallo Marcel van Hoolwerff" in concept_rd["mailtekst"]
 
 
 def test_tc_sm_g_geen_openstaande_orders(client, workspace, db):

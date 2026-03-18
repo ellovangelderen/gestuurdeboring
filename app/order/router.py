@@ -232,16 +232,19 @@ def export_csv(
 
 # ── Statusmail ─────────────────────────────────────────────────────────────
 
+_STATUSMAIL_STATUSSEN = {"order_received", "in_progress", "waiting_for_approval", "delivered"}
+
+
 def _genereer_statusmail_concepten(orders: list[Order]) -> list[dict]:
     """Groepeer orders per klant en genereer conceptmail-teksten.
 
-    Selecteert orders met status 'waiting_for_approval' of 'delivered'.
+    Neemt alle actieve orders mee (ontvangen, in uitvoering, wacht akkoord, geleverd).
     """
     from collections import defaultdict
 
     klant_orders: dict[str, list[Order]] = defaultdict(list)
     for o in orders:
-        if o.status in ("waiting_for_approval", "delivered"):
+        if o.status in _STATUSMAIL_STATUSSEN:
             klant = o.klantcode or "Onbekend"
             klant_orders[klant].append(o)
 
@@ -252,32 +255,54 @@ def _genereer_statusmail_concepten(orders: list[Order]) -> list[dict]:
 
         wacht = [o for o in order_lijst if o.status == "waiting_for_approval"]
         geleverd = [o for o in order_lijst if o.status == "delivered"]
+        in_uitvoering = [o for o in order_lijst if o.status == "in_progress"]
+        ontvangen = [o for o in order_lijst if o.status == "order_received"]
 
-        # Bouw mailtekst in Martien's stijl: direct, zakelijk, bondig
+        aanhef = contact or klant_naam
+
+        # Onderwerpregel
+        onderwerp = f"Statusoverzicht openstaande orders — GestuurdeBoringTekening.nl"
+
+        # Mailtekst in Martien's stijl
         regels = []
-        regels.append(f"Beste {contact or klant_naam},")
+        regels.append(f"Hallo {aanhef},")
+        regels.append("")
+        regels.append("Hierbij een overzicht van de openstaande orders:")
         regels.append("")
 
         if wacht:
-            regels.append(f"Van de volgende {'order staat' if len(wacht) == 1 else 'orders staan'} het ontwerp klaar en wacht{'en' if len(wacht) > 1 else ''} op jullie akkoord:")
-            regels.append("")
+            regels.append("Klaar voor akkoord:")
             for o in wacht:
-                boringen = ", ".join(f"{b.type}{b.volgnummer}" for b in sorted(o.boringen, key=lambda b: b.volgnummer))
                 loc = f" — {o.locatie}" if o.locatie else ""
-                regels.append(f"  - {o.ordernummer}{loc} ({boringen})")
+                regels.append(f"  - {o.ordernummer}{loc}")
             regels.append("")
 
         if geleverd:
-            regels.append(f"Daarnaast {'is' if len(geleverd) == 1 else 'zijn'} de volgende {'order' if len(geleverd) == 1 else 'orders'} geleverd maar hebben we nog geen bevestiging ontvangen:")
-            regels.append("")
+            regels.append("Geleverd, bevestiging ontvangen?")
             for o in geleverd:
-                datum = o.geleverd_op.strftime("%d-%m-%Y") if o.geleverd_op else "onbekend"
-                regels.append(f"  - {o.ordernummer} (geleverd {datum})")
+                loc = f" — {o.locatie}" if o.locatie else ""
+                datum = f" (geleverd {o.geleverd_op.strftime('%d-%m-%Y')})" if o.geleverd_op else ""
+                regels.append(f"  - {o.ordernummer}{loc}{datum}")
             regels.append("")
 
-        regels.append("Kunnen jullie laten weten of alles akkoord is?")
+        if in_uitvoering:
+            regels.append("In uitvoering:")
+            for o in in_uitvoering:
+                loc = f" — {o.locatie}" if o.locatie else ""
+                regels.append(f"  - {o.ordernummer}{loc}")
+            regels.append("")
+
+        if ontvangen:
+            regels.append("Ontvangen, wordt opgepakt:")
+            for o in ontvangen:
+                loc = f" — {o.locatie}" if o.locatie else ""
+                regels.append(f"  - {o.ordernummer}{loc}")
+            regels.append("")
+
+        regels.append("Laat gerust weten als er vragen zijn.")
         regels.append("")
         regels.append("Met vriendelijke groet,")
+        regels.append("")
         regels.append("Martien Luijben")
         regels.append("GestuurdeBoringTekening.nl")
 
@@ -285,9 +310,12 @@ def _genereer_statusmail_concepten(orders: list[Order]) -> list[dict]:
             "klantcode": klant,
             "klant_naam": klant_naam,
             "contact": contact,
+            "onderwerp": onderwerp,
             "wacht_akkoord": wacht,
             "geleverd": geleverd,
-            "totaal": len(wacht) + len(geleverd),
+            "in_uitvoering": in_uitvoering,
+            "ontvangen": ontvangen,
+            "totaal": len(order_lijst),
             "mailtekst": "\n".join(regels),
         })
 

@@ -6,45 +6,60 @@
 
 {% if concepten %}
   {% for c in concepten %}
-  <section class="card" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-      <h2 style="margin: 0;">{{ c.klant_naam }} ({{ c.klantcode }})</h2>
-      <span style="font-size: 0.85em; color: #666;">
-        {{ c.wacht_akkoord|length }} wacht akkoord, {{ c.geleverd|length }} geleverd
-      </span>
+  <section class="card" style="margin-bottom: 2rem; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div>
+        <h2 style="margin: 0 0 0.25rem 0;">{{ c.klant_naam }} ({{ c.klantcode }})</h2>
+        <span style="font-size: 0.85em; color: #666;">
+          {{ c.totaal }} order{{ 's' if c.totaal != 1 else '' }}
+          {% if c.wacht_akkoord %} — {{ c.wacht_akkoord|length }} wacht akkoord{% endif %}
+          {% if c.geleverd %} — {{ c.geleverd|length }} geleverd{% endif %}
+          {% if c.in_uitvoering %} — {{ c.in_uitvoering|length }} in uitvoering{% endif %}
+          {% if c.ontvangen %} — {{ c.ontvangen|length }} ontvangen{% endif %}
+        </span>
+      </div>
+      <button onclick="kopieerAlles('{{ c.klantcode }}')" class="btn btn-primary btn-sm">Kopieer mail</button>
     </div>
 
-    {% if c.contact %}
-      <p style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">Contact: {{ c.contact }}</p>
-    {% endif %}
+    <!-- Onderwerp -->
+    <div style="margin-bottom: 0.75rem;">
+      <label style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px;">Onderwerp</label>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <input type="text" id="subject-{{ c.klantcode }}" value="{{ c.onderwerp }}" readonly
+               style="flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-size: 0.9em;">
+        <button onclick="kopieerVeld('subject-{{ c.klantcode }}')" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Kopieer</button>
+      </div>
+    </div>
 
-    <div style="position: relative;">
+    <!-- Mailtekst -->
+    <div>
+      <label style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px;">Bericht</label>
       <textarea id="mail-{{ c.klantcode }}" readonly
-                style="width: 100%; min-height: 200px; font-family: inherit; font-size: 0.9em;
-                       padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px;
-                       background: #fafafa; resize: vertical; white-space: pre-wrap;">{{ c.mailtekst }}</textarea>
-      <button onclick="kopieer('{{ c.klantcode }}')" class="btn btn-primary btn-sm"
-              style="position: absolute; top: 8px; right: 8px;">
-        Kopieer
-      </button>
+                style="width: 100%; min-height: 250px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                       font-size: 0.9em; line-height: 1.6; padding: 1rem; border: 1px solid #ddd; border-radius: 4px;
+                       background: #f8f9fa; resize: vertical; white-space: pre-wrap;">{{ c.mailtekst }}</textarea>
     </div>
 
-    <details style="margin-top: 0.5rem; font-size: 0.85em;">
-      <summary>Orders ({{ c.totaal }})</summary>
+    <details style="margin-top: 0.75rem; font-size: 0.85em;">
+      <summary style="cursor: pointer; color: #666;">Alle orders tonen ({{ c.totaal }})</summary>
       <table class="table" style="margin-top: 0.5rem;">
         <thead>
           <tr><th>Order</th><th>Locatie</th><th>Status</th><th>Boringen</th></tr>
         </thead>
         <tbody>
-          {% for o in c.wacht_akkoord + c.geleverd %}
+          {% for o in c.wacht_akkoord + c.geleverd + c.in_uitvoering + c.ontvangen %}
           <tr>
             <td><a href="/orders/{{ o.id }}">{{ o.ordernummer }}</a></td>
             <td>{{ o.locatie or '-' }}</td>
             <td>
               {% if o.status == 'waiting_for_approval' %}
                 <span class="badge badge-warning">Wacht akkoord</span>
-              {% else %}
+              {% elif o.status == 'delivered' %}
                 <span class="badge badge-success">Geleverd</span>
+              {% elif o.status == 'in_progress' %}
+                <span class="badge" style="background: #e8f4fd; color: #0d6efd;">In uitvoering</span>
+              {% else %}
+                <span class="badge badge-secondary">Ontvangen</span>
               {% endif %}
             </td>
             <td>{{ o.boringen|map(attribute='type')|join(', ') }}</td>
@@ -56,20 +71,30 @@
   </section>
   {% endfor %}
 {% else %}
-  <p>Geen openstaande orders die om akkoord of bevestiging vragen.</p>
+  <p style="padding: 2rem; text-align: center; color: #666;">Geen openstaande orders die om akkoord of bevestiging vragen.</p>
 {% endif %}
 
 <a href="/orders/" class="btn btn-secondary">&larr; Terug naar cockpit</a>
 
 <script>
-function kopieer(klantcode) {
-  const textarea = document.getElementById('mail-' + klantcode);
-  textarea.select();
-  navigator.clipboard.writeText(textarea.value).then(() => {
-    const btn = textarea.nextElementSibling;
+function kopieerVeld(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(() => {
+    el.style.borderColor = '#28a745';
+    setTimeout(() => el.style.borderColor = '#ddd', 1500);
+  });
+}
+
+function kopieerAlles(klantcode) {
+  const subject = document.getElementById('subject-' + klantcode).value;
+  const body = document.getElementById('mail-' + klantcode).value;
+  const tekst = 'Onderwerp: ' + subject + '\n\n' + body;
+  navigator.clipboard.writeText(tekst).then(() => {
+    const btn = event.target;
     const orig = btn.textContent;
     btn.textContent = 'Gekopieerd!';
-    setTimeout(() => btn.textContent = orig, 2000);
+    btn.style.background = '#28a745';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2000);
   });
 }
 </script>
