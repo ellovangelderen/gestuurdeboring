@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Vergunningscheck — {{ order.ordernummer }} Boring {{ boring.volgnummer }}{% endblock %}
+{% block content %}
+<h1>Vergunningscheck — {{ order.ordernummer }} Boring {{ boring.volgnummer }}</h1>
+<p>Check welke vergunningen en voorschriften van toepassing zijn op deze locatie.</p>
+
+{% if not intree %}
+<section class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 1rem;">
+  <strong>Geen intree-punt beschikbaar</strong> — sla eerst het tracé op.
+</section>
+{% else %}
+
+<!-- Huidige vergunning status -->
+<section class="card" style="margin-bottom: 1rem;">
+  <h2>Vergunning status</h2>
+  <div style="display: flex; gap: 1rem; align-items: center;">
+    <span style="font-size: 1.2em; font-weight: bold;">
+      {% if vergunning_status == 'P' %}Provincie
+      {% elif vergunning_status == 'W' %}Waterschap
+      {% elif vergunning_status == 'R' %}Rijkswaterstaat
+      {% else %}Geen vergunning vereist
+      {% endif %}
+    </span>
+    <span style="font-size: 0.85em; color: #666;">(pas aan via order detail)</span>
+  </div>
+</section>
+
+<!-- Links naar portalen -->
+<section class="card" style="margin-bottom: 1rem;">
+  <h2>Portalen voor deze locatie</h2>
+  <p style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">
+    RD: {{ "%.2f"|format(intree.RD_x) }}, {{ "%.2f"|format(intree.RD_y) }}
+  </p>
+
+  {% for link in links %}
+  <div style="display: flex; align-items: center; padding: 0.75rem; margin-bottom: 0.5rem;
+              border: 1px solid {% if link.type == 'primair' %}#0d6efd{% else %}#ddd{% endif %};
+              border-radius: 6px; {% if link.type == 'primair' %}background: #f0f7ff;{% endif %}">
+    <div style="flex: 1;">
+      <a href="{{ link.url }}" target="_blank" rel="noopener"
+         style="font-weight: bold; font-size: 1em; text-decoration: none;">
+        {{ link.naam }}
+      </a>
+      <div style="font-size: 0.85em; color: #666;">{{ link.omschrijving }}</div>
+    </div>
+    <a href="{{ link.url }}" target="_blank" rel="noopener" class="btn btn-sm {% if link.type == 'primair' %}btn-primary{% else %}btn-secondary{% endif %}">
+      Open
+    </a>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- Checklist -->
+<section class="card" style="margin-bottom: 1rem;">
+  <h2>Checklist vergunningen</h2>
+  <div style="font-size: 0.9em; line-height: 1.8;">
+    <label><input type="checkbox"> Omgevingsloket gecontroleerd — regels op de kaart bekeken</label><br>
+    <label><input type="checkbox"> Gemeente — gemeentelijke regels/APV gecontroleerd</label><br>
+    <label><input type="checkbox"> Waterschap — waterkering/watergang beschermingszone gecontroleerd</label><br>
+    <label><input type="checkbox"> Provincie — provinciale weg/water gecontroleerd</label><br>
+    <label><input type="checkbox"> RWS — rijksweg/rijkswater gecontroleerd</label><br>
+    <label><input type="checkbox"> Bodemloket — geen verontreinigingen op locatie</label><br>
+  </div>
+</section>
+
+{% endif %}
+
+<div style="display: flex; gap: 0.5rem;">
+  <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata" class="btn btn-secondary">&larr; Brondata</a>
+</div>
+{% endblock %}

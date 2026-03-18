@@ -946,6 +946,83 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── Vergunningscheck ──────────────────────────────────────────────────────
+
+@router.get("/{order_id}/boringen/{volgnr}/vergunning", response_class=HTMLResponse)
+def vergunningscheck_pagina(
+    request: Request,
+    order_id: str,
+    volgnr: int,
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Vergunningscheck: links naar relevante portalen op basis van coördinaten."""
+    order = fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    links = []
+    intree = next((p for p in boring.trace_punten
+                   if getattr(p, 'variant', 0) == 0 and p.type == "intree"), None)
+
+    if intree:
+        from app.geo.coords import rd_to_wgs84
+        lat, lon = rd_to_wgs84(intree.RD_x, intree.RD_y)
+
+        # Omgevingsloket (altijd)
+        links.append({
+            "naam": "Omgevingsloket",
+            "omschrijving": "Check welke regels gelden op deze locatie (Rijkswaterstaat, provincie, waterschap, gemeente)",
+            "url": f"https://omgevingswet.overheid.nl/regels-op-de-kaart/viewer/regels?locatie-stelsel=etrs89&locatie-x={lon:.6f}&locatie-y={lat:.6f}",
+            "type": "primair",
+        })
+
+        # PDOK Viewer
+        links.append({
+            "naam": "PDOK Viewer",
+            "omschrijving": "Kadastrale kaart, bestemmingsplannen, beschermde gebieden",
+            "url": f"https://app.pdok.nl/viewer/#x={intree.RD_x:.2f}&y={intree.RD_y:.2f}&z=12",
+            "type": "kaart",
+        })
+
+        # Waterschap (als bekend)
+        if order.waterkering_url:
+            links.append({
+                "naam": "Waterschapskaart",
+                "omschrijving": "Waterkering, watergang, beschermingszone",
+                "url": order.waterkering_url,
+                "type": "waterschap",
+            })
+
+        # Bagviewer (gebouwen + adressen)
+        links.append({
+            "naam": "BAG Viewer",
+            "omschrijving": "Gebouwen, adressen, bouwjaar — check nabijheid bebouwing",
+            "url": f"https://bagviewer.kadaster.nl/lvbag/bag-viewer/#?geometry.x={intree.RD_x:.2f}&geometry.y={intree.RD_y:.2f}&zoomlevel=7",
+            "type": "kaart",
+        })
+
+        # Bodemloket
+        links.append({
+            "naam": "Bodemloket",
+            "omschrijving": "Bodemverontreinigingen, saneringslocaties",
+            "url": f"https://www.bodemloket.nl/kaart?coords={intree.RD_x:.0f},{intree.RD_y:.0f}&zoom=14",
+            "type": "kaart",
+        })
+
+    return templates.TemplateResponse(
+        "order/vergunning.html",
+        {
+            "request": request,
+            "order": order,
+            "boring": boring,
+            "user": user,
+            "links": links,
+            "intree": intree,
+            "vergunning_status": order.vergunning or "-",
+        },
+    )
+
+
 # ── Facturatie (concept) ───────────────────────────────────────────────────
 
 @router.get("/{order_id}/factuur", response_class=HTMLResponse)
