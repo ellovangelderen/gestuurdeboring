@@ -91,16 +91,21 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 | 6.2 | Open DXF in AutoCAD | Boorlijn met 2 ARCs (intree + uittree) + horizontaal segment |
 | 6.3 | Controleer lagen | LP-BOORLIJN, LP-MAAIVELD, LP-MAATVOERING aanwezig |
 | 6.4 | Controleer maatvoering | Intreehoek, uittreehoek, L, Rv, diepte NAP labels |
-| 6.5 | Klik "PDF" | PDF downloadt met lengteprofiel + bovenaanzicht |
-| 6.6 | Controleer PDF | Titelblok, GPS punten, doorsnede, hoeken correct |
+| 6.5 | Klik "PDF" | PDF downloadt als A3 landscape |
+| 6.6 | Controleer PDF layout | 4 zones: links-boven (overzichtskaart + GPS + doorsnede), rechts-boven (situatiekaart met KLIC), links-onder (doorsneden + legenda), rechts-onder (lengteprofiel + titelblok) |
+| 6.7 | Situatiekaart rechts-boven | OSM kaart ingezoomd op tracé, rode lijn met sensorpuntlabels, KLIC leidingen als gekleurde lijnen |
+| 6.8 | Lengteprofiel rechts-onder | Vloeiende boorlijn van maaiveld naar diepte, sensorpunten langs maaiveld, doorsnede-nummers, NAP grid per 1m |
+| 6.9 | Titelblok rechts-onder | 3D-Drilling + GBT logo's, projectinfo, opmerkingen, revisietabel |
+| 6.10 | Overzichtskaart links-boven | Kleine OSM kaart 1:4000 met tracé in rode lijn |
+| 6.11 | Doorsnede links-boven | Cirkel met ruimer (gestreept) en buis (gevuld), Dg/De labels |
 
 ### Type Z (boogzinker)
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
-| 6.7 | Boring type Z met booghoek 10° en stand 5 → DXF | DXF met 1 ARC (geen horizontaal segment) |
-| 6.8 | Controleer labels in DXF | "Booghoek 10.0 graden", "Stand 5", "Booglengte = X m" |
-| 6.9 | PDF downloaden | Vereenvoudigd lengteprofiel met 1 boog |
+| 6.12 | Boring type Z met booghoek 10° en stand 5 → DXF | DXF met 1 ARC (geen horizontaal segment) |
+| 6.13 | Controleer labels in DXF | "Booghoek 10.0 graden", "Stand 5", "Booglengte = X m" |
+| 6.14 | PDF downloaden | Vereenvoudigd lengteprofiel met 1 boog |
 
 ---
 
@@ -147,11 +152,11 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
-| 9.1 | Cockpit → "Statusmail" knop | Statusmail pagina met concepten per klant |
-| 9.2 | Per klant een conceptmail | "Hallo [contact], Hierbij een overzicht..." |
-| 9.3 | Klik "Kopieer mail" | Onderwerp + bericht naar klembord gekopieerd |
-| 9.4 | Plak in je mailprogramma | Tekst is netjes geformateerd |
-| 9.5 | Klap "Alle orders tonen" open | Tabel met orders per klant + status |
+| 10.1 | Cockpit → "Statusmail" knop | Statusmail pagina met concepten per klant |
+| 10.2 | Per klant een conceptmail | "Hallo [contact], Hierbij een overzicht..." |
+| 10.3 | Klik "Kopieer mail" | Onderwerp + bericht naar klembord gekopieerd |
+| 10.4 | Plak in je mailprogramma | Tekst is netjes geformateerd |
+| 10.5 | Klap "Alle orders tonen" open | Tabel met orders per klant + status |
 
 ---
 
@@ -172,9 +177,9 @@ Werk de testscenario's hieronder af. Noteer per scenario:
 
 | Stap | Actie | Verwacht resultaat |
 |------|-------|--------------------|
-| 10.1 | Upload KLIC met EV-leidingen | Rode waarschuwing op brondata pagina |
-| 10.2 | Download DXF | Laag "EV-ZONE" aanwezig met polygonen |
-| 10.3 | Download PDF | EV-waarschuwing in het document |
+| 12.1 | Upload KLIC met EV-leidingen | Rode waarschuwing op brondata pagina |
+| 12.2 | Download DXF | Laag "EV-ZONE" aanwezig met polygonen |
+| 12.3 | Download PDF | EV-waarschuwing in het document |
 
 ---
 
