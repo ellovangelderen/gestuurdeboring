@@ -5,7 +5,13 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.orm import Session
-from weasyprint import HTML
+
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError):
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
 
 from app.order.models import Boring, Order
 
@@ -467,6 +473,8 @@ def _generate_bovenaanzicht_svg(boring: Boring) -> str:
 
 def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> bytes:
     """Genereer PDF als bytes voor een boring."""
+    if not WEASYPRINT_AVAILABLE:
+        raise RuntimeError("WeasyPrint is niet beschikbaar op deze server. Installeer system libraries (pango, cairo, gobject).")
     from datetime import date
 
     punten = []

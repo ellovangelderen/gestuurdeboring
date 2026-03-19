@@ -11,8 +11,15 @@ import logging
 import math
 
 import httpx
-import numpy
-import tifffile
+
+try:
+    import numpy
+    import tifffile
+    TIFFFILE_AVAILABLE = True
+except ImportError:
+    TIFFFILE_AVAILABLE = False
+    numpy = None
+    tifffile = None
 
 logger = logging.getLogger(__name__)
 
