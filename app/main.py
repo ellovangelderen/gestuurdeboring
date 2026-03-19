@@ -15,6 +15,17 @@ app.include_router(project_router)
 app.include_router(documents_router)
 
 
+@app.on_event("startup")
+def on_startup():
+    """Create database tables on startup if they don't exist."""
+    from app.core.database import engine, Base
+    import app.core.models       # noqa: F401
+    import app.project.models    # noqa: F401
+    import app.rules.models      # noqa: F401
+    Base.metadata.create_all(bind=engine)
+    print("HDD: Database tables created")
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
