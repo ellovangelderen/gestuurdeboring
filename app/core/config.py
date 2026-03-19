@@ -14,3 +14,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Zorg dat de database directory bestaat (Railway volume /data/)
+if "sqlite:///" in settings.DATABASE_URL:
+    from pathlib import Path
+    db_path = settings.DATABASE_URL.replace("sqlite:///", "").replace("sqlite:", "")
+    db_dir = Path(db_path).parent
+    if not db_dir.exists():
+        db_dir.mkdir(parents=True, exist_ok=True)
