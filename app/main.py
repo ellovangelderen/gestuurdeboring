@@ -15,6 +15,11 @@ app.include_router(project_router)
 app.include_router(documents_router)
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/")
 def root_redirect():
     return RedirectResponse(url="/orders/")
