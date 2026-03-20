@@ -103,4 +103,17 @@ Zie `docs/architecture.md` voor:
 
 ---
 
+## Bug log
+
+| # | Bug | Oorzaak | Fix | Status |
+|---|-----|---------|-----|--------|
+| B-01 | Locatie kolom toont volledige Google Maps URLs, tabel breekt | Import sloeg kolom N (URL) op als locatie i.p.v. adres | URL detectie + adres uit ordernaam parsen | FIXED |
+| B-02 | Boringen badges duwen kolommen van scherm bij 14+ boringen | `white-space: nowrap` op boringen kolom | `flex-wrap` + `max-width: 160px` | FIXED |
+| B-03 | Dashboard tabel niet full-width op brede schermen | `main { max-width: 1200px }` in CSS | Gewijzigd naar `max-width: 100%` | FIXED |
+| B-04 | Deploy FAILED: `$PORT is not a valid integer` | railway.json `startCommand` overschrijft Dockerfile CMD, `$PORT` wordt niet geëxpandeerd | startCommand verwijderd, Dockerfile CMD doet alles | FIXED |
+| B-05 | Deploy FAILED: healthcheck na Dockerfile switch | Gevolg van B-04, app kon niet starten | Opgelost met B-04 fix | FIXED |
+| B-06 | Alembic.ini wijst naar `./hdd.db` i.p.v. Railway volume `/data/` | Hardcoded pad in alembic.ini | env.py overschrijft URL met settings.DATABASE_URL | FIXED |
+
+---
+
 *Aangemaakt op 2026-03-20 — Inodus / LeanAI Platform*
