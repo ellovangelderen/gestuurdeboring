@@ -96,30 +96,21 @@ const brtLayer = L.tileLayer('https://service.pdok.nl/brt/achtergrondkaart/wmts/
   attribution: '&copy; PDOK BRT Achtergrondkaart',
   maxZoom: 19,
 });
-const bgtLayer = L.tileLayer.wms('https://service.pdok.nl/lv/bgt/wms/v1_0', {
-  layers: 'standaardvisualisatie',
-  format: 'image/png',
-  transparent: false,
+const bgtLayer = L.tileLayer('https://service.pdok.nl/lv/bgt/wmts/v1_0/standaardvisualisatie/EPSG:3857/{z}/{x}/{y}.png', {
   attribution: '&copy; PDOK BGT',
-  maxZoom: 21,
-});
-const bgtOverlay = L.tileLayer.wms('https://service.pdok.nl/lv/bgt/wms/v1_0', {
-  layers: 'standaardvisualisatie',
-  format: 'image/png',
-  transparent: true,
-  attribution: '&copy; PDOK BGT',
-  maxZoom: 21,
+  maxZoom: 20,
+  minZoom: 13,
 });
 
-// BRT als standaard (werkt op alle zoomniveaus), BGT als overlay voor detail
+// BRT als standaard, BGT als overlay voor detail bij inzoomen
 brtLayer.addTo(map);
-bgtOverlay.addTo(map);  // BGT standaard aan als overlay
+bgtLayer.addTo(map);  // BGT standaard aan (zichtbaar vanaf zoom 13)
 L.control.layers({
   "BRT Topografie": brtLayer,
   "Luchtfoto": luchtfotoLayer,
   "OpenStreetMap": osmLayer,
 }, {
-  "BGT detail": bgtOverlay,
+  "BGT detail (zoom 13+)": bgtLayer,
 }).addTo(map);
 
 // Markers en lijn bijhouden
