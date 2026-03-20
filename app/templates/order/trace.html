@@ -111,15 +111,15 @@ const bgtOverlay = L.tileLayer.wms('https://service.pdok.nl/lv/bgt/wms/v1_0', {
   maxZoom: 21,
 });
 
-// BGT als standaard (meeste detail voor trace)
-bgtLayer.addTo(map);
+// BRT als standaard (werkt op alle zoomniveaus), BGT als overlay voor detail
+brtLayer.addTo(map);
+bgtOverlay.addTo(map);  // BGT standaard aan als overlay
 L.control.layers({
-  "BGT (detail)": bgtLayer,
-  "Luchtfoto": luchtfotoLayer,
   "BRT Topografie": brtLayer,
+  "Luchtfoto": luchtfotoLayer,
   "OpenStreetMap": osmLayer,
 }, {
-  "BGT overlay": bgtOverlay,
+  "BGT detail": bgtOverlay,
 }).addTo(map);
 
 // Markers en lijn bijhouden
