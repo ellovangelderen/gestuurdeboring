@@ -20,10 +20,18 @@ app.include_router(documents_router)
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    """Alle HTTP errors als nette HTML pagina i.p.v. raw JSON."""
+    """HTTP errors als nette HTML pagina. 401 behoudt WWW-Authenticate header."""
+    # 401 moet de browser login popup triggeren — niet overriden
+    if exc.status_code == 401:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            {"detail": exc.detail},
+            status_code=401,
+            headers=exc.headers or {"WWW-Authenticate": "Basic"},
+        )
+
     messages = {
         400: ("Ongeldige invoer", exc.detail or "De invoer is ongeldig."),
-        401: ("Niet ingelogd", "Log in om deze pagina te bekijken."),
         403: ("Geen toegang", "Je hebt geen rechten voor deze pagina."),
         404: ("Niet gevonden", exc.detail or "De pagina die je zoekt bestaat niet."),
     }
