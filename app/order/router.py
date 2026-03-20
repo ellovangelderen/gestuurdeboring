@@ -1777,3 +1777,58 @@ def werkplan_afbeelding_verwijder(
         f"/api/v1/orders/{order_id}/boringen/{volgnr}/werkplan",
         status_code=303,
     )
+
+
+# ── Excel Import ──────────────────────────────────────────────────────────
+
+
+@router.get("/import", response_class=HTMLResponse)
+async def import_pagina(request: Request):
+    return templates.TemplateResponse("import.html", {"request": request})
+
+
+@router.post("/import")
+async def import_uitvoeren(
+    request: Request,
+    bestand: UploadFile = File(...),
+    wissen: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Upload en importeer een Excel order overview."""
+    import openpyxl
+    from io import BytesIO
+    from app.order.import_excel import import_vergunning_sheet
+
+    gewist = False
+    if wissen == "ja":
+        # Wis alle orders en gerelateerde data
+        from app.order.models import (
+            AsBuiltPunt, WerkplanAfbeelding, Berekening, Doorsnede,
+            MaaiveldOverride, TracePunt, BoringKLIC, KLICLeiding,
+            KLICUpload, EVZone, EVPartij, EmailContact, Boring, Order,
+        )
+        for model in [
+            AsBuiltPunt, WerkplanAfbeelding, Berekening, Doorsnede,
+            MaaiveldOverride, TracePunt, BoringKLIC, KLICLeiding,
+            KLICUpload, EVZone, EVPartij, EmailContact, Boring, Order,
+        ]:
+            db.query(model).delete()
+        db.commit()
+        gewist = True
+
+    content = await bestand.read()
+    wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
+
+    stats = {"orders": 0, "boringen": 0, "overgeslagen": 0, "fouten": 0}
+
+    if "Vergunning" in wb.sheetnames:
+        result = import_vergunning_sheet(db, wb["Vergunning"])
+        for k in stats:
+            stats[k] += result.get(k, 0)
+
+    return templates.TemplateResponse("import.html", {
+        "request": request,
+        "resultaat": stats,
+        "bestandsnaam": bestand.filename,
+        "gewist": gewist,
+    })

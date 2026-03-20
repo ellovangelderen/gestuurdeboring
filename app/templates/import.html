@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Import — HDD Platform{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:40px auto;">
+  <h1>Order Overview Importeren</h1>
+  <p style="color:#6b7280;margin-bottom:24px;">Upload de Excel "Order overview shared with Ello.xlsx". Orders die al bestaan worden overgeslagen.</p>
+
+  {% if resultaat %}
+  <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:16px;margin-bottom:24px;">
+    <strong>Import voltooid — {{ bestandsnaam }}</strong>
+    <ul style="margin-top:8px;font-size:14px;">
+      {% if gewist %}<li style="color:#dc2626;">Database gewist voor import</li>{% endif %}
+      <li>{{ resultaat.orders }} orders aangemaakt</li>
+      <li>{{ resultaat.boringen }} boringen aangemaakt</li>
+      <li>{{ resultaat.overgeslagen }} overgeslagen (bestonden al)</li>
+      {% if resultaat.fouten > 0 %}
+      <li style="color:#dc2626;">{{ resultaat.fouten }} fouten</li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" style="background:#f9fafb;border-radius:8px;padding:24px;">
+    <div style="margin-bottom:16px;">
+      <label style="font-weight:600;font-size:14px;">Excel bestand (.xlsx)</label>
+      <input type="file" name="bestand" accept=".xlsx" required
+             style="display:block;margin-top:8px;padding:8px;border:1px solid #d1d5db;border-radius:6px;width:100%;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" name="wissen" value="ja"
+               onchange="this.parentElement.style.color = this.checked ? '#dc2626' : ''">
+        Database eerst wissen (alle bestaande orders verwijderen)
+      </label>
+    </div>
+    <button type="submit" style="padding:10px 24px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;"
+            onclick="if(document.querySelector('[name=wissen]').checked) return confirm('ALLE bestaande orders worden verwijderd. Doorgaan?'); return true;">
+      Importeren
+    </button>
+  </form>
+
+  <div style="margin-top:24px;">
+    <a href="/orders/" style="color:#6b7280;font-size:13px;">&larr; Terug naar orders</a>
+  </div>
+</div>
+{% endblock %}
