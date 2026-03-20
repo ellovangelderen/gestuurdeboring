@@ -98,9 +98,11 @@
 
         {# ── Boringen: compacte type-badges ── #}
         <td class="col-boringen">
+          <div class="boringen-wrap">
           {% for b in o.boringen|sort(attribute='volgnummer') %}
           <span class="type-badge type-badge--{{ b.type }}" title="{{ {'B':'Gestuurde boring','N':'Nano','Z':'Boogzinker','C':'Calculatie'}.get(b.type, b.type) }}">{{ b.type }}{{ b.volgnummer }}</span>
           {% endfor %}
+          </div>
         </td>
 
         {# ── Status badge ── #}

@@ -243,7 +243,8 @@ hr { border: none; border-top: 1px solid #dee2e6; margin: 24px 0; }
 .col-order { min-width: 140px; }
 .col-locatie { min-width: 120px; }
 .col-klant { min-width: 80px; }
-.col-boringen { white-space: nowrap; }
+.col-boringen { max-width: 160px; }
+.boringen-wrap { display: flex; flex-wrap: wrap; gap: 2px; max-width: 160px; }
 .col-status { white-space: nowrap; }
 .col-deadline { white-space: nowrap; text-align: center; }
 .col-tekenaar { text-align: center; width: 48px; }
