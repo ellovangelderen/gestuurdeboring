@@ -1,0 +1,35 @@
+# HDD Ontwerp Platform — Railway Dockerfile
+# WeasyPrint vereist system libraries (pango, cairo, gobject)
+# die niet standaard in Nixpacks zitten.
+
+FROM python:3.11-slim
+
+# System dependencies voor WeasyPrint + CairoSVG
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    libglib2.0-0 \
+    libgobject-2.0-0 \
+    shared-mime-info \
+    fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# App code
+COPY . .
+
+# Uploads directory
+RUN mkdir -p uploads
+
+EXPOSE ${PORT:-8000}
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
