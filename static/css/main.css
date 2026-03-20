@@ -20,7 +20,7 @@ nav {
 .nav-brand { color: #fff; text-decoration: none; font-weight: bold; font-size: 16px; }
 .nav-user { font-size: 13px; opacity: 0.8; }
 
-main { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+main { max-width: 100%; margin: 0 auto; padding: 24px 32px; }
 
 h1 { font-size: 22px; margin: 0 0 16px; }
 h2 { font-size: 16px; margin: 20px 0 10px; }
@@ -221,8 +221,8 @@ hr { border: none; border-top: 1px solid #dee2e6; margin: 24px 0; }
 }
 
 /* ── Cockpit Tabel ───────────────────────────────────────────────────── */
-.cockpit-table-wrap { overflow-x: auto; }
-.cockpit-table { border-collapse: separate; border-spacing: 0; }
+.cockpit-table-wrap { overflow-x: auto; width: 100%; }
+.cockpit-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: auto; }
 .cockpit-table th {
   font-size: 11px;
   text-transform: uppercase;
