@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — HDD Platform{% endblock %}
+{% block content %}
+<div style="max-width:500px;margin:80px auto;text-align:center;">
+  <div style="font-size:72px;font-weight:700;color:#003087;margin-bottom:8px;">{{ code }}</div>
+  <h1 style="font-size:20px;margin-bottom:12px;">{{ titel }}</h1>
+  <p style="color:#6b7280;margin-bottom:24px;">{{ bericht }}</p>
+  <a href="/orders/" class="btn btn-primary">Terug naar orders</a>
+</div>
+{% endblock %}
