@@ -85,24 +85,41 @@ const map = L.map('map');
 
 // Kaartlagen
 const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
 });
 const luchtfotoLayer = L.tileLayer('https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg', {
-  attribution: '&copy; PDOK Luchtfoto'
+  attribution: '&copy; PDOK Luchtfoto',
+  maxZoom: 20,
+});
+const brtLayer = L.tileLayer('https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png', {
+  attribution: '&copy; PDOK BRT Achtergrondkaart',
+  maxZoom: 19,
 });
 const bgtLayer = L.tileLayer.wms('https://service.pdok.nl/lv/bgt/wms/v1_0', {
   layers: 'standaardvisualisatie',
   format: 'image/png',
+  transparent: false,
+  attribution: '&copy; PDOK BGT',
+  maxZoom: 21,
+});
+const bgtOverlay = L.tileLayer.wms('https://service.pdok.nl/lv/bgt/wms/v1_0', {
+  layers: 'standaardvisualisatie',
+  format: 'image/png',
   transparent: true,
-  attribution: '&copy; PDOK BGT'
+  attribution: '&copy; PDOK BGT',
+  maxZoom: 21,
 });
 
-osmLayer.addTo(map);
+// BGT als standaard (meeste detail voor trace)
+bgtLayer.addTo(map);
 L.control.layers({
-  "OpenStreetMap": osmLayer,
+  "BGT (detail)": bgtLayer,
   "Luchtfoto": luchtfotoLayer,
+  "BRT Topografie": brtLayer,
+  "OpenStreetMap": osmLayer,
 }, {
-  "BGT": bgtLayer,
+  "BGT overlay": bgtOverlay,
 }).addTo(map);
 
 // Markers en lijn bijhouden
