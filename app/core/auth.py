@@ -1,11 +1,12 @@
+import logging
 import secrets
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.config import settings
 
-
+logger = logging.getLogger(__name__)
 security = HTTPBasic()
 
 
@@ -25,6 +26,11 @@ def get_current_user(credentials: HTTPBasicCredentials = Depends(security)) -> s
     if not password or not secrets.compare_digest(
         credentials.password.encode(), password.encode()
     ):
+        logger.warning(
+            "AUTH_FAILURE user=%s reason=%s",
+            credentials.username,
+            "unknown_user" if not password else "wrong_password",
+        )
         raise HTTPException(
             status_code=401,
             detail="Ongeldig wachtwoord",

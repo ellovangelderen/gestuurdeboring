@@ -39,6 +39,10 @@ templates = Jinja2Templates(directory="app/templates")
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+MAX_KLIC_SIZE = 50 * 1024 * 1024      # 50 MB
+MAX_IMAGE_SIZE = 10 * 1024 * 1024      # 10 MB
+MAX_EXCEL_SIZE = 20 * 1024 * 1024      # 20 MB
+
 
 def _f(v: str) -> float | None:
     """Converteer leeg Form string-veld naar None (optionele float)."""
@@ -471,6 +475,8 @@ async def import_uitvoeren(
         gewist = True
 
     content = await bestand.read()
+    if len(content) > MAX_EXCEL_SIZE:
+        raise HTTPException(status_code=413, detail=f"Bestand te groot (max {MAX_EXCEL_SIZE // 1024 // 1024}MB)")
     wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
 
     stats = {"orders": 0, "boringen": 0, "overgeslagen": 0, "fouten": 0}
@@ -897,6 +903,12 @@ async def klic_upload(
     db: Session = Depends(get_db),
 ):
     order = fetch_order(order_id, db)
+
+    # Size check
+    content = await klic_zip.read()
+    if len(content) > MAX_KLIC_SIZE:
+        raise HTTPException(status_code=413, detail=f"Bestand te groot (max {MAX_KLIC_SIZE // 1024 // 1024}MB)")
+
     dest_dir = UPLOAD_DIR / order_id
     dest_dir.mkdir(parents=True, exist_ok=True)
     safe_filename = Path(klic_zip.filename).name
@@ -909,7 +921,7 @@ async def klic_upload(
     dest_path = dest_dir / safe_filename
 
     with open(dest_path, "wb") as f:
-        shutil.copyfileobj(klic_zip.file, f)
+        f.write(content)
 
     upload = KLICUpload(
         order_id=order_id,
@@ -1765,15 +1777,19 @@ async def werkplan_afbeelding_upload(
     if categorie not in AFBEELDING_CATEGORIEEN:
         raise HTTPException(status_code=400, detail=f"Ongeldige categorie: {categorie}")
 
+    # Size check
+    content = await afbeelding.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=413, detail=f"Afbeelding te groot (max {MAX_IMAGE_SIZE // 1024 // 1024}MB)")
+
     # Opslaan in uploads/werkplan/<boring_id>/
     dest_dir = UPLOAD_DIR / "werkplan" / boring.id
     dest_dir.mkdir(parents=True, exist_ok=True)
     safe_filename = Path(afbeelding.filename).name
-    # Prefix met categorie voor uniekheid
     dest_path = dest_dir / f"{categorie}_{safe_filename}"
 
     with open(dest_path, "wb") as f:
-        shutil.copyfileobj(afbeelding.file, f)
+        f.write(content)
 
     # Verwijder bestaande afbeelding in dezelfde categorie (overschrijven)
     bestaande = (

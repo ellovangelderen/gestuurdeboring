@@ -1,13 +1,41 @@
+import logging
+import time
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.documents.router import router as documents_router
 from app.order.router import router as order_router
 from app.project.router import router as project_router
 
+# ── Logging setup ──
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("hdd")
+
+
+# ── Request logging middleware ──
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = time.time()
+        response = await call_next(request)
+        duration_ms = (time.time() - start) * 1000
+        if request.url.path not in ("/health", "/static"):
+            logger.info(
+                "%s %s %d %.0fms",
+                request.method, request.url.path, response.status_code, duration_ms,
+            )
+        return response
+
+
 app = FastAPI(title="HDD Ontwerp Platform", version="0.1.0")
+app.add_middleware(RequestLoggingMiddleware)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
