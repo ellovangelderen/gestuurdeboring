@@ -89,7 +89,18 @@ def import_vergunning_sheet(db: Session, ws, workspace_id: str = "gbt-workspace-
             amt2 = ws.cell(row=row_idx, column=10).value
             vergunning = str(ws.cell(row=row_idx, column=11).value or "-").strip()
             notitie = ws.cell(row=row_idx, column=12).value
-            locatie = str(ws.cell(row=row_idx, column=14).value or "").strip()  # Google Maps kolom = adres
+            locatie_raw = str(ws.cell(row=row_idx, column=14).value or "").strip()
+
+            # Als locatie een URL is, gebruik het als google_maps_url
+            # en haal adres uit ordernaam (bijv. "HS26V009 Nijbroek, Middendijk" → "Nijbroek, Middendijk")
+            google_maps_val = None
+            if locatie_raw.startswith("http"):
+                google_maps_val = locatie_raw
+                # Probeer adres uit ordernaam te halen (alles na eerste spatie)
+                parts = order_name.split(" ", 1)
+                locatie = parts[1] if len(parts) > 1 else ""
+            else:
+                locatie = locatie_raw
 
             # URLs
             pdok_url = ws.cell(row=row_idx, column=15).value
@@ -128,7 +139,7 @@ def import_vergunning_sheet(db: Session, ws, workspace_id: str = "gbt-workspace-
                 geleverd_op=geleverd_op,
                 vergunning=VERGUNNING_MAP.get(vergunning, "-"),
                 notitie=str(notitie) if notitie else None,
-                google_maps_url=locatie if locatie else None,
+                google_maps_url=google_maps_val or (locatie if locatie and not locatie.startswith("http") else None),
                 pdok_url=str(pdok_url) if pdok_url else None,
                 waterkering_url=str(waterkering_url) if waterkering_url else None,
                 oppervlaktewater_url=str(oppervlaktewater_url) if oppervlaktewater_url else None,

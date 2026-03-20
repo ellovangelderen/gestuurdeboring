@@ -92,7 +92,7 @@
           </div>
         </td>
 
-        <td class="col-locatie">{{ o.locatie or '—' }}</td>
+        <td class="col-locatie" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ o.locatie or '' }}">{{ o.locatie or '—' }}</td>
 
         <td class="col-klant">{{ o.klantcode or '—' }}</td>
 
