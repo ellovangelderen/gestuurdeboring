@@ -28,7 +28,7 @@ def download_dxf_legacy(
     return Response(
         content=dxf_bytes,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -46,7 +46,7 @@ def download_pdf_legacy(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

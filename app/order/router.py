@@ -1852,12 +1852,13 @@ def download_dxf_boring(
     dxf_bytes = generate_dxf(boring, order, db)
     ordernr = order.ordernummer or order.id[:8]
     rev = boring.revisie or 0
-    filename = f"{ordernr}-{boring.volgnummer:02d}-rev.{rev}.dxf"
+    naam = boring.naam or f"HDD{boring.volgnummer}"
+    filename = f"{ordernr}-{boring.volgnummer:02d} {naam}-rev.{rev}.dxf"
     from fastapi.responses import Response as Resp
     return Resp(
         content=dxf_bytes,
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        media_type="application/dxf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -1873,12 +1874,15 @@ def download_pdf_boring(
     boring = fetch_boring(order_id, volgnr, db)
     pdf_bytes = generate_pdf(boring, order, db=db)
     ordernr = order.ordernummer or order.id[:8]
-    filename = f"{ordernr}-{boring.volgnummer:02d}-rev.1.pdf"
+    rev = boring.revisie or 0
+    naam = boring.naam or f"HDD{boring.volgnummer}"
+    locatie = order.locatie or ""
+    filename = f"{ordernr}-{boring.volgnummer:02d} {naam} {locatie}-rev.{rev}.pdf"
     from fastapi.responses import Response as Resp
     return Resp(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
