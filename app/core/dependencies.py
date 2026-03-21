@@ -7,6 +7,8 @@ from app.core.database import get_db  # noqa: F401 — re-exported for routers
 _USER_WORKSPACE: dict[str, str] = {
     "martien": "gbt-workspace-001",
     "visser":  "gbt-workspace-001",
+    "sopa":    "gbt-workspace-001",
+    "lucas":   "gbt-workspace-001",
     "test":    "gbt-workspace-001",
 }
 

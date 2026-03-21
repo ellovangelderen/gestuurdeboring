@@ -21,7 +21,11 @@ def get_users() -> dict[str, str]:
     users = {
         "martien": settings.USER_MARTIEN_PASSWORD,
         "visser": settings.USER_VISSER_PASSWORD,
+        "sopa": settings.USER_SOPA_PASSWORD or settings.USER_MARTIEN_PASSWORD,
+        "lucas": settings.USER_LUCAS_PASSWORD or settings.USER_MARTIEN_PASSWORD,
     }
+    # Verwijder users zonder wachtwoord
+    users = {k: v for k, v in users.items() if v}
     if settings.ENV == "development" and settings.USER_TEST_PASSWORD:
         users["test"] = settings.USER_TEST_PASSWORD
     return users
