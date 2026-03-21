@@ -716,6 +716,13 @@ def trace_opslaan(
         order = fetch_order(order_id, db)
         ix, iy = xs[intree_idx], ys[intree_idx]
         order.pdok_url = genereer_pdok_url(ix, iy)
+        # Google Maps URL
+        try:
+            from app.geo.coords import rd_to_wgs84 as _r2w
+            _lat, _lon = _r2w(ix, iy)
+            order.google_maps_url = f"https://www.google.com/maps/@{_lat:.6f},{_lon:.6f},17z"
+        except Exception:
+            pass
         # Waterschap bepalen (externe call, falen is OK)
         ws_naam = bepaal_waterschap(ix, iy)
         ws_url = waterschap_kaart_url(ws_naam)
@@ -1226,6 +1233,30 @@ def vergunningscheck_pagina(
             "omschrijving": "Gebouwen, adressen, bouwjaar — check nabijheid bebouwing",
             "url": f"https://bagviewer.kadaster.nl/lvbag/bag-viewer/#?geometry.x={intree.RD_x:.2f}&geometry.y={intree.RD_y:.2f}&zoomlevel=7",
             "type": "kaart",
+        })
+
+        # Google Maps
+        links.append({
+            "naam": "Google Maps",
+            "omschrijving": "Luchtfoto, streetview, omgeving verkennen",
+            "url": f"https://www.google.com/maps/@{lat:.6f},{lon:.6f},17z",
+            "type": "kaart",
+        })
+
+        # RWS beheerzones
+        links.append({
+            "naam": "RWS Beheerzones Rijkswegen",
+            "omschrijving": "Rijkswaterstaat beheergrenzen — check of tracé in RWS-zone ligt",
+            "url": "https://geoweb.rijkswaterstaat.nl/ModuleViewer/?app=635b0d2325b642c38ad0c9c82da66ae1",
+            "type": "zonering",
+        })
+
+        # ProRail beperkingengebied
+        links.append({
+            "naam": "ProRail Beperkingengebied",
+            "omschrijving": "Spoorzone — check nabijheid spoor en beperkingen",
+            "url": "https://maps.prorail.nl/portal/home/webmap/viewer.html?url=https%3A%2F%2Fmaps.prorail.nl%2Farcgis%2Frest%2Fservices%2FBeperkingengebied%2FFeatureServer&source=sd",
+            "type": "zonering",
         })
 
         # Bodemloket

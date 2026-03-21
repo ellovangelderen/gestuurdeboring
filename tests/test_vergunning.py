@@ -57,6 +57,24 @@ def test_zonder_trace(client, workspace, db):
     assert "intree" in resp.text.lower()
 
 
+def test_google_maps_link(client, workspace, db):
+    _maak_boring(db, "order-vg-gm", "boring-vg-gm", "VGGM")
+    resp = client.get("/orders/order-vg-gm/boringen/1/vergunning", auth=AUTH)
+    assert "google.com/maps" in resp.text
+
+
+def test_rws_link(client, workspace, db):
+    _maak_boring(db, "order-vg-rws", "boring-vg-rws", "VGRWS")
+    resp = client.get("/orders/order-vg-rws/boringen/1/vergunning", auth=AUTH)
+    assert "rijkswaterstaat" in resp.text.lower()
+
+
+def test_prorail_link(client, workspace, db):
+    _maak_boring(db, "order-vg-pr", "boring-vg-pr", "VGPR")
+    resp = client.get("/orders/order-vg-pr/boringen/1/vergunning", auth=AUTH)
+    assert "prorail" in resp.text.lower()
+
+
 def test_link_in_brondata(client, workspace, db):
     _maak_boring(db, "order-vg-g", "boring-vg-g", "VGG")
     resp = client.get("/orders/order-vg-g/boringen/1/brondata", auth=AUTH)

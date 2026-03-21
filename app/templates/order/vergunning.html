@@ -43,7 +43,7 @@
       </a>
       <div style="font-size: 0.85em; color: #666;">{{ link.omschrijving }}</div>
     </div>
-    <a href="{{ link.url }}" target="_blank" rel="noopener" class="btn btn-sm {% if link.type == 'primair' %}btn-primary{% else %}btn-secondary{% endif %}">
+    <a href="{{ link.url }}" target="_blank" rel="noopener" class="btn btn-sm {% if link.type == 'primair' %}btn-primary{% elif link.type == 'zonering' %}btn-primary{% else %}btn-secondary{% endif %}">
       Open
     </a>
   </div>
