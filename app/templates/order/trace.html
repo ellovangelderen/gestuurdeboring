@@ -127,13 +127,55 @@ function updateKaart(punten) {
   punten.forEach((p, i) => {
     if (p.x && p.y) {
       const wgs = rdToWGS84(parseFloat(p.x), parseFloat(p.y));
-      const marker = L.marker([wgs.lat, wgs.lon]).addTo(map)
-        .bindPopup(p.label || ('Punt ' + (i+1)));
+      const marker = L.marker([wgs.lat, wgs.lon], {
+        draggable: true,
+        title: p.label || ('Punt ' + (i+1)),
+      }).addTo(map).bindPopup(p.label || ('Punt ' + (i+1)));
+
+      // Bij verslepen: coördinaten bijwerken in formulier
+      marker.on('dragend', function(e) {
+        _justDragged = true;
+        setTimeout(() => { _justDragged = false; }, 100);
+        const newPos = e.target.getLatLng();
+        const rd = wgs84ToRD(newPos.lat, newPos.lng);
+        // Update Alpine data
+        const formEl = document.querySelector('[x-data]');
+        const data = formEl._x_dataStack ? formEl._x_dataStack[0] : (formEl.__x ? formEl.__x.$data : null);
+        if (data) {
+          data.punten[i].x = rd.x;
+          data.punten[i].y = rd.y;
+          data.actief = i;
+          // Polyline bijwerken
+          updatePolyline(data.punten);
+        }
+      });
+
+      // Klik op marker = selecteer dit punt
+      marker.on('click', function() {
+        const formEl = document.querySelector('[x-data]');
+        const data = formEl._x_dataStack ? formEl._x_dataStack[0] : (formEl.__x ? formEl.__x.$data : null);
+        if (data) data.actief = i;
+      });
+
       markers.push(marker);
       coords.push([wgs.lat, wgs.lon]);
     }
   });
 
+  if (coords.length >= 2) {
+    polyline = L.polyline(coords, {color: 'red', weight: 3}).addTo(map);
+  }
+}
+
+function updatePolyline(punten) {
+  if (polyline) { map.removeLayer(polyline); polyline = null; }
+  const coords = [];
+  punten.forEach(p => {
+    if (p.x && p.y) {
+      const wgs = rdToWGS84(parseFloat(p.x), parseFloat(p.y));
+      coords.push([wgs.lat, wgs.lon]);
+    }
+  });
   if (coords.length >= 2) {
     polyline = L.polyline(coords, {color: 'red', weight: 3}).addTo(map);
   }
@@ -199,15 +241,14 @@ if (bestaandePunten.length > 0) {
 }
 
 // Kaart-klik → coordinaten overnemen in het actieve punt
+// (niet triggeren als we net een marker versleept hebben)
+let _justDragged = false;
 map.on('click', function(e) {
+  if (_justDragged) { _justDragged = false; return; }
   const rd = wgs84ToRD(e.latlng.lat, e.latlng.lng);
-  // Alpine component ophalen via het form element
   const formEl = document.querySelector('[x-data]');
-  if (formEl && formEl.__x) {
-    formEl.__x.$data.zetCoordinaten(rd.x, rd.y);
-  } else if (formEl && formEl._x_dataStack) {
-    // Alpine v3
-    const data = formEl._x_dataStack[0];
+  const data = formEl._x_dataStack ? formEl._x_dataStack[0] : (formEl.__x ? formEl.__x.$data : null);
+  if (data) {
     data.zetCoordinaten(rd.x, rd.y);
   }
 });
