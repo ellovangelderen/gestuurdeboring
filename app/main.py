@@ -39,13 +39,30 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Startup: database tabellen aanmaken."""
+    """Startup: ad-hoc migraties + database tabellen aanmaken."""
     from app.core.database import engine, Base
+    from sqlalchemy import text
     import app.core.models       # noqa: F401
     import app.project.models    # noqa: F401
     import app.rules.models      # noqa: F401
+
+    # Ad-hoc kolom migraties (SQLite heeft geen IF NOT EXISTS bij ALTER TABLE)
+    migrations = [
+        "ALTER TABLE orders ADD COLUMN vergunning_checklist TEXT",
+        "ALTER TABLE boringen ADD COLUMN revisie INTEGER DEFAULT 0",
+        "ALTER TABLE trace_punten ADD COLUMN variant INTEGER DEFAULT 0",
+    ]
+    with engine.connect() as conn:
+        for stmt in migrations:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+                logger.info("Migration OK: %s", stmt[:50])
+            except Exception:
+                pass  # kolom bestaat al
+
     Base.metadata.create_all(bind=engine)
-    logger.info("HDD: Database tables created")
+    logger.info("HDD: Database ready")
     yield
     logger.info("HDD: Shutting down")
 
