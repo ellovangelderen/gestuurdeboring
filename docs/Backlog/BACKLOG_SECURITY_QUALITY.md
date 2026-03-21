@@ -215,6 +215,8 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 | 🟡 NICE | SEC-9 | Magic bytes check | 15 min |
 | 🟡 NICE | QUA-7 | Audit trail | 2 uur |
 | 🟡 NICE | QUA-8 | OSM tile caching | 1-2 uur |
+| 🟠 BUG | BG-1 | Download bestanden zonder extensie | ✅ DONE |
+| 🟠 BUG | BG-2 | Railway 500 ontbrekende DB kolommen | ✅ DONE (startup migraties) |
 
 **Totaal MUST FIX effort: ~3 uur**
 **Totaal SHOULD FIX effort: ~8-10 uur**
