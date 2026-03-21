@@ -66,6 +66,7 @@
 
 <script>
 const bestaandePunten = {{ punten_wgs84 | tojson }};
+const klicLeidingen = {{ klic_geojson | tojson }};
 
 // RD New projectie (EPSG:28992)
 proj4.defs("EPSG:28992", "+proj=sterea +lat_0=52.15616055555555 +lon_0=5.38763888888889 +k=0.9999079 +x_0=155000 +y_0=463000 +ellps=bessel +towgs84=565.2369,50.0087,465.658,-0.406857,0.350733,-1.87035,4.0812 +units=m +no_defs");
@@ -102,15 +103,29 @@ const bgtLayer = L.tileLayer('https://service.pdok.nl/lv/bgt/wmts/v1_0/standaard
   minZoom: 13,
 });
 
-// BRT als standaard, BGT als overlay voor detail bij inzoomen
+// KLIC leidingen als polylines
+var klicLayer = L.layerGroup();
+if (klicLeidingen && klicLeidingen.length > 0) {
+  klicLeidingen.forEach(function(l) {
+    if (l.coords && l.coords.length >= 2) {
+      L.polyline(l.coords, {color: l.kleur, weight: 2, opacity: 0.7})
+        .addTo(klicLayer)
+        .bindPopup(l.label);
+    }
+  });
+}
+
+// BRT als standaard, BGT + KLIC als overlay
 brtLayer.addTo(map);
-bgtLayer.addTo(map);  // BGT standaard aan (zichtbaar vanaf zoom 13)
+bgtLayer.addTo(map);
+if (klicLeidingen.length > 0) klicLayer.addTo(map);
 L.control.layers({
   "BRT Topografie": brtLayer,
   "Luchtfoto": luchtfotoLayer,
   "OpenStreetMap": osmLayer,
 }, {
   "BGT detail (zoom 13+)": bgtLayer,
+  "KLIC leidingen": klicLayer,
 }).addTo(map);
 
 // Markers en lijn bijhouden

@@ -34,6 +34,8 @@ class Order(Base):
     waterkering_url = Column(String, nullable=True)
     oppervlaktewater_url = Column(String, nullable=True)
     peil_url = Column(String, nullable=True)
+    # Vergunning checklist (JSON: {"omgevingsloket": true, "gemeente": false, ...})
+    vergunning_checklist = Column(Text, nullable=True)
 
     # Relaties
     boringen = relationship("Boring", back_populates="order", cascade="all, delete-orphan")

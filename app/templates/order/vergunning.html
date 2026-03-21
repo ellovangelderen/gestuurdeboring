@@ -50,17 +50,21 @@
   {% endfor %}
 </section>
 
-<!-- Checklist -->
+<!-- Checklist (opgeslagen in DB) -->
 <section class="card" style="margin-bottom: 1rem;">
   <h2>Checklist vergunningen</h2>
-  <div style="font-size: 0.9em; line-height: 1.8;">
-    <label><input type="checkbox"> Omgevingsloket gecontroleerd — regels op de kaart bekeken</label><br>
-    <label><input type="checkbox"> Gemeente — gemeentelijke regels/APV gecontroleerd</label><br>
-    <label><input type="checkbox"> Waterschap — waterkering/watergang beschermingszone gecontroleerd</label><br>
-    <label><input type="checkbox"> Provincie — provinciale weg/water gecontroleerd</label><br>
-    <label><input type="checkbox"> RWS — rijksweg/rijkswater gecontroleerd</label><br>
-    <label><input type="checkbox"> Bodemloket — geen verontreinigingen op locatie</label><br>
-  </div>
+  <form method="post" action="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/vergunning/checklist">
+    <div style="font-size: 0.9em; line-height: 2;">
+      <label><input type="checkbox" name="omgevingsloket" {% if checklist.omgevingsloket %}checked{% endif %}> Omgevingsloket gecontroleerd</label><br>
+      <label><input type="checkbox" name="gemeente" {% if checklist.gemeente %}checked{% endif %}> Gemeente — gemeentelijke regels/APV</label><br>
+      <label><input type="checkbox" name="waterschap" {% if checklist.waterschap %}checked{% endif %}> Waterschap — waterkering/watergang</label><br>
+      <label><input type="checkbox" name="provincie" {% if checklist.provincie %}checked{% endif %}> Provincie — provinciale weg/water</label><br>
+      <label><input type="checkbox" name="rws" {% if checklist.rws %}checked{% endif %}> RWS — rijksweg/rijkswater</label><br>
+      <label><input type="checkbox" name="prorail" {% if checklist.prorail %}checked{% endif %}> ProRail — spoorzone</label><br>
+      <label><input type="checkbox" name="bodemloket" {% if checklist.bodemloket %}checked{% endif %}> Bodemloket — geen verontreinigingen</label><br>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Checklist opslaan</button>
+  </form>
 </section>
 
 {% endif %}

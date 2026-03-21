@@ -650,6 +650,45 @@ def trace_form(
             })
     except Exception:
         pass
+    # KLIC leidingen als GeoJSON voor kaartoverlay
+    klic_geojson = []
+    try:
+        from app.geo.coords import rd_to_wgs84 as _r2w
+        from shapely import from_wkt
+        laatste_upload = None
+        if order.klic_uploads:
+            uploads = [u for u in order.klic_uploads if u.verwerkt]
+            if uploads:
+                laatste_upload = sorted(uploads, key=lambda u: u.upload_datum)[-1]
+        if laatste_upload:
+            klic_leidingen = (
+                db.query(KLICLeiding)
+                .filter_by(klic_upload_id=laatste_upload.id)
+                .all()
+            )
+            KLIC_KLEUREN = {
+                "LAAGSPANNING": "#BE9600", "MIDDENSPANNING": "#00823C",
+                "HOOGSPANNING": "#DC0000", "LD-GAS": "#A05000",
+                "WATERLEIDING": "#0055AA", "RIOOL-VRIJVERVAL": "#7030A0",
+                "PERSRIOOL": "#7030A0",
+            }
+            for l in klic_leidingen:
+                if not l.geometrie_wkt:
+                    continue
+                try:
+                    geom = from_wkt(l.geometrie_wkt)
+                    if hasattr(geom, 'coords') and len(list(geom.coords)) >= 2:
+                        wgs_coords = [list(_r2w(c[0], c[1])) for c in geom.coords]
+                        klic_geojson.append({
+                            "coords": wgs_coords,
+                            "kleur": KLIC_KLEUREN.get(l.dxf_laag, "#999"),
+                            "label": f"{l.beheerder or ''} - {l.leidingtype or ''}",
+                        })
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
     return templates.TemplateResponse(
         "order/trace.html",
         {
@@ -657,6 +696,7 @@ def trace_form(
             "order": order,
             "boring": boring,
             "punten_wgs84": punten_wgs84,
+            "klic_geojson": klic_geojson,
             "user": user,
         },
     )
@@ -1277,8 +1317,50 @@ def vergunningscheck_pagina(
             "links": links,
             "intree": intree,
             "vergunning_status": order.vergunning or "-",
+            "checklist": _parse_checklist(order.vergunning_checklist),
         },
     )
+
+
+@router.post("/{order_id}/boringen/{volgnr}/vergunning/checklist")
+def vergunning_checklist_opslaan(
+    order_id: str,
+    volgnr: int,
+    omgevingsloket: str = Form(""),
+    gemeente: str = Form(""),
+    waterschap: str = Form(""),
+    provincie: str = Form(""),
+    rws: str = Form(""),
+    bodemloket: str = Form(""),
+    prorail: str = Form(""),
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sla vergunning checklist op."""
+    import json
+    order = fetch_order(order_id, db)
+    checklist = {
+        "omgevingsloket": omgevingsloket == "on",
+        "gemeente": gemeente == "on",
+        "waterschap": waterschap == "on",
+        "provincie": provincie == "on",
+        "rws": rws == "on",
+        "bodemloket": bodemloket == "on",
+        "prorail": prorail == "on",
+    }
+    order.vergunning_checklist = json.dumps(checklist)
+    db.commit()
+    return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/vergunning", status_code=303)
+
+
+def _parse_checklist(json_str: str | None) -> dict:
+    if not json_str:
+        return {}
+    try:
+        import json
+        return json.loads(json_str)
+    except Exception:
+        return {}
 
 
 # ── Facturatie (concept) ───────────────────────────────────────────────────
