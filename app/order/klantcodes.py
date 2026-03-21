@@ -44,6 +44,9 @@ VERGUNNING_TYPES = [
     {"value": "P", "label": "Provincie"},
     {"value": "W", "label": "Waterschap"},
     {"value": "R", "label": "Rijkswaterstaat"},
+    {"value": "PR", "label": "ProRail"},
+    {"value": "G", "label": "Gemeente"},
+    {"value": "AO", "label": "Asset owner / beheerder"},
 ]
 
 

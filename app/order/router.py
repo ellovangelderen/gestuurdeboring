@@ -526,7 +526,7 @@ def order_update(
     locatie: str = Form(""),
     klantcode: str = Form(""),
     opdrachtgever: str = Form(""),
-    vergunning: str = Form("-"),
+    vergunning: list[str] = Form([]),
     tekenaar: str = Form("martien"),
     akkoord_contact: str = Form(""),
     deadline: str = Form(""),
@@ -543,7 +543,7 @@ def order_update(
     order.locatie = locatie.strip() or None
     order.klantcode = klantcode or None
     order.opdrachtgever = opdrachtgever.strip() or None
-    order.vergunning = vergunning
+    order.vergunning = ",".join(vergunning) if vergunning else "-"
     order.tekenaar = tekenaar.strip() or "martien"
     order.akkoord_contact = akkoord_contact.strip() or None
     # Parse deadline

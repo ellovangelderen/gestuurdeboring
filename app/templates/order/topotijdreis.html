@@ -37,6 +37,28 @@
 
 {% endif %}
 
+<!-- Workflow uitleg -->
+<details style="margin-top: 1rem;" open>
+  <summary style="cursor: pointer; font-weight: bold; font-size: 0.95em;">Waar let je op?</summary>
+  <div style="font-size: 0.9em; line-height: 1.7; padding: 0.75rem; background: #f8f9fa; border-radius: 4px; margin-top: 0.5rem;">
+    <p><strong>Doel:</strong> Vroegtijdig detecteren of er ondergrondse obstakels te verwachten zijn door gesloopte objecten waarvan funderingen mogelijk nog aanwezig zijn.</p>
+    <p style="margin-top: 0.5rem;"><strong>Zoek naar:</strong></p>
+    <ul style="margin: 0.25rem 0 0.5rem 1.5rem;">
+      <li>Gesloopte gebouwen of bruggen (heipalen kunnen nog in de grond zitten)</li>
+      <li>Gedempte watergangen of sloten (ander grondtype dan verwacht)</li>
+      <li>Voormalige spoorlijnen of tramverbindingen (fundering, rails)</li>
+      <li>Verplaatste of verbreedde wegen en viaducten</li>
+    </ul>
+    <p><strong>Voorbeelden uit de praktijk:</strong></p>
+    <ul style="margin: 0.25rem 0 0.5rem 1.5rem;">
+      <li><em>Viaduct A2:</em> 20 jaar geleden verbreed — oud viaduct gesloopt maar heipalen mogelijk nog aanwezig. Locatie niet meer te achterhalen — ruim omheen ontworpen.</li>
+      <li><em>Boring gestopt op 9m en 12m:</em> Topotijdreis toonde achteraf water en een brug op die locatie. Waarschijnlijk gestuit op fundering van gesloopte brug.</li>
+      <li><em>Boring langs tunnel:</em> Stoomtramverbinding en brug uit 1912 zichtbaar. Inschatting diepte heipalen — ruim onderdoor geboord.</li>
+    </ul>
+    <p><strong>Actie:</strong> Als je funderingsresten vermoedt, pas het tracé aan zodat je er ruim omheen boort. Vermeld de bevinding in het werkplan (sectie 2.2 Historie).</p>
+  </div>
+</details>
+
 <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
   <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}/brondata" class="btn btn-secondary">&larr; Brondata</a>
   <a href="/orders/{{ order.id }}/boringen/{{ boring.volgnummer }}" class="btn btn-secondary">Boring detail</a>

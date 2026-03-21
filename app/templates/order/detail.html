@@ -14,7 +14,7 @@
   <dl>
     <dt>Locatie</dt><dd>{{ order.locatie or '—' }}</dd>
     <dt>Klant</dt><dd>{{ order.klantcode or '—' }}{% if order.opdrachtgever %} — {{ order.opdrachtgever }}{% endif %}</dd>
-    <dt>Vergunning</dt><dd>{{ order.vergunning or '—' }}</dd>
+    <dt>Vergunning</dt><dd>{{ order.vergunning.replace(',', ', ') if order.vergunning and order.vergunning != '-' else '—' }}</dd>
     <dt>Tekenaar</dt><dd>{{ order.tekenaar or '—' }}</dd>
     <dt>Akkoord contact</dt><dd>{{ order.akkoord_contact or '—' }}</dd>
     <dt>Ontvangen</dt><dd>{{ order.ontvangen_op.strftime('%d-%m-%Y') }}</dd>
@@ -103,13 +103,18 @@
     <label>Opdrachtgever
       <input type="text" name="opdrachtgever" value="{{ order.opdrachtgever or '' }}">
     </label>
-    <label>Vergunning
-      <select name="vergunning">
-        {% for v in vergunning_types %}
-        <option value="{{ v.value }}" {% if order.vergunning == v.value %}selected{% endif %}>{{ v.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <fieldset style="border: 1px solid #ddd; padding: 0.5rem; border-radius: 4px;">
+      <legend style="font-size: 0.9em;">Vergunning (meerdere mogelijk)</legend>
+      {% for v in vergunning_types %}
+      {% if v.value != '-' %}
+      <label style="display: inline-block; margin-right: 1rem; font-weight: normal;">
+        <input type="checkbox" name="vergunning" value="{{ v.value }}"
+               {% if v.value in (order.vergunning or '').split(',') %}checked{% endif %}>
+        {{ v.label }}
+      </label>
+      {% endif %}
+      {% endfor %}
+    </fieldset>
     <label>Tekenaar
       <input type="text" name="tekenaar" value="{{ order.tekenaar or '' }}">
     </label>
