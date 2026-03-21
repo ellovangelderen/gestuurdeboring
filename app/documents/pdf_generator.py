@@ -160,12 +160,31 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         f'transform="rotate(-90, 8, {margin_top + 10})">m NAP</text>'
     )
 
-    # ── Maaiveldlijn (groen, gestreept) ──
-    svg_parts.append(
-        f'<line x1="{tx(0):.1f}" y1="{tz(mv.MVin_NAP_m):.1f}" '
-        f'x2="{tx(L_totaal):.1f}" y2="{tz(mv.MVuit_NAP_m):.1f}" '
-        f'stroke="#5a8a3c" stroke-width="2.5" stroke-dasharray="8,4"/>'
-    )
+    # ── Maaiveldlijn (groen) ──
+    # Probeer AHN5 profiel op te halen (golvende lijn)
+    maaiveld_profiel = None
+    try:
+        from app.geo.ahn5 import haal_maaiveld_profiel
+        trace_coords = [(p.RD_x, p.RD_y) for p in punten]
+        maaiveld_profiel = haal_maaiveld_profiel(trace_coords, interval_m=1.0)
+        # Filter None-waarden
+        maaiveld_profiel = [(a, x, y, z) for a, x, y, z in maaiveld_profiel if z is not None]
+    except Exception:
+        pass
+
+    if maaiveld_profiel and len(maaiveld_profiel) >= 2:
+        # Golvende maaiveldlijn uit AHN5 data
+        mv_pts = " ".join(f"{tx(p[0]):.1f},{tz(p[3]):.1f}" for p in maaiveld_profiel)
+        svg_parts.append(
+            f'<polyline points="{mv_pts}" fill="none" stroke="#5a8a3c" stroke-width="2.5"/>'
+        )
+    else:
+        # Fallback: rechte lijn van MVin naar MVuit
+        svg_parts.append(
+            f'<line x1="{tx(0):.1f}" y1="{tz(mv.MVin_NAP_m):.1f}" '
+            f'x2="{tx(L_totaal):.1f}" y2="{tz(mv.MVuit_NAP_m):.1f}" '
+            f'stroke="#5a8a3c" stroke-width="2.5" stroke-dasharray="8,4"/>'
+        )
 
     # ── Boorlijn (rood, dik) ──
     # Visuele benadering: vloeiende curve van maaiveld naar diepte
