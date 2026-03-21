@@ -1568,6 +1568,22 @@ def gwsw_riool_pagina(
                 ),
             }
 
+    # Genereer situatiekaart voor bij de gemeente-mail
+    gemeente_kaart_url = None
+    if gemeente_mail and intree:
+        try:
+            from app.documents.werkplan_generator import _generate_werkplan_kaart
+            kaart_path = _generate_werkplan_kaart(boring)
+            if kaart_path:
+                gemeente_kaart_url = f"/static/tmp/{Path(kaart_path).name}"
+                # Kopieer naar static/tmp zodat de browser het kan laden
+                static_tmp = Path("static/tmp")
+                static_tmp.mkdir(parents=True, exist_ok=True)
+                import shutil as _sh
+                _sh.copy2(kaart_path, static_tmp / Path(kaart_path).name)
+        except Exception:
+            pass
+
     return templates.TemplateResponse(
         "order/gwsw.html",
         {
@@ -1580,6 +1596,7 @@ def gwsw_riool_pagina(
             "met_bob": [l for l in leidingen if l.heeft_bob],
             "zonder_bob": [l for l in leidingen if not l.heeft_bob],
             "gemeente_mail": gemeente_mail,
+            "gemeente_kaart_url": gemeente_kaart_url,
         },
     )
 

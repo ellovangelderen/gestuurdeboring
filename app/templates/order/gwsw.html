@@ -85,6 +85,14 @@
   <h2>Gemeente-mail concept</h2>
   <p style="font-size: 0.85em; color: #666;">Kopieer en verstuur via je mailprogramma naar de betreffende gemeente.</p>
 
+  {% if gemeente_kaart_url %}
+  <div style="margin-bottom: 1rem;">
+    <label style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase;">Situatiekaart (bijvoegen bij mail)</label>
+    <img src="{{ gemeente_kaart_url }}" style="width: 100%; max-width: 500px; border: 1px solid #ddd; border-radius: 4px; display: block; margin-top: 0.25rem;">
+    <p style="font-size: 0.75em; color: #999; margin-top: 0.25rem;">Rechtermuisklik → Afbeelding opslaan, dan bijvoegen bij de mail.</p>
+  </div>
+  {% endif %}
+
   <div style="margin-bottom: 0.75rem;">
     <label style="font-size: 0.8em; font-weight: 600; color: #555; text-transform: uppercase;">Onderwerp</label>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
