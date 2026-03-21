@@ -194,32 +194,21 @@ Martien's feedback is verdeeld in 12 onderwerpen. Hieronder per punt:
 
 ## Prioritering
 
-### 🔴 Direct aanpakken
-| # | Item | Effort |
+### Status per 21 maart 2026
+
+| # | Item | Status |
 |---|------|--------|
-| F4 | Punt verslepen op kaart | 1-2 uur |
-| F11 | Railway 401 fix verifiëren | 15 min |
-
-### 🟠 Korte termijn
-| # | Item | Effort |
-|---|------|--------|
-| F6a | Google Maps + RWS + ProRail links | 30 min |
-| F2a | RWS/ProRail links op vergunningscheck | 30 min |
-| F8 | Kaart-image in gemeente-mail | 1 uur |
-| F5 | AHN maaiveldprofiel langs boorlijn | 3-4 uur |
-| F4b | KLIC lagen op trace-kaart | 2-3 uur |
-
-### 🟡 Later
-| # | Item |
-|---|------|
-| F1 | Vergunning multi-select |
-| F2b | Automatische zonering-detectie |
-| F3 | Omgevingsloket standaard-antwoorden |
-| F10 | Checklist opslaan in DB |
-| F12 | Topotijdreis workflow documentatie |
-
-### ✅ Geen actie
-| # | Item | Reden |
-|---|------|-------|
-| F7 | Doorsneden | Martien: "later" |
+| F4 | Punt verslepen op kaart | ✅ Done |
+| F4b | KLIC lagen op trace-kaart | ✅ Done |
+| F5 | AHN maaiveldprofiel langs boorlijn (per 1m) | ✅ Done |
+| F6a | Google Maps + RWS + ProRail links | ✅ Done |
+| F2a | RWS/ProRail links op vergunningscheck | ✅ Done |
+| F8 | Kaart-image in gemeente-mail | ✅ Done |
+| F10 | Checklist opslaan in DB | ✅ Done |
+| F11 | Railway 401 fix | ✅ Done (verse checkout) |
+| F1 | Vergunning multi-select | 🟡 Later (Martien: "aanzien") |
+| F2b | Automatische zonering-detectie | 🟡 Later |
+| F3 | Omgevingsloket standaard-antwoorden | 🟡 Kenniswerk |
+| F12 | Topotijdreis workflow documentatie | 🟡 Later |
+| F7 | Doorsneden | Geparkeerd (Martien: "later") |
 | F9 | Sonderingen bronverificatie | Kenniswerk |
