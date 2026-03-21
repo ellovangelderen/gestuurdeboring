@@ -72,3 +72,65 @@ def test_sec3_numpy_importeerbaar():
     """numpy is importeerbaar (nodig voor AHN5)."""
     import numpy
     assert hasattr(numpy, "ndarray")
+
+
+# ── SEC-4: Rate limiting op auth failures ──
+
+def test_sec4_rate_limit_na_10_pogingen(client):
+    """Na 10 mislukte pogingen → 429 Too Many Requests."""
+    from app.core.auth import _auth_failures
+    # Reset
+    _auth_failures.clear()
+
+    # 10 mislukte pogingen
+    for i in range(10):
+        resp = client.get("/orders/", auth=("brute", "wrong"))
+        assert resp.status_code == 401
+
+    # 11e poging → 429
+    resp = client.get("/orders/", auth=("brute", "wrong"))
+    assert resp.status_code == 429
+
+    # Cleanup
+    _auth_failures.clear()
+
+
+def test_sec4_succesvolle_login_reset_counter(client, workspace):
+    """Succesvolle login reset de failure counter."""
+    from app.core.auth import _auth_failures
+    _auth_failures.clear()
+
+    # 5 mislukte pogingen
+    for _ in range(5):
+        client.get("/orders/", auth=("martien", "fout"))
+
+    assert len(_auth_failures.get("martien", [])) == 5
+
+    # Succesvolle login
+    resp = client.get("/orders/", auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+
+    # Counter gereset
+    assert len(_auth_failures.get("martien", [])) == 0
+    _auth_failures.clear()
+
+
+# ── SEC-6: Lock file bestaat ──
+
+def test_sec6_lockfile_bestaat():
+    """requirements.lock bestaat."""
+    from pathlib import Path
+    lock = Path("requirements.lock")
+    assert lock.exists(), "requirements.lock ontbreekt"
+    content = lock.read_text()
+    assert "fastapi" in content.lower()
+
+
+# ── QUA-4: Lifespan ipv on_startup ──
+
+def test_qua4_geen_deprecated_on_event():
+    """main.py gebruikt lifespan, niet on_event('startup')."""
+    from pathlib import Path
+    main_py = Path("app/main.py").read_text()
+    assert "on_event" not in main_py, "on_event is deprecated — gebruik lifespan"
+    assert "lifespan" in main_py

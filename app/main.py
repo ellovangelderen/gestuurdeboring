@@ -34,8 +34,33 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(title="HDD Ontwerp Platform", version="0.1.0")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Startup: database tabellen aanmaken."""
+    from app.core.database import engine, Base
+    import app.core.models       # noqa: F401
+    import app.project.models    # noqa: F401
+    import app.rules.models      # noqa: F401
+    Base.metadata.create_all(bind=engine)
+    logger.info("HDD: Database tables created")
+    yield
+    logger.info("HDD: Shutting down")
+
+
+app = FastAPI(title="HDD Ontwerp Platform", version="0.1.0", lifespan=lifespan)
 app.add_middleware(RequestLoggingMiddleware)
+
+# ── Rate limiting ──
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -77,17 +102,6 @@ async def server_error(request: Request, exc):
         "titel": "Er ging iets mis",
         "bericht": "Er is een onverwachte fout opgetreden. Probeer het opnieuw of neem contact op.",
     }, status_code=500)
-
-
-@app.on_event("startup")
-def on_startup():
-    """Create database tables on startup if they don't exist."""
-    from app.core.database import engine, Base
-    import app.core.models       # noqa: F401
-    import app.project.models    # noqa: F401
-    import app.rules.models      # noqa: F401
-    Base.metadata.create_all(bind=engine)
-    print("HDD: Database tables created")
 
 
 @app.get("/health")

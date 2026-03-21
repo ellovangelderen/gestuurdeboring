@@ -751,13 +751,14 @@ def generate_pdf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
 
     template = _env.get_template("tekening.html")
     html_str = template.render(**context)
-    pdf_bytes = HTML(string=html_str, base_url="/").write_pdf()
-
-    # Cleanup alle tijdelijke bestanden
-    for f in tmpfiles:
-        try:
-            os.unlink(f)
-        except OSError:
-            pass
+    try:
+        pdf_bytes = HTML(string=html_str, base_url="/").write_pdf()
+    finally:
+        # Cleanup alle tijdelijke bestanden — ook bij crash
+        for f in tmpfiles:
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
 
     return pdf_bytes

@@ -196,19 +196,19 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 
 ## Overzicht per prioriteit
 
-| Prio | ID | Item | Effort |
+| Prio | ID | Item | Status |
 |------|-----|------|--------|
-| 🔴 MUST | SEC-1 | File upload size limit | 15 min |
-| 🔴 MUST | SEC-2 | Logging toevoegen | 2-3 uur |
-| 🔴 MUST | SEC-3 | tifffile/numpy in requirements | 5 min |
-| 🟠 SHOULD | SEC-4 | Rate limiting login | 30 min |
-| 🟠 SHOULD | SEC-5 | CSRF bescherming | 1-2 uur |
-| 🟠 SHOULD | SEC-6 | Dependency lock file | 15 min |
-| 🟠 SHOULD | SEC-7 | Auth failure logging | 15 min |
-| 🟠 SHOULD | QUA-1 | Split god router | 4-6 uur |
-| 🟠 SHOULD | QUA-2 | Temp file cleanup | 30 min |
-| 🟠 SHOULD | QUA-3 | Alembic migraties | 1 uur |
-| 🟡 NICE | QUA-4 | Deprecated on_startup | 15 min |
+| 🔴 MUST | SEC-1 | File upload size limit | ✅ DONE |
+| 🔴 MUST | SEC-2 | Logging toevoegen | ✅ DONE |
+| 🔴 MUST | SEC-3 | tifffile/numpy in requirements | ✅ DONE |
+| 🟠 SHOULD | SEC-4 | Rate limiting login | ✅ DONE |
+| 🟠 SHOULD | SEC-5 | CSRF bescherming | Open |
+| 🟠 SHOULD | SEC-6 | Dependency lock file | ✅ DONE |
+| 🟠 SHOULD | SEC-7 | Auth failure logging | ✅ DONE (in SEC-2) |
+| 🟠 SHOULD | QUA-1 | Split god router | Open |
+| 🟠 SHOULD | QUA-2 | Temp file cleanup | ✅ DONE |
+| 🟠 SHOULD | QUA-3 | Alembic migraties | Open |
+| 🟡 NICE | QUA-4 | Deprecated on_startup | ✅ DONE |
 | 🟡 NICE | QUA-5 | Pydantic schemas | 4+ uur |
 | 🟡 NICE | QUA-6 | Fetch dependency | 1 uur |
 | 🟡 NICE | SEC-8 | IDOR ownership check | 15 min |
