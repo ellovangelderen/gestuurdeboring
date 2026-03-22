@@ -569,3 +569,54 @@ Walking Skeleton (DONE)
   │
   └─ [1] Werkplan generator (onafhankelijk, kan parallel)
 ```
+
+---
+
+## Nieuwe items (22 maart 2026)
+
+### UX-1 — Handleiding / Help pagina
+**Waarde:** Gebruiker kan zelfstandig werken zonder uitleg
+**Prioriteit:** Middel
+**Effort:** 2-3 uur
+**Beschrijving:**
+Aparte "Help" tab naast Orders en Admin. Server-side HTML (geen externe docs).
+Secties:
+1. Inloggen + uitloggen
+2. Orders aanmaken + beheren
+3. Boring invoeren (trace, maaiveld, doorsneden)
+4. PDF + DXF downloaden
+5. KLIC uploaden + conflictcheck
+6. Admin panel (klanten, machines, eisenprofielen, gebruikers)
+
+Doorzoekbaar via Ctrl+F (één pagina). Altijd up-to-date met huidige versie.
+
+---
+
+### OPS-1 — Automatische backup naar Cloudflare R2
+**Waarde:** Data veiligheid — 357 orders op productie mogen niet verloren gaan
+**Prioriteit:** Hoog
+**Effort:** 2-3 uur
+**Beschrijving:**
+Dagelijkse automatische backup van SQLite DB + logo's naar Cloudflare R2 (S3-compatible).
+- `boto3` library voor R2 API
+- 3 env vars: `R2_ENDPOINT`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`
+- Railway cron job: dagelijks 02:00 UTC
+- Admin knop voor handmatige on-demand backup
+- Retentie: laatste 30 backups bewaren, oudere verwijderen
+- Backup status zichtbaar op admin dashboard
+
+---
+
+### OPS-2 — Disaster recovery procedure
+**Waarde:** Binnen 15 min terug online na dataverlies
+**Prioriteit:** Hoog (na OPS-1)
+**Effort:** 1-2 uur
+**Afhankelijk van:** OPS-1 (backups moeten bestaan)
+**Beschrijving:**
+Gedocumenteerde en geteste restore procedure:
+- Restore script: download laatste backup uit R2 → kopieer naar volume
+- Stap-voor-stap guide in deployment docs
+- Test restore op staging (bewijs dat het werkt)
+- Recovery Time Objective (RTO): < 15 minuten
+- Recovery Point Objective (RPO): < 24 uur (dagelijkse backup)
+
