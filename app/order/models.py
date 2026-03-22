@@ -91,6 +91,9 @@ class Boring(Base):
     asbuilt_punten = relationship("AsBuiltPunt", back_populates="boring",
                                    order_by="AsBuiltPunt.volgorde",
                                    cascade="all, delete-orphan")
+    profiel_punten = relationship("ProfielPunt", back_populates="boring",
+                                   order_by="ProfielPunt.volgorde",
+                                   cascade="all, delete-orphan")
 
     # Properties
     @property
@@ -287,6 +290,24 @@ class AsBuiltPunt(Base):
     NAP_z = Column(Float, nullable=True)  # werkelijke NAP hoogte (optioneel)
 
     boring = relationship("Boring", back_populates="asbuilt_punten")
+
+
+class ProfielPunt(Base):
+    """Verticaal profielpunt: tussenliggende dieptepunten met eigen buigradius.
+
+    Definieert het verticale profiel los van de 2D tracépunten (TracePunt).
+    TracePunten = plattegrond (RD x,y). ProfielPunten = verticaal vlak (afstand, NAP_z).
+    """
+    __tablename__ = "profiel_punten"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    boring_id = Column(String, ForeignKey("boringen.id"), nullable=False)
+    volgorde = Column(Integer, nullable=False)
+    afstand_m = Column(Float, nullable=False)    # horizontale afstand vanaf intreepunt
+    NAP_z = Column(Float, nullable=False)        # doel NAP-hoogte op dit punt
+    Rv_m = Column(Float, nullable=True)          # buigradius bij dit punt (None = standaard Rv)
+
+    boring = relationship("Boring", back_populates="profiel_punten")
 
 
 class WerkplanAfbeelding(Base):
