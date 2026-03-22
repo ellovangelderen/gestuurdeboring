@@ -25,7 +25,7 @@ def get_users() -> dict[str, str]:
     }
     # Verwijder users zonder wachtwoord
     users = {k: v for k, v in users.items() if v}
-    if settings.ENV == "development" and settings.USER_TEST_PASSWORD:
+    if settings.ENV in ("development", "staging") and settings.USER_TEST_PASSWORD:
         users["test"] = settings.USER_TEST_PASSWORD
     return users
 
