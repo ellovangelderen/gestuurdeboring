@@ -6,28 +6,35 @@
 
 <table class="table" style="margin-bottom: 1.5rem;">
   <thead>
-    <tr><th>Nr</th><th>Code</th><th>Naam</th><th>Contact</th><th>Logo</th><th></th></tr>
+    <tr><th>Nr</th><th>Code</th><th>Bewerken</th><th>Logo</th><th></th></tr>
   </thead>
   <tbody>
     {% for k in klanten %}
     <tr>
       <td>{{ k.nr or '—' }}</td>
       <td><strong>{{ k.code }}</strong></td>
-      <td>{{ k.naam }}</td>
-      <td>{{ k.contact or '—' }}</td>
       <td>
-        {% if k.logo_bestand %}
-          <img src="/static/logos/{{ k.logo_bestand }}" style="max-height: 20px; max-width: 60px;">
-        {% else %}
-          <form method="post" action="/admin/klanten/logo/{{ k.id }}" enctype="multipart/form-data" style="display: inline;">
-            <input type="file" name="logo" accept=".jpg,.jpeg,.png,.svg" style="width: 120px; font-size: 0.75em;">
-            <button type="submit" class="btn btn-sm btn-secondary">Upload</button>
-          </form>
-        {% endif %}
+        <form method="post" action="/admin/klanten/{{ k.id }}/update" style="display: inline;">
+          <input type="text" name="code" value="{{ k.code }}" style="width: 40px; font-size: 0.85em;" required>
+          <input type="text" name="naam" value="{{ k.naam }}" style="width: 160px; font-size: 0.85em;" required>
+          <input type="text" name="contact" value="{{ k.contact or '' }}" style="width: 120px; font-size: 0.85em;" placeholder="contact">
+          <input type="hidden" name="logo_bestand" value="{{ k.logo_bestand or '' }}">
+          <button type="submit" class="btn btn-sm btn-secondary" title="Opslaan">Opslaan</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/klanten/logo/{{ k.id }}" enctype="multipart/form-data" style="display: inline-flex; align-items: center; gap: 4px;">
+          {% if k.logo_bestand %}
+          <img src="/static/logos/{{ k.logo_bestand }}" style="max-height: 20px; max-width: 60px;"
+               onerror="this.style.display='none'">
+          {% endif %}
+          <input type="file" name="logo" accept=".jpg,.jpeg,.png,.svg,.webp" style="width: 100px; font-size: 0.7em;">
+          <button type="submit" class="btn btn-sm btn-secondary" title="Logo uploaden">Logo</button>
+        </form>
       </td>
       <td>
         <form method="post" action="/admin/klanten/{{ k.id }}/verwijder" style="display: inline;">
-          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Verwijderen?')">X</button>
+          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('{{ k.naam }} verwijderen?')">X</button>
         </form>
       </td>
     </tr>
