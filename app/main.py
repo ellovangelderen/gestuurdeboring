@@ -91,26 +91,12 @@ async def lifespan(application: FastAPI):
                 if nr == 3:
                     code = "VB3"
                 if not _db.query(Klant).filter_by(code=code).first():
-                    # Alleen logo zetten als het bestand echt bestaat
-                    logo_val = None
-                    if logo:
-                        for ext in (".jpg", ".jpeg", ".png", ".svg", ".webp", ""):
-                            if _P(f"static/logos/{logo}{ext}").exists():
-                                logo_val = f"{logo}{ext}"
-                                break
-                    _db.add(Klant(nr=nr, code=code, naam=naam, contact=contact, logo_bestand=logo_val))
+                    _db.add(Klant(nr=nr, code=code, naam=naam, contact=contact, logo_bestand=None))
             _db.commit()
             logger.info("Klanten: %d geseeded", _db.query(Klant).count())
 
-        # Fix: verwijder logo_bestand waarden waar het bestand niet bestaat
-        from pathlib import Path as _P2
-        for klant in _db.query(Klant).filter(Klant.logo_bestand != None).all():
-            if klant.logo_bestand:
-                found = any(_P2(d / klant.logo_bestand).exists()
-                           for d in [_P2("data/logos"), _P2("static/logos")])
-                if not found:
-                    klant.logo_bestand = None
-        _db.commit()
+        # Logo cleanup verwijderd — te agressief, wiste waarden
+        # voordat bestanden gekopieerd waren naar het volume.
 
         # Eisenprofielen
         from app.rules.models import EisenProfiel
