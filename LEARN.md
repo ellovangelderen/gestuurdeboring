@@ -144,6 +144,38 @@ What:     Logo's werden opgeslagen in `static/logos/` (ephemeral container files
 Why:      Container filesystems zijn ephemeral by design. Alle user-uploaded bestanden moeten op een persistent volume staan.
 Suggest:  Bij ELKE file-upload feature: (1) sla op naar persistent volume, niet naar app directory, (2) serve route moet meerdere paden checken voor backward compatibility, (3) test met container restart.
 
+## 2026-03-22 — Admin dashboard + ops endpoint als standaard bouwblok
+Type:     DECISION
+Phase:    general
+Affect:   architect / builder / factory
+What:     Elk klantproject krijgt standaard /admin (health banner, data stats, beheer) en /api/ops/status (JSON voor agents, beveiligd met OPS_KEY).
+Why:      DB niet op volume, logo's verdwenen, agents konden deployment status niet checken — allemaal pas laat ontdekt. Standaard ops setup voorkomt deze klasse problemen.
+Suggest:  Opnemen in architect-base.md als verplicht bouwblok bij elk project.
+
+## 2026-03-22 — DATABASE_URL relatief vs absoluut pad op Railway
+Type:     PROBLEM
+Phase:    release
+Affect:   builder / release
+What:     sqlite:///./data/hdd.db (3 slashes = relatief) schreef naar /app/data/hdd.db (ephemeral). Moet sqlite:////data/hdd.db (4 slashes = absoluut) zijn voor Railway volume.
+Why:      Alle data ging verloren bij elke redeploy. Pas ontdekt na meerdere keren data kwijtraken.
+Suggest:  DATABASE_URL altijd met absoluut pad. Admin health check die waarschuwt als DB niet op /data staat.
+
+## 2026-03-22 — BGT WMS geeft 401, WMTS werkt wel
+Type:     PROBLEM
+Phase:    skeleton
+Affect:   builder
+What:     PDOK BGT WMS endpoint geeft 401 (auth vereist of deprecated). WMTS tiles endpoint werkt zonder auth.
+Why:      Kaart was grijs op trace invoerscherm. Regressietest toegevoegd (14 tests op alle PDOK endpoints + zoom levels).
+Suggest:  Altijd WMTS tiles voor PDOK kaartlagen. Regressietests op externe tile endpoints als standaard.
+
+## 2026-03-22 — Staging + productie omgeving als standaard
+Type:     DECISION
+Phase:    general
+Affect:   factory / process
+What:     HDD heeft nu main→staging en production→live branching met aparte Railway services, volumes, en domeinen. Deployment guide geschreven.
+Why:      Code testen op staging voordat het naar productie gaat voorkomt downtime voor eindgebruikers.
+Suggest:  Bij elk project met echte gebruikers: staging + productie als standaard. Deployment guide meenemen.
+
 ---
 
 ## PROCESSED ENTRIES
