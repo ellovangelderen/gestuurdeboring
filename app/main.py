@@ -64,6 +64,28 @@ async def lifespan(application: FastAPI):
                 pass  # kolom bestaat al
 
     Base.metadata.create_all(bind=engine)
+
+    # Seed standaard kaartlinks als tabel leeg is
+    from sqlalchemy.orm import Session as _Sess
+    _db = _Sess(bind=engine)
+    try:
+        from app.admin.models import KaartLink
+        if _db.query(KaartLink).count() == 0:
+            _defaults = [
+                ("RWS Beheerzones", "https://geoweb.rijkswaterstaat.nl/ModuleViewer/?app=635b0d2325b642c38ad0c9c82da66ae1", "Rijkswaterstaat beheergrenzen", "zonering", 1),
+                ("ProRail Beperkingengebied", "https://maps.prorail.nl/portal/home/webmap/viewer.html?url=https%3A%2F%2Fmaps.prorail.nl%2Farcgis%2Frest%2Fservices%2FBeperkingengebied%2FFeatureServer&source=sd", "Spoorzone beperkingen", "zonering", 2),
+                ("DINOloket", "https://www.dinoloket.nl/ondergrondgegevens", "Sonderingen, boringen, grondwater", "kaart", 3),
+                ("Kaart Haarlem", "https://kaart.haarlem.nl/app/map/18", "Gemeente Haarlem riool + bomen", "gemeente", 4),
+            ]
+            for n, u, o, c, v in _defaults:
+                _db.add(KaartLink(naam=n, url=u, omschrijving=o, categorie=c, volgorde=v))
+            _db.commit()
+            logger.info("Kaartlinks: %d defaults geseeded", len(_defaults))
+    except Exception:
+        pass
+    finally:
+        _db.close()
+
     logger.info("HDD: Database ready")
     yield
     logger.info("HDD: Shutting down")
