@@ -206,6 +206,19 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/logout")
+def logout():
+    """Stuur 401 terug zodat de browser de cached Basic Auth credentials vergeet."""
+    return HTMLResponse(
+        '<html><body style="font-family:sans-serif;text-align:center;padding:4rem;">'
+        '<h2>Uitgelogd</h2>'
+        '<p>Je bent uitgelogd. <a href="/">Opnieuw inloggen</a></p>'
+        '</body></html>',
+        status_code=401,
+        headers={"WWW-Authenticate": 'Basic realm="HDD Platform"'},
+    )
+
+
 @app.get("/")
 def root_redirect():
     return RedirectResponse(url="/orders/")

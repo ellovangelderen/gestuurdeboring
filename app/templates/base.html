@@ -17,7 +17,7 @@
       <a href="/admin/" class="nav-link nav-link--admin">Admin</a>
       {% endif %}
     </div>
-    <span class="nav-user">{{ user }}</span>
+    <span class="nav-user">{{ user }} <a href="/logout" style="color:#aaa;font-size:0.8em;margin-left:4px;">uitloggen</a></span>
   </nav>
   <main>
     {% block content %}{% endblock %}

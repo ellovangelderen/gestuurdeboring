@@ -184,6 +184,16 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 
 ---
 
+### SEC-10 — Session/cookie-based auth
+**Bron:** ADM-1 / gebruikerservaring
+**Ernst:** 🟠 MEDIUM
+**Waar:** `app/core/auth.py`
+**Probleem:** HTTP Basic Auth heeft geen logout mechanisme — browser cached credentials. Workaround (401 response) werkt maar is niet robuust. Daarnaast: bcrypt op elke request is ~100ms overhead.
+**Fix:** Switch naar session-based auth met login formulier, secure cookie, en echte logout. Bcrypt check alleen bij login, daarna session token.
+**Effort:** Groot (4-6 uur)
+
+---
+
 ### QUA-8 — OSM tile caching
 **Bron:** Code Review #7
 **Ernst:** 🟡 LOW
@@ -215,6 +225,7 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 | 🟡 NICE | SEC-9 | Magic bytes check | 15 min |
 | 🟡 NICE | QUA-7 | Audit trail | 2 uur |
 | 🟡 NICE | QUA-8 | OSM tile caching | 1-2 uur |
+| 🟠 SHOULD | SEC-10 | Session/cookie auth (i.p.v. HTTP Basic) | 4-6 uur |
 | 🟠 BUG | BG-1 | Download bestanden zonder extensie | ✅ DONE |
 | 🟠 BUG | BG-2 | Railway 500 ontbrekende DB kolommen | ✅ DONE (startup migraties) |
 
