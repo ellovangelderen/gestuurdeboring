@@ -13,6 +13,18 @@ class Instelling(Base):
     waarde = Column(String, nullable=False, default="")
 
 
+class KaartLink(Base):
+    """Externe kaartlink (RWS, ProRail, waterschap, gemeente)."""
+    __tablename__ = "kaart_links"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    naam = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    omschrijving = Column(String, nullable=True)
+    categorie = Column(String, default="kaart")  # kaart, zonering, gemeente
+    volgorde = Column(Integer, default=0)
+
+
 class Klant(Base):
     """Opdrachtgever / klant met logo en contactgegevens."""
     __tablename__ = "klanten"

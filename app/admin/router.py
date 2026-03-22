@@ -268,3 +268,137 @@ def export_klanten_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="klanten.csv"'},
     )
+
+
+# ── ADM-6: Eisenprofielen ────────────────────────────────────────────────
+
+@router.get("/eisenprofielen", response_class=HTMLResponse)
+def eisenprofielen_lijst(
+    request: Request,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.rules.models import EisenProfiel
+    profielen = db.query(EisenProfiel).all()
+    return templates.TemplateResponse(
+        "admin/eisenprofielen.html",
+        {"request": request, "user": user, "profielen": profielen},
+    )
+
+
+@router.post("/eisenprofielen/nieuw")
+def eisenprofiel_toevoegen(
+    naam: str = Form(...),
+    dekking_weg_m: str = Form(...),
+    dekking_water_m: str = Form(...),
+    Rmin_m: str = Form(...),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.rules.models import EisenProfiel
+    from fastapi.responses import RedirectResponse
+    db.add(EisenProfiel(
+        naam=naam.strip(), dekking_weg_m=float(dekking_weg_m),
+        dekking_water_m=float(dekking_water_m), Rmin_m=float(Rmin_m),
+    ))
+    db.commit()
+    return RedirectResponse("/admin/eisenprofielen", status_code=303)
+
+
+@router.post("/eisenprofielen/{profiel_id}/verwijder")
+def eisenprofiel_verwijderen(
+    profiel_id: str,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.rules.models import EisenProfiel
+    from fastapi.responses import RedirectResponse
+    ep = db.get(EisenProfiel, profiel_id)
+    if ep:
+        db.delete(ep)
+        db.commit()
+    return RedirectResponse("/admin/eisenprofielen", status_code=303)
+
+
+# ── ADM-7: Externe kaartlinks ────────────────────────────────────────────
+
+@router.get("/kaartlinks", response_class=HTMLResponse)
+def kaartlinks_pagina(
+    request: Request,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import KaartLink
+    links = db.query(KaartLink).order_by(KaartLink.volgorde).all()
+    return templates.TemplateResponse(
+        "admin/kaartlinks.html",
+        {"request": request, "user": user, "links": links},
+    )
+
+
+@router.post("/kaartlinks/nieuw")
+def kaartlink_toevoegen(
+    naam: str = Form(...),
+    url: str = Form(...),
+    omschrijving: str = Form(""),
+    categorie: str = Form("kaart"),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import KaartLink
+    from fastapi.responses import RedirectResponse
+    max_v = db.query(KaartLink).count()
+    db.add(KaartLink(
+        naam=naam.strip(), url=url.strip(),
+        omschrijving=omschrijving.strip() or None,
+        categorie=categorie.strip(), volgorde=max_v + 1,
+    ))
+    db.commit()
+    return RedirectResponse("/admin/kaartlinks", status_code=303)
+
+
+@router.post("/kaartlinks/{link_id}/verwijder")
+def kaartlink_verwijderen(
+    link_id: str,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import KaartLink
+    from fastapi.responses import RedirectResponse
+    link = db.get(KaartLink, link_id)
+    if link:
+        db.delete(link)
+        db.commit()
+    return RedirectResponse("/admin/kaartlinks", status_code=303)
+
+
+# ── ADM-8: Logging / systeem status ──────────────────────────────────────
+
+@router.get("/logs", response_class=HTMLResponse)
+def logs_pagina(
+    request: Request,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.order.models import Order
+    from datetime import datetime, timezone, timedelta
+
+    nu = datetime.now(timezone.utc)
+    week_geleden = nu - timedelta(days=7)
+
+    recente_orders = (
+        db.query(Order)
+        .filter(Order.ontvangen_op >= week_geleden)
+        .order_by(Order.ontvangen_op.desc())
+        .limit(20)
+        .all()
+    )
+
+    from app.core.auth import _auth_failures
+    auth_info = {u: len(f) for u, f in _auth_failures.items() if f}
+
+    return templates.TemplateResponse(
+        "admin/logs.html",
+        {"request": request, "user": user,
+         "recente_orders": recente_orders, "auth_failures": auth_info},
+    )

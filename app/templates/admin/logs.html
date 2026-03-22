@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Systeem status — Admin{% endblock %}
+{% block content %}
+<h1>Systeem status</h1>
+
+{% if auth_failures %}
+<section class="card" style="border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 1rem;">
+  <h2 style="margin: 0 0 0.5rem; font-size: 1em;">Mislukte login pogingen (laatste 5 min)</h2>
+  {% for user, count in auth_failures.items() %}
+  <div>{{ user }}: {{ count }} pogingen</div>
+  {% endfor %}
+</section>
+{% else %}
+<p style="color: #28a745; margin-bottom: 1rem;">Geen mislukte login pogingen.</p>
+{% endif %}
+
+<section class="card" style="padding: 1rem; margin-bottom: 1rem;">
+  <h2 style="margin: 0 0 0.5rem; font-size: 1em;">Recente orders (laatste 7 dagen)</h2>
+  {% if recente_orders %}
+  <table class="table">
+    <thead><tr><th>Order</th><th>Locatie</th><th>Klant</th><th>Status</th><th>Ontvangen</th></tr></thead>
+    <tbody>
+      {% for o in recente_orders %}
+      <tr>
+        <td><a href="/orders/{{ o.id }}">{{ o.ordernummer }}</a></td>
+        <td>{{ o.locatie or '—' }}</td>
+        <td>{{ o.klantcode or '—' }}</td>
+        <td>{{ o.status }}</td>
+        <td>{{ o.ontvangen_op.strftime('%d-%m-%Y') if o.ontvangen_op else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color: #666;">Geen orders in de laatste 7 dagen.</p>
+  {% endif %}
+</section>
+
+<div style="margin-top: 1rem;"><a href="/admin/" class="btn btn-secondary">&larr; Admin</a></div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Eisenprofielen — Admin{% endblock %}
+{% block content %}
+<h1>Eisenprofielen</h1>
+
+<table class="table" style="margin-bottom: 1rem;">
+  <thead><tr><th>Beheerder</th><th>Dekking weg (m)</th><th>Dekking water (m)</th><th>Rmin (m)</th><th></th></tr></thead>
+  <tbody>
+    {% for p in profielen %}
+    <tr>
+      <td>{{ p.naam }}</td>
+      <td>{{ p.dekking_weg_m }}</td>
+      <td>{{ p.dekking_water_m }}</td>
+      <td>{{ p.Rmin_m }}</td>
+      <td><form method="post" action="/admin/eisenprofielen/{{ p.id }}/verwijder" style="display:inline;"><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Verwijderen?')">X</button></form></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<details>
+  <summary class="btn btn-primary btn-sm">+ Eisenprofiel toevoegen</summary>
+  <form method="post" action="/admin/eisenprofielen/nieuw" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: end;">
+    <label style="font-size: 0.85em;">Beheerder *<br><input type="text" name="naam" required style="width: 180px;"></label>
+    <label style="font-size: 0.85em;">Dekking weg (m)<br><input type="number" name="dekking_weg_m" step="0.1" required style="width: 80px;"></label>
+    <label style="font-size: 0.85em;">Dekking water (m)<br><input type="number" name="dekking_water_m" step="0.1" required style="width: 80px;"></label>
+    <label style="font-size: 0.85em;">Rmin (m)<br><input type="number" name="Rmin_m" step="1" required style="width: 80px;"></label>
+    <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+  </form>
+</details>
+
+<div style="margin-top: 1rem;"><a href="/admin/" class="btn btn-secondary">&larr; Admin</a></div>
+{% endblock %}

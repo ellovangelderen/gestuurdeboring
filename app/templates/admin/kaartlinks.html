@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Externe kaartlinks — Admin{% endblock %}
+{% block content %}
+<h1>Externe kaartlinks</h1>
+<p style="font-size: 0.85em; color: #666;">URLs veranderen regelmatig — hier kun je ze bijwerken.</p>
+
+<table class="table" style="margin-bottom: 1rem;">
+  <thead><tr><th>Naam</th><th>Categorie</th><th>URL</th><th></th></tr></thead>
+  <tbody>
+    {% for l in links %}
+    <tr>
+      <td>{{ l.naam }}</td>
+      <td>{{ l.categorie }}</td>
+      <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><a href="{{ l.url }}" target="_blank">{{ l.url[:60] }}...</a></td>
+      <td><form method="post" action="/admin/kaartlinks/{{ l.id }}/verwijder" style="display:inline;"><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Verwijderen?')">X</button></form></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<details>
+  <summary class="btn btn-primary btn-sm">+ Kaartlink toevoegen</summary>
+  <form method="post" action="/admin/kaartlinks/nieuw" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end;">
+    <label style="font-size: 0.85em;">Naam *<br><input type="text" name="naam" required style="width: 180px;"></label>
+    <label style="font-size: 0.85em;">URL *<br><input type="url" name="url" required style="width: 300px;"></label>
+    <label style="font-size: 0.85em;">Omschrijving<br><input type="text" name="omschrijving" style="width: 200px;"></label>
+    <label style="font-size: 0.85em;">Categorie<br>
+      <select name="categorie">
+        <option value="kaart">Kaart</option>
+        <option value="zonering">Zonering</option>
+        <option value="gemeente">Gemeente</option>
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+  </form>
+</details>
+
+<div style="margin-top: 1rem;"><a href="/admin/" class="btn btn-secondary">&larr; Admin</a></div>
+{% endblock %}
