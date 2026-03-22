@@ -225,7 +225,7 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 | 🟡 NICE | SEC-9 | Magic bytes check | 15 min |
 | 🟡 NICE | QUA-7 | Audit trail | 2 uur |
 | 🟡 NICE | QUA-8 | OSM tile caching | 1-2 uur |
-| 🟠 SHOULD | SEC-10 | Session/cookie auth (i.p.v. HTTP Basic) | 4-6 uur |
+| 🟢 WONTFIX | SEC-10 | Session/cookie auth — HTTP Basic volstaat, Martien switcht niet tussen users | — |
 | 🟠 BUG | BG-1 | Download bestanden zonder extensie | ✅ DONE |
 | 🟠 BUG | BG-2 | Railway 500 ontbrekende DB kolommen | ✅ DONE (startup migraties) |
 
