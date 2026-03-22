@@ -282,6 +282,102 @@ def test_adm8_logs_pagina(client, workspace, db):
     assert "Systeem status" in resp.text
 
 
+# ── ADM-1: Gebruikersbeheer DB ──
+
+def test_adm1_users_uit_db(client, workspace, db):
+    """Users worden uit DB geladen, niet uit env vars."""
+    resp = client.get("/admin/users", auth=AUTH)
+    assert resp.status_code == 200
+    assert "martien" in resp.text
+
+
+def test_adm1_user_aanmaken(client, workspace, db):
+    resp = client.post("/admin/users/nieuw",
+                       data={"username": "nieuw", "wachtwoord": "Welkom01", "rol": "tekenaar"},
+                       auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "nieuw" in resp.text
+
+
+def test_adm1_user_aanmaken_kort_wachtwoord(client, workspace, db):
+    resp = client.post("/admin/users/nieuw",
+                       data={"username": "kort", "wachtwoord": "Ab1", "rol": "tekenaar"},
+                       auth=AUTH)
+    assert resp.status_code == 400
+
+
+def test_adm1_user_aanmaken_geen_hoofdletter(client, workspace, db):
+    resp = client.post("/admin/users/nieuw",
+                       data={"username": "nohoofd", "wachtwoord": "welkom012", "rol": "tekenaar"},
+                       auth=AUTH)
+    assert resp.status_code == 400
+
+
+def test_adm1_user_aanmaken_geen_cijfer(client, workspace, db):
+    resp = client.post("/admin/users/nieuw",
+                       data={"username": "nocijfer", "wachtwoord": "Welkomhier", "rol": "tekenaar"},
+                       auth=AUTH)
+    assert resp.status_code == 400
+
+
+def test_adm1_user_aanmaken_dubbel(client, workspace, db):
+    client.post("/admin/users/nieuw",
+                data={"username": "dubbel", "wachtwoord": "Welkom01", "rol": "tekenaar"},
+                auth=AUTH)
+    resp = client.post("/admin/users/nieuw",
+                       data={"username": "dubbel", "wachtwoord": "Welkom02", "rol": "tekenaar"},
+                       auth=AUTH)
+    assert resp.status_code == 400
+
+
+def test_adm1_user_deactiveren(client, workspace, db):
+    from app.admin.models import User
+    from app.core.password import hash_password
+    db.add(User(id="deact-test", username="deactuser", wachtwoord_hash=hash_password("Welkom01"), rol="tekenaar"))
+    db.commit()
+
+    resp = client.post("/admin/users/deact-test/deactiveer", auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+
+    db.expire_all()
+    u = db.get(User, "deact-test")
+    assert u.actief is False
+
+
+def test_adm1_admin_kan_zichzelf_niet_deactiveren(client, workspace, db):
+    from app.admin.models import User
+    martien = db.query(User).filter_by(username="martien").first()
+    resp = client.post(f"/admin/users/{martien.id}/deactiveer", auth=AUTH)
+    assert resp.status_code == 400
+
+
+def test_adm1_wachtwoord_wijzigen(client, workspace, db):
+    from app.admin.models import User
+    from app.core.password import hash_password
+    db.add(User(id="pw-test", username="pwuser", wachtwoord_hash=hash_password("OudWw001"), rol="tekenaar"))
+    db.commit()
+
+    resp = client.post("/admin/users/pw-test/wachtwoord",
+                       data={"wachtwoord": "NieuwWw01"},
+                       auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+
+    # Login met nieuw wachtwoord
+    resp2 = client.get("/admin/users", auth=("pwuser", "NieuwWw01"))
+    # pwuser is tekenaar, niet admin → 403
+    assert resp2.status_code == 403
+
+
+def test_adm1_deactieve_user_kan_niet_inloggen(client, workspace, db):
+    from app.admin.models import User
+    from app.core.password import hash_password
+    db.add(User(id="inact-test", username="inactive", wachtwoord_hash=hash_password("Welkom01"), rol="tekenaar", actief=False))
+    db.commit()
+
+    resp = client.get("/orders/", auth=("inactive", "Welkom01"))
+    assert resp.status_code == 401
+
+
 # ── Auth: Admin-only check ──
 
 def test_admin_403_voor_niet_admin(client, workspace):

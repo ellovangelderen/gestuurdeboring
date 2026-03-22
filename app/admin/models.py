@@ -1,8 +1,23 @@
-"""Admin modellen — klanten, instellingen."""
+"""Admin modellen — klanten, instellingen, gebruikers."""
+from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from app.core.database import Base
+
+
+class User(Base):
+    """Gebruiker met bcrypt wachtwoord hash en rol."""
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    username = Column(String, nullable=False, unique=True)
+    wachtwoord_hash = Column(String, nullable=False)
+    rol = Column(String, nullable=False, default="tekenaar")  # admin / tekenaar / viewer
+    actief = Column(Boolean, nullable=False, default=True)
+    workspace_id = Column(String, nullable=False, default="gbt-workspace-001")
+    aangemaakt_op = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    laatst_ingelogd = Column(DateTime, nullable=True)
 
 
 class Instelling(Base):

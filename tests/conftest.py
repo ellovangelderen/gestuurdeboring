@@ -40,11 +40,23 @@ import app.core.models  # noqa: F401
 import app.project.models  # noqa: F401
 import app.order.models  # noqa: F401
 import app.rules.models  # noqa: F401
+import app.admin.models  # noqa: F401
 
 
 @pytest.fixture(autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=test_engine)
+    # Seed test users in DB (auth leest nu uit DB, niet env vars)
+    from app.admin.models import User
+    from app.core.password import hash_password
+    session = TestSessionLocal()
+    if session.query(User).count() == 0:
+        session.add(User(username="martien", wachtwoord_hash=hash_password("test-martien"), rol="admin"))
+        session.add(User(username="sopa", wachtwoord_hash=hash_password("test-martien"), rol="tekenaar"))
+        session.add(User(username="lucas", wachtwoord_hash=hash_password("test-martien"), rol="tekenaar"))
+        session.add(User(username="test", wachtwoord_hash=hash_password("test123"), rol="admin"))
+        session.commit()
+    session.close()
     yield
     Base.metadata.drop_all(bind=test_engine)
 

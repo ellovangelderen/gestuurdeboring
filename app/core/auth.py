@@ -1,12 +1,15 @@
 import logging
-import secrets
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import get_db
+from app.core.password import verify_password
 
 logger = logging.getLogger(__name__)
 security = HTTPBasic()
@@ -17,23 +20,9 @@ _MAX_FAILURES = 10       # max pogingen
 _WINDOW_SECONDS = 300    # per 5 minuten
 
 
-def get_users() -> dict[str, str]:
-    users = {
-        "martien": settings.USER_MARTIEN_PASSWORD,
-        "sopa": settings.USER_SOPA_PASSWORD or settings.USER_MARTIEN_PASSWORD,
-        "lucas": settings.USER_LUCAS_PASSWORD or settings.USER_MARTIEN_PASSWORD,
-    }
-    # Verwijder users zonder wachtwoord
-    users = {k: v for k, v in users.items() if v}
-    if settings.ENV in ("development", "staging") and settings.USER_TEST_PASSWORD:
-        users["test"] = settings.USER_TEST_PASSWORD
-    return users
-
-
 def _check_rate_limit(username: str) -> None:
     """Block als te veel mislukte pogingen voor deze user."""
     now = time.time()
-    # Verwijder oude entries
     _auth_failures[username] = [
         t for t in _auth_failures[username] if now - t < _WINDOW_SECONDS
     ]
@@ -45,19 +34,22 @@ def _check_rate_limit(username: str) -> None:
         )
 
 
-def get_current_user(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+def get_current_user(
+    credentials: HTTPBasicCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> str:
+    """Authenticeer user via DB lookup + bcrypt."""
     _check_rate_limit(credentials.username)
 
-    users = get_users()
-    password = users.get(credentials.username, "")
-    if not password or not secrets.compare_digest(
-        credentials.password.encode(), password.encode()
-    ):
+    from app.admin.models import User
+    user = db.query(User).filter_by(username=credentials.username, actief=True).first()
+
+    if not user or not verify_password(credentials.password, user.wachtwoord_hash):
         _auth_failures[credentials.username].append(time.time())
         logger.warning(
             "AUTH_FAILURE user=%s reason=%s attempts=%d",
             credentials.username,
-            "unknown_user" if not password else "wrong_password",
+            "unknown_user" if not user else "wrong_password",
             len(_auth_failures[credentials.username]),
         )
         raise HTTPException(
@@ -65,6 +57,13 @@ def get_current_user(credentials: HTTPBasicCredentials = Depends(security)) -> s
             detail="Ongeldig wachtwoord",
             headers={"WWW-Authenticate": "Basic"},
         )
-    # Succesvolle login: reset failure counter
+
+    # Succesvolle login: reset failure counter + update laatst_ingelogd
     _auth_failures.pop(credentials.username, None)
+    user.laatst_ingelogd = datetime.now(timezone.utc).replace(tzinfo=None)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
     return credentials.username

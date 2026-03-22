@@ -99,6 +99,24 @@ async def lifespan(application: FastAPI):
         # Logo cleanup verwijderd — te agressief, wiste waarden
         # voordat bestanden gekopieerd waren naar het volume.
 
+        # Gebruikers (migratie van env vars naar DB)
+        from app.admin.models import User
+        if _db.query(User).count() == 0:
+            from app.core.password import hash_password
+            from app.core.config import settings as _settings
+            for uname, pw_env, rol in [
+                ("martien", _settings.USER_MARTIEN_PASSWORD, "admin"),
+                ("ello", _settings.USER_MARTIEN_PASSWORD, "admin"),
+                ("sopa", _settings.USER_SOPA_PASSWORD or _settings.USER_MARTIEN_PASSWORD, "tekenaar"),
+                ("lucas", _settings.USER_LUCAS_PASSWORD or _settings.USER_MARTIEN_PASSWORD, "tekenaar"),
+            ]:
+                if pw_env:
+                    _db.add(User(username=uname, wachtwoord_hash=hash_password(pw_env), rol=rol))
+            if _settings.ENV in ("development", "staging") and _settings.USER_TEST_PASSWORD:
+                _db.add(User(username="test", wachtwoord_hash=hash_password(_settings.USER_TEST_PASSWORD), rol="admin"))
+            _db.commit()
+            logger.info("Users: %d geseeded vanuit env vars", _db.query(User).count())
+
         # Eisenprofielen
         from app.rules.models import EisenProfiel
         if _db.query(EisenProfiel).count() == 0:

@@ -15,8 +15,6 @@ from app.admin.models import Klant
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
 
-ADMIN_USERS = {"martien", "ello", "test"}
-
 # Logo directory: persistent volume op Railway (/data/logos), static lokaal
 LOGO_DIR = Path("/data/logos") if Path("/data").exists() else Path("static/logos")
 LOGO_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,8 +32,10 @@ def serve_logo(filename: str):
     raise HTTPException(404, "Logo niet gevonden")
 
 
-def require_admin(user: str = Depends(get_current_user)) -> str:
-    if user not in ADMIN_USERS:
+def require_admin(user: str = Depends(get_current_user), db: Session = Depends(get_db)) -> str:
+    from app.admin.models import User
+    db_user = db.query(User).filter_by(username=user).first()
+    if not db_user or db_user.rol != "admin":
         raise HTTPException(status_code=403, detail="Alleen voor beheerders")
     return user
 
@@ -325,26 +325,131 @@ def export_klanten_csv(
     )
 
 
-# ── ADM-1: Gebruikersbeheer (overzicht) ───────────────────────────────────
+# ── ADM-1: Gebruikersbeheer (CRUD) ────────────────────────────────────────
 
 @router.get("/users", response_class=HTMLResponse)
 def users_overzicht(
     request: Request,
     user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
-    from app.core.auth import get_users
-    alle_users = get_users()
-    user_lijst = []
-    for username in alle_users:
-        user_lijst.append({
-            "username": username,
-            "rol": "admin" if username in ADMIN_USERS else "tekenaar",
-            "wachtwoord_set": bool(alle_users[username]),
-        })
+    from app.admin.models import User
+    users = db.query(User).order_by(User.username).all()
     return templates.TemplateResponse(
         "admin/users.html",
-        {"request": request, "user": user, "users": user_lijst},
+        {"request": request, "user": user, "users": users, "rollen": ["admin", "tekenaar", "viewer"]},
     )
+
+
+@router.post("/users/nieuw")
+def user_aanmaken(
+    username: str = Form(...),
+    wachtwoord: str = Form(...),
+    rol: str = Form("tekenaar"),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import User
+    from app.core.password import hash_password, validate_password
+
+    username = username.strip().lower()
+    if not username:
+        raise HTTPException(400, "Gebruikersnaam is verplicht")
+    if db.query(User).filter_by(username=username).first():
+        raise HTTPException(400, f"Gebruiker '{username}' bestaat al")
+    if rol not in ("admin", "tekenaar", "viewer"):
+        raise HTTPException(400, "Ongeldige rol")
+
+    fouten = validate_password(wachtwoord, username)
+    if fouten:
+        raise HTTPException(400, "; ".join(fouten))
+
+    db.add(User(
+        username=username,
+        wachtwoord_hash=hash_password(wachtwoord),
+        rol=rol,
+    ))
+    db.commit()
+
+    from app.core.audit import log_audit
+    log_audit(db, user, "aangemaakt", "User", username, f"rol={rol}")
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/users/{user_id}/update")
+def user_update(
+    user_id: str,
+    rol: str = Form(...),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import User
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Gebruiker niet gevonden")
+    if rol not in ("admin", "tekenaar", "viewer"):
+        raise HTTPException(400, "Ongeldige rol")
+    target.rol = rol
+    db.commit()
+
+    from app.core.audit import log_audit
+    log_audit(db, user, "gewijzigd", "User", target.username, f"rol={rol}")
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/users/{user_id}/wachtwoord")
+def user_wachtwoord_wijzigen(
+    user_id: str,
+    wachtwoord: str = Form(...),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import User
+    from app.core.password import hash_password, validate_password
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Gebruiker niet gevonden")
+
+    fouten = validate_password(wachtwoord, target.username)
+    if fouten:
+        raise HTTPException(400, "; ".join(fouten))
+
+    target.wachtwoord_hash = hash_password(wachtwoord)
+    db.commit()
+
+    from app.core.audit import log_audit
+    log_audit(db, user, "wachtwoord_gewijzigd", "User", target.username)
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/users/{user_id}/deactiveer")
+def user_deactiveer(
+    user_id: str,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import User
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Gebruiker niet gevonden")
+    if target.username == user:
+        raise HTTPException(400, "Je kunt jezelf niet deactiveren")
+
+    target.actief = not target.actief
+    db.commit()
+
+    from app.core.audit import log_audit
+    status = "geactiveerd" if target.actief else "gedeactiveerd"
+    log_audit(db, user, status, "User", target.username)
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/admin/users", status_code=303)
 
 
 # ── ADM-6: Eisenprofielen ────────────────────────────────────────────────
