@@ -159,14 +159,14 @@ class TestStap2EngineRegressie:
         assert profiel.segmenten[-1]["z_end"] == pytest.approx(0.5)
 
     def test_boogzinker_ongewijzigd(self):
-        """Type Z profiel (boogzinker) blijft werken."""
+        """Type Z profiel (boogzinker) heeft 1 arc segment."""
         from app.geo.profiel import bereken_boorprofiel_z
         profiel = bereken_boorprofiel_z(
             L_totaal_m=30.0, MVin_NAP_m=0.5, MVuit_NAP_m=0.3,
             booghoek_gr=7.5, De_mm=110.0,
         )
-        assert len(profiel.segmenten) == 1
-        assert profiel.segmenten[0]["type"] == "arc"
+        arcs = [s for s in profiel.segmenten if s["type"] == "arc"]
+        assert len(arcs) == 1
 
 
 class TestStap2EngineNSegment:

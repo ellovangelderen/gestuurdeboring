@@ -415,6 +415,23 @@ def arc_punten(cx: float, cz: float, radius: float,
     return punten
 
 
+# Boogzinker stand-naar-hoek mapping (leverancier standaard)
+BOOGZINKER_STANDEN = {
+    1: 5.0,
+    2: 7.5,
+    3: 10.0,
+    4: 12.5,
+    5: 15.0,
+    6: 17.5,
+    7: 20.0,
+    8: 25.0,
+    9: 30.0,
+    10: 45.0,
+}
+
+BOOGZINKER_OFFSET_M = 0.70  # buis zit 70cm boven maaiveld op het frame
+
+
 def bereken_boorprofiel_z(
     L_totaal_m: float,
     MVin_NAP_m: float,
@@ -422,28 +439,18 @@ def bereken_boorprofiel_z(
     booghoek_gr: float,
     De_mm: float,
     dekking_min_m: float = 3.0,
+    offset_m: float = BOOGZINKER_OFFSET_M,
 ) -> BoorProfiel:
-    """Bereken boorprofiel voor boogzinker (type Z): 1 enkele ARC.
+    """Bereken boorprofiel voor boogzinker (type Z).
 
-    Een boogzinker is een simpele gebogen boring: één ARC van intree naar uittree,
-    zonder horizontaal segment of aparte schuine lijnen.
-
-    Parameters:
-        L_totaal_m: horizontale afstand intree-uittree (uit tracépunten)
-        MVin_NAP_m: maaiveld intree (m NAP)
-        MVuit_NAP_m: maaiveld uittree (m NAP)
-        booghoek_gr: booghoek in graden (standaard 5, 7.5, of 10)
-        De_mm: buitendiameter buis (mm)
-        dekking_min_m: minimale gronddekking (m)
+    Met offset > 0: 3 segmenten (intree lijn + ondergrondse arc + uittree lijn).
+    De boogzinker buis zit offset_m boven maaiveld op het frame.
+    Met offset = 0: 1 segment (alleen arc, oud gedrag).
     """
     booghoek_rad = math.radians(booghoek_gr)
-
-    # Boogradius: volgt uit L_totaal en booghoek
-    # De chord (koorde) = L_totaal_m. Voor een cirkelboog: chord = 2 * R * sin(theta/2)
-    # Dus R = L_totaal / (2 * sin(booghoek/2))
     half_hoek = booghoek_rad / 2
+
     if half_hoek < 0.001:
-        # Vrijwel recht — degenereer naar lijn
         return BoorProfiel(
             Rv_m=0.0,
             L_totaal_m=L_totaal_m,
@@ -456,71 +463,67 @@ def bereken_boorprofiel_z(
             }],
         )
 
-    R = L_totaal_m / (2 * math.sin(half_hoek))
+    # Horizontale afstand van machine (op offset hoogte) naar maaiveld
+    d_entry = offset_m / math.tan(booghoek_rad) if offset_m > 0 and booghoek_rad > 0.01 else 0.0
+    d_exit = d_entry  # symmetrisch
 
-    # De boog zakt onder het maaiveld. De sagitta (pijlhoogte) = R * (1 - cos(theta/2))
-    sagitta = R * (1 - math.cos(half_hoek))
+    # Effectieve afstand voor de ondergrondse boog
+    L_arc = L_totaal_m - d_entry - d_exit
+    if L_arc < 1.0:
+        L_arc = L_totaal_m  # veiligheid: als offset te groot is, negeer
+        d_entry = 0.0
+        d_exit = 0.0
 
-    # Gemiddeld maaiveld als referentie
-    mv_gem = (MVin_NAP_m + MVuit_NAP_m) / 2
-
-    # Diepste punt van de boog = maaiveld - dekking - sagitta geeft de center positie
-    # De boog hangt onder het maaiveld; diepste punt = center_z - R
-    # We positioneren zodat het diepste punt op dekking_min onder laagste maaiveld zit
+    R = L_arc / (2 * math.sin(half_hoek))
     diepte_NAP = min(MVin_NAP_m, MVuit_NAP_m) - dekking_min_m
-
-    # Center van de boog zit boven het diepste punt op afstand R
-    # Maar de boog moet intree en uittree verbinden.
-    # Horizontaal: center op L_totaal/2
-    cx = L_totaal_m / 2
-
-    # Verticaal: center boven de boorlijn, boog hangt eronder
-    # Het diepste punt van de boog = cz - R (bij symmetrische boog)
-    # We willen dat het diepste punt = diepte_NAP, maar we moeten ook
-    # de start/eindpunten correct positioneren.
-    #
-    # De boog gaat van intree (0, z_in) naar uittree (L, z_uit).
-    # Met center op (cx, cz) en radius R:
-    #   z_in = cz - R * cos(half_hoek)  (boog begint half_hoek links van onderste punt)
-    #   z_uit = cz - R * cos(half_hoek)  (idem, symmetrisch)
-    #
-    # Dus z_in = z_uit = cz - R*cos(half_hoek). Dit is symmetrisch.
-    # De intree en uittree liggen op hetzelfde NAP-niveau op de boog.
-    # Dat is prima voor een boogzinker (maaiveld verschilt, maar de buis-ingang/-uitgang zit onder maaiveld).
-
-    # We kiezen cz zodat het laagste punt precies op diepte_NAP zit:
-    cz = diepte_NAP + R  # laagste punt boog = cz - R = diepte_NAP
-
-    # z van intree en uittree op de boog
+    cx = d_entry + L_arc / 2
+    cz = diepte_NAP + R
     z_boog = cz - R * math.cos(half_hoek)
-
-    # Booglengte (werkelijke buislengte)
     booglengte = R * booghoek_rad
 
-    # Start- en eindhoeken voor de ARC (gemeten vanuit center, standaard math conventie)
-    # Center is boven, boog hangt eronder.
-    # Startpunt: (0, z_boog) → relatief tot center: (-L/2, z_boog - cz) = (-L/2, -R*cos(half))
-    # Eindpunt:  (L, z_boog) → relatief: (+L/2, -R*cos(half))
-    # Starthoek: atan2(-R*cos(half), -L/2) = atan2(-R*cos(half), -R*sin(half))
-    #          = π + half_hoek (in het 3e kwadrant)
     start_hoek_rad = math.pi + half_hoek
-    eind_hoek_rad = 2 * math.pi - half_hoek  # = π - half vanuit negatief
+    eind_hoek_rad = 2 * math.pi - half_hoek
 
-    segmenten = [{
+    segmenten = []
+
+    # Intree lijn: van machine (boven maaiveld) naar begin boog
+    if d_entry > 0:
+        segmenten.append({
+            "type": "lijn",
+            "x_start": 0.0,
+            "z_start": MVin_NAP_m + offset_m,
+            "x_end": d_entry,
+            "z_end": z_boog,
+            "horizontaal": False,
+            "lengte": math.sqrt(d_entry**2 + (MVin_NAP_m + offset_m - z_boog)**2),
+        })
+
+    # Ondergrondse boog
+    segmenten.append({
         "type": "arc",
-        "cx": cx,
-        "cz": cz,
-        "radius": R,
+        "cx": cx, "cz": cz, "radius": R,
         "start_hoek_gr": math.degrees(start_hoek_rad),
         "eind_hoek_gr": math.degrees(eind_hoek_rad),
         "start_hoek_rad": start_hoek_rad,
         "eind_hoek_rad": eind_hoek_rad,
-        "x_start": 0.0,
+        "x_start": d_entry,
         "z_start": z_boog,
-        "x_end": L_totaal_m,
+        "x_end": L_totaal_m - d_exit,
         "z_end": z_boog,
         "booglengte": booglengte,
-    }]
+    })
+
+    # Uittree lijn: van einde boog naar machine (boven maaiveld)
+    if d_exit > 0:
+        segmenten.append({
+            "type": "lijn",
+            "x_start": L_totaal_m - d_exit,
+            "z_start": z_boog,
+            "x_end": L_totaal_m,
+            "z_end": MVuit_NAP_m + offset_m,
+            "horizontaal": False,
+            "lengte": math.sqrt(d_exit**2 + (MVuit_NAP_m + offset_m - z_boog)**2),
+        })
 
     return BoorProfiel(
         Rv_m=R,

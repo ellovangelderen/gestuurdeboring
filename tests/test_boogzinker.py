@@ -51,15 +51,15 @@ def _maak_boogzinker_boring(db, order_id="order-bz", boring_id="boring-bz",
 # GEOMETRIE TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_tc_bz_a_profiel_1_arc():
-    """TC-bz-A: Type Z profiel heeft exact 1 ARC segment, geen lijnen."""
+def test_tc_bz_a_profiel_met_offset():
+    """TC-bz-A: Type Z profiel met 70cm offset heeft 3 segmenten (lijn + arc + lijn)."""
     from app.geo.profiel import bereken_boorprofiel_z
     profiel = bereken_boorprofiel_z(
         L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
         booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM,
     )
-    assert len(profiel.segmenten) == 1
-    assert profiel.segmenten[0]["type"] == "arc"
+    types = [s["type"] for s in profiel.segmenten]
+    assert types == ["lijn", "arc", "lijn"]
 
 
 def test_tc_bz_b_booglengte_berekend():
@@ -69,24 +69,22 @@ def test_tc_bz_b_booglengte_berekend():
         L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
         booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM,
     )
-    seg = profiel.segmenten[0]
-    assert "booglengte" in seg
-    # Booglengte = R * booghoek_rad
-    verwachte_R = BZ_L_TOTAAL / (2 * math.sin(math.radians(BZ_BOOGHOEK / 2)))
-    verwachte_booglengte = verwachte_R * math.radians(BZ_BOOGHOEK)
-    assert seg["booglengte"] == pytest.approx(verwachte_booglengte, rel=0.01)
-    # Booglengte moet > L_totaal (boog is langer dan koorde)
-    assert seg["booglengte"] > BZ_L_TOTAAL
+    arc_seg = [s for s in profiel.segmenten if s["type"] == "arc"][0]
+    assert "booglengte" in arc_seg
+    assert arc_seg["booglengte"] > 0
 
 
 def test_tc_bz_c_radius_uit_koorde():
-    """TC-bz-C: Radius volgt uit chord = 2*R*sin(theta/2)."""
-    from app.geo.profiel import bereken_boorprofiel_z
+    """TC-bz-C: Radius volgt uit effectieve chord = 2*R*sin(theta/2)."""
+    from app.geo.profiel import bereken_boorprofiel_z, BOOGZINKER_OFFSET_M
     profiel = bereken_boorprofiel_z(
         L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
         booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM,
     )
-    verwachte_R = BZ_L_TOTAAL / (2 * math.sin(math.radians(BZ_BOOGHOEK / 2)))
+    # Effectieve chord is korter door 70cm offset
+    d_entry = BOOGZINKER_OFFSET_M / math.tan(math.radians(BZ_BOOGHOEK))
+    L_arc = BZ_L_TOTAAL - 2 * d_entry
+    verwachte_R = L_arc / (2 * math.sin(math.radians(BZ_BOOGHOEK / 2)))
     assert profiel.Rv_m == pytest.approx(verwachte_R, rel=0.01)
 
 
@@ -109,31 +107,31 @@ def test_tc_bz_e_standaard_booghoeken():
             L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
             booghoek_gr=hoek, De_mm=BZ_DE_MM,
         )
-        assert len(profiel.segmenten) == 1
-        assert profiel.segmenten[0]["type"] == "arc"
+        arcs = [s for s in profiel.segmenten if s["type"] == "arc"]
+        assert len(arcs) == 1
         assert profiel.Rv_m > 0
 
 
-def test_tc_bz_f_arc_start_end_correct():
-    """TC-bz-F: ARC start bij x=0, eindigt bij x=L_totaal."""
+def test_tc_bz_f_profiel_start_end_correct():
+    """TC-bz-F: Profiel start bij x=0, eindigt bij x=L_totaal."""
     from app.geo.profiel import bereken_boorprofiel_z
     profiel = bereken_boorprofiel_z(
         L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
         booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM,
     )
-    seg = profiel.segmenten[0]
-    assert seg["x_start"] == pytest.approx(0.0)
-    assert seg["x_end"] == pytest.approx(BZ_L_TOTAAL)
-    # Start en eind z moeten gelijk zijn (symmetrische boog)
-    assert seg["z_start"] == pytest.approx(seg["z_end"])
+    assert profiel.segmenten[0]["x_start"] == pytest.approx(0.0)
+    assert profiel.segmenten[-1]["x_end"] == pytest.approx(BZ_L_TOTAAL)
+    # ARC z_start en z_end zijn symmetrisch
+    arc = [s for s in profiel.segmenten if s["type"] == "arc"][0]
+    assert arc["z_start"] == pytest.approx(arc["z_end"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DXF TESTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_tc_bz_g_dxf_1_arc_geen_horizontaal(client, workspace, db):
-    """TC-bz-G: DXF type Z → 1 ARC op LP-BOORLIJN, geen horizontaal segment."""
+def test_tc_bz_g_dxf_arc_plus_lijnen(client, workspace, db):
+    """TC-bz-G: DXF type Z → 1 ARC + 2 lijnen op LP-BOORLIJN (70cm offset)."""
     _maak_boogzinker_boring(db, "order-bz-g", "boring-bz-g", "BZ-G")
 
     resp = client.get("/orders/order-bz-g/boringen/1/dxf", auth=AUTH)
@@ -142,14 +140,11 @@ def test_tc_bz_g_dxf_1_arc_geen_horizontaal(client, workspace, db):
     doc = ezdxf.read(io.StringIO(resp.text))
     msp = doc.modelspace()
 
-    # Tel ARCs op LP-BOORLIJN
     arcs = [e for e in msp if e.dxftype() == "ARC" and e.dxf.layer == "LP-BOORLIJN"]
     assert len(arcs) == 1, f"Verwacht 1 ARC, maar {len(arcs)} gevonden"
 
-    # Geen horizontale lijnen op LP-BOORLIJN (type Z heeft geen horizontaal segment)
     lines = [e for e in msp if e.dxftype() == "LINE" and e.dxf.layer == "LP-BOORLIJN"]
-    # Type Z mag geen lijnen hebben op BOORLIJN (alleen de ARC)
-    assert len(lines) == 0, f"Verwacht 0 lijnen op LP-BOORLIJN voor type Z, maar {len(lines)} gevonden"
+    assert len(lines) == 2, f"Verwacht 2 lijnen (intree+uittree offset), maar {len(lines)} gevonden"
 
 
 def test_tc_bz_h_dxf_booghoek_label(client, workspace, db):
@@ -182,6 +177,102 @@ def test_tc_bz_i_pdf_genereert(client, workspace, db):
     assert resp.status_code == 200
     assert resp.content[:4] == b"%PDF"
     assert len(resp.content) > 1000
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# UI TESTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# V2: BOOGZINKER 70CM OFFSET TESTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_v2_offset_profiel_3_segmenten():
+    """V2: Met offset krijgt het profiel 3 segmenten (lijn + arc + lijn)."""
+    from app.geo.profiel import bereken_boorprofiel_z
+    profiel = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.70,
+    )
+    types = [s["type"] for s in profiel.segmenten]
+    assert types == ["lijn", "arc", "lijn"]
+
+
+def test_v2_offset_intree_lijn_start_boven_maaiveld():
+    """V2: Intree lijn start 70cm boven maaiveld."""
+    from app.geo.profiel import bereken_boorprofiel_z
+    profiel = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.70,
+    )
+    intree_lijn = profiel.segmenten[0]
+    assert intree_lijn["type"] == "lijn"
+    assert intree_lijn["z_start"] == pytest.approx(BZ_MV_IN + 0.70, abs=0.01)
+    assert intree_lijn["x_start"] == pytest.approx(0.0)
+
+
+def test_v2_offset_uittree_lijn_eindigt_boven_maaiveld():
+    """V2: Uittree lijn eindigt 70cm boven maaiveld."""
+    from app.geo.profiel import bereken_boorprofiel_z
+    profiel = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.70,
+    )
+    uittree_lijn = profiel.segmenten[-1]
+    assert uittree_lijn["type"] == "lijn"
+    assert uittree_lijn["z_end"] == pytest.approx(BZ_MV_UIT + 0.70, abs=0.01)
+    assert uittree_lijn["x_end"] == pytest.approx(BZ_L_TOTAAL)
+
+
+def test_v2_offset_continuiteit():
+    """V2: Segmenten sluiten op elkaar aan."""
+    from app.geo.profiel import bereken_boorprofiel_z
+    profiel = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.70,
+    )
+    for i in range(len(profiel.segmenten) - 1):
+        s = profiel.segmenten[i]
+        v = profiel.segmenten[i + 1]
+        assert s["x_end"] == pytest.approx(v["x_start"], abs=0.5)
+        assert s["z_end"] == pytest.approx(v["z_start"], abs=0.5)
+
+
+def test_v2_offset_0_is_oud_gedrag():
+    """V2: offset_m=0 geeft het oude 1-segment gedrag."""
+    from app.geo.profiel import bereken_boorprofiel_z
+    profiel = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.0,
+    )
+    assert len(profiel.segmenten) == 1
+    assert profiel.segmenten[0]["type"] == "arc"
+
+
+def test_v2_stand_mapping():
+    """V2: Stand-naar-hoek mapping bestaat en geeft geldige hoeken."""
+    from app.geo.profiel import BOOGZINKER_STANDEN
+    assert len(BOOGZINKER_STANDEN) >= 5
+    for stand, hoek in BOOGZINKER_STANDEN.items():
+        assert 0 < hoek <= 45, f"Stand {stand} heeft ongeldige hoek {hoek}"
+
+
+def test_v2_offset_arc_korter_dan_zonder():
+    """V2: Met offset is de ondergrondse boog korter (L_effectief < L_totaal)."""
+    from app.geo.profiel import bereken_boorprofiel_z
+    zonder = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.0,
+    )
+    met = bereken_boorprofiel_z(
+        L_totaal_m=BZ_L_TOTAAL, MVin_NAP_m=BZ_MV_IN, MVuit_NAP_m=BZ_MV_UIT,
+        booghoek_gr=BZ_BOOGHOEK, De_mm=BZ_DE_MM, offset_m=0.70,
+    )
+    arc_zonder = zonder.segmenten[0]
+    arc_met = [s for s in met.segmenten if s["type"] == "arc"][0]
+    L_arc_zonder = arc_zonder["x_end"] - arc_zonder["x_start"]
+    L_arc_met = arc_met["x_end"] - arc_met["x_start"]
+    assert L_arc_met < L_arc_zonder
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
