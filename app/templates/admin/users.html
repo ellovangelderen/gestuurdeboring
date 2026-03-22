@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Gebruikers — Admin{% endblock %}
+{% block content %}
+<h1>Gebruikers</h1>
+
+<table class="table" style="margin-bottom: 1rem;">
+  <thead><tr><th>Gebruiker</th><th>Rol</th><th>Wachtwoord</th></tr></thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td><strong>{{ u.username }}</strong></td>
+      <td>
+        {% if u.rol == 'admin' %}
+          <span style="color: #0d6efd; font-weight: bold;">Admin</span>
+        {% else %}
+          Tekenaar
+        {% endif %}
+      </td>
+      <td>{% if u.wachtwoord_set %}Ingesteld{% else %}<span style="color: #dc3545;">Niet ingesteld</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; font-size: 0.85em; color: #666;">
+  <strong>Gebruikers beheren:</strong> Wachtwoorden worden ingesteld via environment variables op Railway.
+  Nieuwe gebruikers toevoegen vereist een code-wijziging in <code>app/core/auth.py</code> en een nieuwe
+  environment variable op Railway. Dit wordt in een toekomstige versie via dit admin panel mogelijk.
+</div>
+
+<div style="margin-top: 1rem;"><a href="/admin/" class="btn btn-secondary">&larr; Admin</a></div>
+{% endblock %}

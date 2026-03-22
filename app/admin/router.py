@@ -270,6 +270,28 @@ def export_klanten_csv(
     )
 
 
+# ── ADM-1: Gebruikersbeheer (overzicht) ───────────────────────────────────
+
+@router.get("/users", response_class=HTMLResponse)
+def users_overzicht(
+    request: Request,
+    user: str = Depends(require_admin),
+):
+    from app.core.auth import get_users
+    alle_users = get_users()
+    user_lijst = []
+    for username in alle_users:
+        user_lijst.append({
+            "username": username,
+            "rol": "admin" if username in ADMIN_USERS else "tekenaar",
+            "wachtwoord_set": bool(alle_users[username]),
+        })
+    return templates.TemplateResponse(
+        "admin/users.html",
+        {"request": request, "user": user, "users": user_lijst},
+    )
+
+
 # ── ADM-6: Eisenprofielen ────────────────────────────────────────────────
 
 @router.get("/eisenprofielen", response_class=HTMLResponse)
