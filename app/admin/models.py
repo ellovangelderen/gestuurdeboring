@@ -5,6 +5,14 @@ from sqlalchemy import Column, String, Integer
 from app.core.database import Base
 
 
+class Instelling(Base):
+    """Key-value systeeminstelling."""
+    __tablename__ = "instellingen_kv"
+
+    sleutel = Column(String, primary_key=True)
+    waarde = Column(String, nullable=False, default="")
+
+
 class Klant(Base):
     """Opdrachtgever / klant met logo en contactgegevens."""
     __tablename__ = "klanten"

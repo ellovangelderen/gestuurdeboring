@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Instellingen — Admin{% endblock %}
+{% block content %}
+<h1>Systeeminstellingen</h1>
+
+<form method="post" action="/admin/instellingen">
+
+  <!-- Bundelfactoren -->
+  <section class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff; margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.75rem; font-size: 1em;">Bundelfactoren (Dg berekening)</h2>
+    <p style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">Dg = bundelfactor × De × ruimfactor</p>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <label style="font-size: 0.85em;">1 buis<br><input type="number" name="bundelfactor_1" value="{{ inst.get('bundelfactor_1', '1.0') }}" step="0.01" style="width: 70px;"></label>
+      <label style="font-size: 0.85em;">2 buizen<br><input type="number" name="bundelfactor_2" value="{{ inst.get('bundelfactor_2', '2.0') }}" step="0.01" style="width: 70px;"></label>
+      <label style="font-size: 0.85em;">3 buizen<br><input type="number" name="bundelfactor_3" value="{{ inst.get('bundelfactor_3', '2.15') }}" step="0.01" style="width: 70px;"></label>
+      <label style="font-size: 0.85em;">4 buizen<br><input type="number" name="bundelfactor_4" value="{{ inst.get('bundelfactor_4', '2.73') }}" step="0.01" style="width: 70px;"></label>
+    </div>
+  </section>
+
+  <!-- Ruimfactoren -->
+  <section class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff; margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.75rem; font-size: 1em;">Ruimfactoren</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <label style="font-size: 0.85em;">Enkelbuis<br><input type="number" name="ruimfactor_enkelbuis" value="{{ inst.get('ruimfactor_enkelbuis', '1.5') }}" step="0.01" style="width: 70px;"></label>
+      <label style="font-size: 0.85em;">Bundel<br><input type="number" name="ruimfactor_bundel" value="{{ inst.get('ruimfactor_bundel', '1.2') }}" step="0.01" style="width: 70px;"></label>
+      <label style="font-size: 0.85em;">Boogzinker<br><input type="number" name="ruimfactor_boogzinker" value="{{ inst.get('ruimfactor_boogzinker', '1.1') }}" step="0.01" style="width: 70px;"></label>
+    </div>
+  </section>
+
+  <!-- Standaard K&L dieptes -->
+  <section class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff; margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.75rem; font-size: 1em;">Standaard K&L dieptes (fallback als KLIC geen diepte levert)</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <label style="font-size: 0.85em;">LD-Gas (m)<br><input type="number" name="diepte_ld_gas" value="{{ inst.get('diepte_ld_gas', '-0.70') }}" step="0.01" style="width: 80px;"></label>
+      <label style="font-size: 0.85em;">HD-Gas (m)<br><input type="number" name="diepte_hd_gas" value="{{ inst.get('diepte_hd_gas', '-1.00') }}" step="0.01" style="width: 80px;"></label>
+      <label style="font-size: 0.85em;">BGI (m)<br><input type="number" name="diepte_bgi" value="{{ inst.get('diepte_bgi', '-1.00') }}" step="0.01" style="width: 80px;"></label>
+    </div>
+  </section>
+
+  <!-- Overige instellingen -->
+  <section class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff; margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.75rem; font-size: 1em;">Overig</h2>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <label style="font-size: 0.85em;">Standaard dekking (m)<br><input type="number" name="standaard_dekking" value="{{ inst.get('standaard_dekking', '3.0') }}" step="0.1" style="width: 80px;"></label>
+      <label style="font-size: 0.85em;">Standaard tekenaar<br><input type="text" name="standaard_tekenaar" value="{{ inst.get('standaard_tekenaar', 'martien') }}" style="width: 150px;"></label>
+    </div>
+  </section>
+
+  <button type="submit" class="btn btn-primary">Instellingen opslaan</button>
+</form>
+
+<div style="margin-top: 1rem;">
+  <a href="/admin/" class="btn btn-secondary">&larr; Admin</a>
+</div>
+{% endblock %}

@@ -159,6 +159,68 @@ async def klant_logo_upload(
 
 # ── ADM-4: Data export ───────────────────────────────────────────────────
 
+# ── ADM-5: Systeeminstellingen ────────────────────────────────────────────
+
+@router.get("/instellingen", response_class=HTMLResponse)
+def instellingen_pagina(
+    request: Request,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import Instelling
+    instellingen = {i.sleutel: i.waarde for i in db.query(Instelling).all()}
+    return templates.TemplateResponse(
+        "admin/instellingen.html",
+        {"request": request, "user": user, "inst": instellingen},
+    )
+
+
+@router.post("/instellingen")
+def instellingen_opslaan(
+    request: Request,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+    bundelfactor_1: str = Form("1.0"),
+    bundelfactor_2: str = Form("2.0"),
+    bundelfactor_3: str = Form("2.15"),
+    bundelfactor_4: str = Form("2.73"),
+    ruimfactor_enkelbuis: str = Form("1.5"),
+    ruimfactor_bundel: str = Form("1.2"),
+    ruimfactor_boogzinker: str = Form("1.1"),
+    diepte_ld_gas: str = Form("-0.70"),
+    diepte_hd_gas: str = Form("-1.00"),
+    diepte_bgi: str = Form("-1.00"),
+    standaard_dekking: str = Form("3.0"),
+    standaard_tekenaar: str = Form("martien"),
+):
+    from app.admin.models import Instelling
+    waarden = {
+        "bundelfactor_1": bundelfactor_1,
+        "bundelfactor_2": bundelfactor_2,
+        "bundelfactor_3": bundelfactor_3,
+        "bundelfactor_4": bundelfactor_4,
+        "ruimfactor_enkelbuis": ruimfactor_enkelbuis,
+        "ruimfactor_bundel": ruimfactor_bundel,
+        "ruimfactor_boogzinker": ruimfactor_boogzinker,
+        "diepte_ld_gas": diepte_ld_gas,
+        "diepte_hd_gas": diepte_hd_gas,
+        "diepte_bgi": diepte_bgi,
+        "standaard_dekking": standaard_dekking,
+        "standaard_tekenaar": standaard_tekenaar,
+    }
+    for sleutel, waarde in waarden.items():
+        inst = db.query(Instelling).filter_by(sleutel=sleutel).first()
+        if inst:
+            inst.waarde = waarde.strip()
+        else:
+            db.add(Instelling(sleutel=sleutel, waarde=waarde.strip()))
+    db.commit()
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/admin/instellingen", status_code=303)
+
+
+# ── ADM-4: Data export ───────────────────────────────────────────────────
+
 @router.get("/export", response_class=HTMLResponse)
 def export_pagina(
     request: Request,
