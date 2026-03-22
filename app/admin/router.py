@@ -410,7 +410,8 @@ def logs_pagina(
     from app.order.models import Order
     from datetime import datetime, timezone, timedelta
 
-    nu = datetime.now(timezone.utc)
+    # Gebruik naive datetime voor vergelijking (SQLite slaat naive op)
+    nu = datetime.now(timezone.utc).replace(tzinfo=None)
     week_geleden = nu - timedelta(days=7)
 
     recente_orders = (

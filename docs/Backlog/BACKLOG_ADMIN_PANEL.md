@@ -21,12 +21,14 @@ Een beheer-tab in het platform, alleen zichtbaar voor admins, waar alle systeemc
 ## Modules
 
 ### ADM-1 — Gebruikersbeheer
-- Lijst van alle users
-- Nieuwe user aanmaken (username, wachtwoord, rol)
-- User deactiveren (niet verwijderen)
-- Wachtwoord wijzigen
-- Rol toekennen: `admin` / `tekenaar` / `viewer`
-- **Huidige situatie:** Users staan in `.env` — moet naar DB
+- ✅ Overzicht van alle users met rollen (DONE — read-only)
+- ❌ Nieuwe user aanmaken via admin portal (username, wachtwoord, rol)
+- ❌ User deactiveren/inactief maken (niet verwijderen)
+- ❌ Wachtwoord wijzigen via admin portal
+- ❌ Rol toekennen: `admin` / `tekenaar` / `viewer`
+- **Huidige situatie:** Users staan in `.env` — moet naar DB tabel
+- **Vereist:** User model met wachtwoord hash (bcrypt), session management
+- **Effort:** 4-6 uur (grote refactor van auth systeem)
 
 ### ADM-2 — Opdrachtgevers / Klantbeheer
 - CRUD voor klanten (code, naam, contactpersoon, logo)
