@@ -36,5 +36,25 @@
   {% endif %}
 </section>
 
+{% if audit_entries %}
+<section class="card" style="padding: 1rem; margin-bottom: 1rem;">
+  <h2 style="margin: 0 0 0.5rem; font-size: 1em;">Audit log (laatste 50)</h2>
+  <table class="table" style="font-size: 0.85em;">
+    <thead><tr><th>Tijdstip</th><th>Gebruiker</th><th>Actie</th><th>Model</th><th>Details</th></tr></thead>
+    <tbody>
+      {% for e in audit_entries %}
+      <tr>
+        <td>{{ e.tijdstip.strftime('%d-%m %H:%M') if e.tijdstip else '—' }}</td>
+        <td>{{ e.user }}</td>
+        <td>{{ e.actie }}</td>
+        <td>{{ e.model }}</td>
+        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ e.details or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
 <div style="margin-top: 1rem;"><a href="/admin/" class="btn btn-secondary">&larr; Admin</a></div>
 {% endblock %}

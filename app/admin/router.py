@@ -87,6 +87,8 @@ def klant_toevoegen(
         nr=int(nr) if nr.strip() else None,
     )
     db.add(klant)
+    from app.core.audit import log_audit
+    log_audit(db, user, "aangemaakt", "Klant", klant.id, f"code={code}, naam={naam}")
     db.commit()
     from fastapi.responses import RedirectResponse
     return RedirectResponse("/admin/klanten", status_code=303)
@@ -123,6 +125,8 @@ def klant_verwijderen(
     klant = db.get(Klant, klant_id)
     if not klant:
         raise HTTPException(404, "Klant niet gevonden")
+    from app.core.audit import log_audit
+    log_audit(db, user, "verwijderd", "Klant", klant_id, f"code={klant.code}, naam={klant.naam}")
     db.delete(klant)
     db.commit()
     from fastapi.responses import RedirectResponse
@@ -425,8 +429,18 @@ def logs_pagina(
     from app.core.auth import _auth_failures
     auth_info = {u: len(f) for u, f in _auth_failures.items() if f}
 
+    # Audit log
+    from app.core.audit import AuditLog
+    audit_entries = (
+        db.query(AuditLog)
+        .order_by(AuditLog.tijdstip.desc())
+        .limit(50)
+        .all()
+    )
+
     return templates.TemplateResponse(
         "admin/logs.html",
         {"request": request, "user": user,
-         "recente_orders": recente_orders, "auth_failures": auth_info},
+         "recente_orders": recente_orders, "auth_failures": auth_info,
+         "audit_entries": audit_entries},
     )

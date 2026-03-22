@@ -47,6 +47,7 @@ async def lifespan(application: FastAPI):
     import app.project.models    # noqa: F401
     import app.rules.models      # noqa: F401
     import app.admin.models      # noqa: F401
+    import app.core.audit        # noqa: F401
 
     # Ad-hoc kolom migraties (SQLite heeft geen IF NOT EXISTS bij ALTER TABLE)
     migrations = [
@@ -119,6 +120,10 @@ async def lifespan(application: FastAPI):
 
 app = FastAPI(title="HDD Ontwerp Platform", version="0.1.0", lifespan=lifespan)
 app.add_middleware(RequestLoggingMiddleware)
+
+# CSRF bescherming
+from app.core.csrf import CSRFMiddleware
+app.add_middleware(CSRFMiddleware)
 
 # ── Rate limiting ──
 from slowapi import Limiter, _rate_limit_exceeded_handler
