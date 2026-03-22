@@ -87,6 +87,11 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
                 De_mm=boring.De_mm or 160.0,
             )
         else:
+            from app.geo.profiel import ProfielPunt as PP
+            pp = []
+            if hasattr(boring, 'profiel_punten') and boring.profiel_punten:
+                pp = [PP(afstand_m=p.afstand_m, NAP_z=p.NAP_z, Rv_m=p.Rv_m or 0.0)
+                      for p in boring.profiel_punten]
             profiel = bereken_boorprofiel(
                 L_totaal_m=L_totaal,
                 MVin_NAP_m=mv.MVin_NAP_m,
@@ -94,6 +99,7 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
                 alpha_in_gr=boring.intreehoek_gr or 18.0,
                 alpha_uit_gr=boring.uittreehoek_gr or 22.0,
                 De_mm=boring.De_mm or 160.0,
+                profiel_punten=pp,
             )
     except Exception:
         return ""
@@ -188,55 +194,24 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
             f'stroke="#5a8a3c" stroke-width="2.5" stroke-dasharray="8,4"/>'
         )
 
-    # ── Boorlijn (rood, dik) ──
-    # Visuele benadering: vloeiende curve van maaiveld naar diepte
-    # Bij grote Rv steken de geometrische bogen boven maaiveld uit.
-    # We tekenen de boorlijn als: maaiveld → schuine lijn → boog → horizontaal → boog → schuine lijn → maaiveld
-    # met de bogen begrensd op maaiveld.
-    import math as _math
-
-    diepte = profiel.diepte_NAP_m
-    alpha_in = _math.radians(boring.intreehoek_gr or 18.0)
-    alpha_uit = _math.radians(boring.uittreehoek_gr or 22.0)
-
-    # Horizontale afstand van de schuine lijnen (van maaiveld tot diepte)
-    dz_in = mv.MVin_NAP_m - diepte
-    dz_uit = mv.MVuit_NAP_m - diepte
-    x_intree_end = dz_in / _math.tan(alpha_in) if alpha_in > 0.01 else 20.0
-    x_uittree_start = L_totaal - (dz_uit / _math.tan(alpha_uit) if alpha_uit > 0.01 else 20.0)
-
-    # Beperk zodat er een horizontaal segment overblijft
-    x_intree_end = min(x_intree_end, L_totaal * 0.4)
-    x_uittree_start = max(x_uittree_start, L_totaal * 0.6)
-
-    # Bouw punten: maaiveld → curve intree → horizontaal → curve uittree → maaiveld
-    n_curve = 30
+    # ── Boorlijn (rood, dik) — gerenderd vanuit profiel segmentdata ──
     boorlijn_punten = []
+    for seg in profiel.segmenten:
+        if seg["type"] == "lijn":
+            boorlijn_punten.append((seg["x_start"], seg["z_start"]))
+            boorlijn_punten.append((seg["x_end"], seg["z_end"]))
+        elif seg["type"] == "arc":
+            pts = arc_punten(
+                seg["cx"], seg["cz"], seg["radius"],
+                seg["start_hoek_rad"], seg["eind_hoek_rad"], n=40,
+            )
+            boorlijn_punten.extend(pts)
 
-    # Intree: van (0, MV_in) naar (x_intree_end, diepte) als vloeiende curve
-    for i in range(n_curve + 1):
-        t = i / n_curve
-        x = x_intree_end * t
-        # Sinusoïdale interpolatie voor vloeiende S-curve
-        s = (1 - _math.cos(t * _math.pi)) / 2  # 0→1 smooth
-        z = mv.MVin_NAP_m + s * (diepte - mv.MVin_NAP_m)
-        boorlijn_punten.append((x, z))
-
-    # Horizontaal segment
-    boorlijn_punten.append((x_uittree_start, diepte))
-
-    # Uittree: van (x_uittree_start, diepte) naar (L_totaal, MV_uit) als vloeiende curve
-    for i in range(n_curve + 1):
-        t = i / n_curve
-        x = x_uittree_start + (L_totaal - x_uittree_start) * t
-        s = (1 - _math.cos(t * _math.pi)) / 2
-        z = diepte + s * (mv.MVuit_NAP_m - diepte)
-        boorlijn_punten.append((x, z))
-
-    svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in boorlijn_punten)
-    svg_parts.append(
-        f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3.5"/>'
-    )
+    if boorlijn_punten:
+        svg_pts = " ".join(f"{tx(x):.1f},{tz(z):.1f}" for x, z in boorlijn_punten)
+        svg_parts.append(
+            f'<polyline points="{svg_pts}" fill="none" stroke="#cc0000" stroke-width="3.5"/>'
+        )
 
     # ── Sensorpunt labels langs de boorlijn ──
     # Bereken positie per sensorpunt op het profiel (projectie op x-as)
