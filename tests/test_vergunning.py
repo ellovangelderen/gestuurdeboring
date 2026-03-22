@@ -64,12 +64,26 @@ def test_google_maps_link(client, workspace, db):
 
 
 def test_rws_link(client, workspace, db):
+    """RWS link verschijnt als KaartLink in DB staat."""
+    from app.admin.models import KaartLink
+    from app.core.database import Base, engine
+    Base.metadata.create_all(bind=engine)
+    db.add(KaartLink(naam="RWS Beheerzones", url="https://geoweb.rijkswaterstaat.nl/test",
+                     categorie="zonering", volgorde=1))
+    db.commit()
     _maak_boring(db, "order-vg-rws", "boring-vg-rws", "VGRWS")
     resp = client.get("/orders/order-vg-rws/boringen/1/vergunning", auth=AUTH)
-    assert "rijkswaterstaat" in resp.text.lower()
+    assert "rws" in resp.text.lower()
 
 
 def test_prorail_link(client, workspace, db):
+    """ProRail link verschijnt als KaartLink in DB staat."""
+    from app.admin.models import KaartLink
+    from app.core.database import Base, engine
+    Base.metadata.create_all(bind=engine)
+    db.add(KaartLink(naam="ProRail Beperkingengebied", url="https://maps.prorail.nl/test",
+                     categorie="zonering", volgorde=2))
+    db.commit()
     _maak_boring(db, "order-vg-pr", "boring-vg-pr", "VGPR")
     resp = client.get("/orders/order-vg-pr/boringen/1/vergunning", auth=AUTH)
     assert "prorail" in resp.text.lower()

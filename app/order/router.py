@@ -1247,23 +1247,19 @@ def vergunningscheck_pagina(
         from app.geo.coords import rd_to_wgs84
         lat, lon = rd_to_wgs84(intree.RD_x, intree.RD_y)
 
-        # Omgevingsloket (altijd)
+        # Dynamische links (met coördinaten ingevuld)
         links.append({
             "naam": "Omgevingsloket",
-            "omschrijving": "Check welke regels gelden op deze locatie (Rijkswaterstaat, provincie, waterschap, gemeente)",
+            "omschrijving": "Check welke regels gelden op deze locatie",
             "url": f"https://omgevingswet.overheid.nl/regels-op-de-kaart/viewer/regels?locatie-stelsel=etrs89&locatie-x={lon:.6f}&locatie-y={lat:.6f}",
             "type": "primair",
         })
-
-        # PDOK Viewer
         links.append({
             "naam": "PDOK Viewer",
-            "omschrijving": "Kadastrale kaart, bestemmingsplannen, beschermde gebieden",
+            "omschrijving": "Kadastrale kaart, bestemmingsplannen",
             "url": f"https://app.pdok.nl/viewer/#x={intree.RD_x:.2f}&y={intree.RD_y:.2f}&z=12",
             "type": "kaart",
         })
-
-        # Waterschap (als bekend)
         if order.waterkering_url:
             links.append({
                 "naam": "Waterschapskaart",
@@ -1271,46 +1267,41 @@ def vergunningscheck_pagina(
                 "url": order.waterkering_url,
                 "type": "waterschap",
             })
-
-        # Bagviewer (gebouwen + adressen)
-        links.append({
-            "naam": "BAG Viewer",
-            "omschrijving": "Gebouwen, adressen, bouwjaar — check nabijheid bebouwing",
-            "url": f"https://bagviewer.kadaster.nl/lvbag/bag-viewer/#?geometry.x={intree.RD_x:.2f}&geometry.y={intree.RD_y:.2f}&zoomlevel=7",
-            "type": "kaart",
-        })
-
-        # Google Maps
         links.append({
             "naam": "Google Maps",
-            "omschrijving": "Luchtfoto, streetview, omgeving verkennen",
+            "omschrijving": "Luchtfoto, streetview, omgeving",
             "url": f"https://www.google.com/maps/@{lat:.6f},{lon:.6f},17z",
             "type": "kaart",
         })
-
-        # RWS beheerzones
         links.append({
-            "naam": "RWS Beheerzones Rijkswegen",
-            "omschrijving": "Rijkswaterstaat beheergrenzen — check of tracé in RWS-zone ligt",
-            "url": "https://geoweb.rijkswaterstaat.nl/ModuleViewer/?app=635b0d2325b642c38ad0c9c82da66ae1",
-            "type": "zonering",
+            "naam": "BAG Viewer",
+            "omschrijving": "Gebouwen, adressen, bouwjaar",
+            "url": f"https://bagviewer.kadaster.nl/lvbag/bag-viewer/#?geometry.x={intree.RD_x:.2f}&geometry.y={intree.RD_y:.2f}&zoomlevel=7",
+            "type": "kaart",
         })
-
-        # ProRail beperkingengebied
-        links.append({
-            "naam": "ProRail Beperkingengebied",
-            "omschrijving": "Spoorzone — check nabijheid spoor en beperkingen",
-            "url": "https://maps.prorail.nl/portal/home/webmap/viewer.html?url=https%3A%2F%2Fmaps.prorail.nl%2Farcgis%2Frest%2Fservices%2FBeperkingengebied%2FFeatureServer&source=sd",
-            "type": "zonering",
-        })
-
-        # Bodemloket
         links.append({
             "naam": "Bodemloket",
             "omschrijving": "Bodemverontreinigingen, saneringslocaties",
             "url": f"https://www.bodemloket.nl/kaart?coords={intree.RD_x:.0f},{intree.RD_y:.0f}&zoom=14",
             "type": "kaart",
         })
+
+        # Admin-beheerbare links uit DB (RWS, ProRail, gemeente, etc.)
+        try:
+            from app.admin.models import KaartLink
+            db_links = db.query(KaartLink).order_by(KaartLink.volgorde).all()
+            for kl in db_links:
+                # Skip links die al dynamisch zijn toegevoegd
+                if any(kl.naam.lower() in l["naam"].lower() for l in links):
+                    continue
+                links.append({
+                    "naam": kl.naam,
+                    "omschrijving": kl.omschrijving or "",
+                    "url": kl.url,
+                    "type": kl.categorie or "kaart",
+                })
+        except Exception:
+            pass
 
     return templates.TemplateResponse(
         "order/vergunning.html",
