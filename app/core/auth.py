@@ -20,7 +20,6 @@ _WINDOW_SECONDS = 300    # per 5 minuten
 def get_users() -> dict[str, str]:
     users = {
         "martien": settings.USER_MARTIEN_PASSWORD,
-        "visser": settings.USER_VISSER_PASSWORD,
         "sopa": settings.USER_SOPA_PASSWORD or settings.USER_MARTIEN_PASSWORD,
         "lucas": settings.USER_LUCAS_PASSWORD or settings.USER_MARTIEN_PASSWORD,
     }

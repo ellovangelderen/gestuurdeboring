@@ -19,7 +19,6 @@ from sqlalchemy.orm import sessionmaker
 os.environ.setdefault("ENV", "development")
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_hdd.db")
 os.environ.setdefault("USER_MARTIEN_PASSWORD", "test-martien")
-os.environ.setdefault("USER_VISSER_PASSWORD", "test-visser")
 os.environ.setdefault("USER_TEST_PASSWORD", "test123")
 
 from sqlalchemy.pool import StaticPool

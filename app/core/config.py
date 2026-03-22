@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DATABASE_URL: str = "sqlite:///./hdd.db"
     USER_MARTIEN_PASSWORD: str = ""
-    USER_VISSER_PASSWORD: str = ""
     USER_SOPA_PASSWORD: str = ""
     USER_LUCAS_PASSWORD: str = ""
     USER_TEST_PASSWORD: str = ""
@@ -13,6 +12,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # negeer onbekende env vars (bijv. oude USER_VISSER_PASSWORD)
 
 
 settings = Settings()
