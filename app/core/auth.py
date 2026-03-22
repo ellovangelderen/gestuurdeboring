@@ -7,8 +7,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import get_db, SessionLocal
 from app.core.password import verify_password
 
 logger = logging.getLogger(__name__)
@@ -58,12 +57,20 @@ def get_current_user(
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    # Succesvolle login: reset failure counter + update laatst_ingelogd
+    # Succesvolle login: reset failure counter
     _auth_failures.pop(credentials.username, None)
-    user.laatst_ingelogd = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Update laatst_ingelogd in aparte sessie (mag nooit de hoofdsessie beïnvloeden)
     try:
-        db.commit()
+        auth_db = SessionLocal()
+        try:
+            u = auth_db.query(User).filter_by(username=credentials.username).first()
+            if u:
+                u.laatst_ingelogd = datetime.now(timezone.utc).replace(tzinfo=None)
+                auth_db.commit()
+        finally:
+            auth_db.close()
     except Exception:
-        db.rollback()
+        pass
 
     return credentials.username
