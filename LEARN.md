@@ -120,6 +120,14 @@ What:     Martien's Excel werkboek (2300 rijen) bevat de complete domeinkennis: 
 Why:      De Excel IS de huidige applicatie. Het platform moet minimaal alles kunnen wat de Excel kan.
 Suggest:  Bij elk project: bestaande tools (Excel, Word, email) als requirements bron analyseren vóór architectuur.
 
+## 2026-03-22 — from __future__ import annotations breekt FastAPI
+Type:     PROBLEM
+Phase:    backlog-qua1
+Affect:   builder
+What:     `from __future__ import annotations` toegevoegd voor Python 3.9 compat brak FastAPI's `Depends()` type resolution → 502 op productie. FastAPI inspecteert type hints at runtime; `__future__` annotations maakt ze lazy strings.
+Why:      Python 3.9 compat fix (lokale machine) veroorzaakte productie outage. Lokaal testen ving het niet omdat de app niet echt draaide.
+Suggest:  NOOIT `from __future__ import annotations` in FastAPI route/dependency bestanden. Gebruik `typing.Optional[str]` i.p.v. `str | None`. Alleen veilig in pure utility/geo/parser modules zonder FastAPI dependencies.
+
 ## 2026-03-22 — Startup cleanup wist DB waarden op container platform
 Type:     PROBLEM
 Phase:    release

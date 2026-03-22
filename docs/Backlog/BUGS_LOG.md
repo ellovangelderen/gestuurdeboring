@@ -88,13 +88,21 @@
 ### BG-16 — Logo upload via browser werkt niet op staging/productie
 **Datum:** 22 maart 2026
 **Gemeld door:** Ello (staging + productie)
-**Symptoom:** Logo uploaden via de browser voor klant FB (FonsBakker) werkt niet. Via API/script werkt de upload wel (303 redirect, bestand correct opgeslagen en ophaalbaar).
-**Oorzaak:** Wordt onderzocht. API test met Origin/Referer headers slaagt. Mogelijke oorzaken:
-- Browser stuurt een andere Origin/Referer (bijv. via proxy/redirect)
-- Form `enctype="multipart/form-data"` probleem
-- CSRF middleware blokkeert op een subtiele manier
-- Railway reverse proxy/load balancer strippen headers
-**Status:** Open — API werkt, browser niet. Nader onderzoek nodig.
+**Symptoom:** Logo uploaden via de browser werkt niet. Op productie werkt het na hotfix (BG-17), op staging geeft het een 404 na submit. Browser toont de POST URL (`/admin/klanten/logo/{id}`) als GET in de adresbalk, wat 404 geeft. Via API/script werkt de upload wel (303 redirect, bestand correct opgeslagen).
+**Oorzaak:** Twee problemen:
+1. `from __future__ import annotations` in `app/core/dependencies.py` brak FastAPI's `Depends()` type resolution → 502 op productie (BG-17).
+2. Na hotfix werkt productie, maar staging geeft 404 na POST. De 303 redirect naar `/admin/klanten` lijkt niet correct afgehandeld door de browser op staging.
+**Status:** Productie werkt. Staging nog niet bevestigd. Mogelijke oorzaken staging: Railway caching, deploy nog niet klaar, of Cloudflare proxy caching.
+
+---
+
+### BG-17 — 502 op beide sites na QUA-1 deploy
+**Datum:** 22 maart 2026
+**Gemeld door:** Ello (staging + productie)
+**Symptoom:** Beide sites geven 502 Bad Gateway na deploy van QUA-1 (router split).
+**Oorzaak:** `from __future__ import annotations` toegevoegd aan `app/core/dependencies.py` en `app/project/router.py` voor Python 3.9 compatibiliteit. Dit breekt FastAPI's dependency injection — `Depends()` kan type hints niet meer resolven omdat ze strings worden i.p.v. echte types.
+**Fix:** `from __future__ import annotations` verwijderd uit FastAPI-bestanden, vervangen door `typing.Optional`.
+**Les:** NOOIT `from __future__ import annotations` gebruiken in bestanden met FastAPI route handlers of `Depends()` parameters. FastAPI inspecteert type hints at runtime. Gebruik `typing.Optional[str]` i.p.v. `str | None` in deze bestanden.
 
 ---
 
