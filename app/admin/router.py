@@ -17,8 +17,8 @@ templates = Jinja2Templates(directory="app/templates")
 
 ADMIN_USERS = {"martien", "ello", "test"}
 
-# Logo directory: persistent volume op Railway, static lokaal
-LOGO_DIR = Path("data/logos") if Path("data").exists() else Path("static/logos")
+# Logo directory: persistent volume op Railway (/data/logos), static lokaal
+LOGO_DIR = Path("/data/logos") if Path("/data").exists() else Path("static/logos")
 LOGO_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -26,8 +26,8 @@ LOGO_DIR.mkdir(parents=True, exist_ok=True)
 def serve_logo(filename: str):
     """Serveer logo bestand (uit persistent volume of static)."""
     from fastapi.responses import FileResponse
-    # Check data/logos eerst (Railway volume), dan static/logos
-    for d in [Path("data/logos"), Path("static/logos")]:
+    # Check /data/logos eerst (Railway volume), dan static/logos
+    for d in [Path("/data/logos"), Path("static/logos")]:
         fpath = d / filename
         if fpath.exists():
             return FileResponse(fpath)
