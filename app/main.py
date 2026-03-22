@@ -210,9 +210,19 @@ def health():
 def logout():
     """Stuur 401 terug zodat de browser de cached Basic Auth credentials vergeet."""
     return HTMLResponse(
-        '<html><body style="font-family:sans-serif;text-align:center;padding:4rem;">'
+        '<html><head><title>Uitgelogd</title></head>'
+        '<body style="font-family:sans-serif;text-align:center;padding:4rem;max-width:500px;margin:0 auto;">'
         '<h2>Uitgelogd</h2>'
-        '<p>Je bent uitgelogd. <a href="/">Opnieuw inloggen</a></p>'
+        '<p style="color:#666;">Je browser kan oude inloggegevens onthouden.</p>'
+        '<p><strong>Om als andere gebruiker in te loggen:</strong></p>'
+        '<ul style="text-align:left;display:inline-block;color:#444;">'
+        '<li>Open een <strong>incognito/privé venster</strong>, of</li>'
+        '<li>Druk <strong>Ctrl+Shift+Delete</strong> (Windows) / <strong>Cmd+Shift+Delete</strong> (Mac)<br>'
+        '&nbsp;&nbsp;→ wis "Wachtwoorden" en "Gecachte afbeeldingen"</li>'
+        '</ul>'
+        '<p style="margin-top:1.5rem;">'
+        '<a href="/" style="background:#1a237e;color:#fff;padding:0.5rem 1.5rem;border-radius:4px;text-decoration:none;">Opnieuw inloggen</a>'
+        '</p>'
         '</body></html>',
         status_code=401,
         headers={"WWW-Authenticate": 'Basic realm="HDD Platform"'},
