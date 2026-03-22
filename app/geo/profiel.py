@@ -1,19 +1,225 @@
-"""Boorprofiel geometrie — kernberekening voor HDD lengteprofiel met ARCs."""
+"""Boorprofiel geometrie — kernberekening voor HDD lengteprofiel met ARCs.
+
+Ondersteunt N-segment profielen: tussenliggende dieptepunten met eigen buigradius.
+"""
 import math
 from dataclasses import dataclass, field
 
 
 @dataclass
+class ProfielPunt:
+    """Verticaal profielpunt voor N-segment engine (pure data, geen DB)."""
+    afstand_m: float     # horizontale afstand vanaf intreepunt
+    NAP_z: float         # doel NAP-hoogte op dit punt
+    Rv_m: float = 0.0    # buigradius bij dit punt (0 = gebruik standaard Rv)
+
+
+@dataclass
 class BoorProfiel:
-    Rv_m: float                    # buigradius
+    Rv_m: float                    # standaard buigradius (intree/uittree)
     L_totaal_m: float              # horizontale afstand intree-uittree
-    diepte_NAP_m: float            # NAP-hoogte diepste punt horizontaal segment
-    segmenten: list = field(default_factory=list)  # lijst van profiel-segmenten
+    diepte_NAP_m: float            # NAP-hoogte diepste punt
+    segmenten: list = field(default_factory=list)
 
 
 def bereken_Rv(De_mm: float) -> float:
     """Minimale buigradius: Rv = 1200 x De (in meters)."""
     return 1200.0 * De_mm / 1000.0
+
+
+def _maak_intree_segmenten(
+    MVin: float, diepte: float, alpha_rad: float, alpha_gr: float, Rv: float,
+) -> list:
+    """Genereer intree lijn + boog segmenten. Returned (segmenten, x_positie_na_boog)."""
+    Tin_h = Rv * math.sin(alpha_rad)
+    Tin_v = Rv * (1 - math.cos(alpha_rad))
+    z_boog_start = diepte + Tin_v
+
+    if alpha_gr > 0 and math.tan(alpha_rad) > 0:
+        x1 = (MVin - z_boog_start) / math.tan(alpha_rad)
+    else:
+        x1 = 0.0
+    x1 = max(x1, 0.0)
+
+    x2_end = x1 + Tin_h
+    arc_cx = x2_end
+    arc_cz = diepte + Rv
+
+    segs = []
+    # Schuine lijn intree
+    segs.append({
+        "type": "lijn",
+        "x_start": 0.0, "z_start": MVin,
+        "x_end": x1, "z_end": z_boog_start,
+        "horizontaal": False,
+        "lengte": math.sqrt(x1**2 + (MVin - z_boog_start)**2) if x1 > 0 else 0.0,
+    })
+    # Intree boog
+    segs.append({
+        "type": "arc",
+        "cx": arc_cx, "cz": arc_cz, "radius": Rv,
+        "start_hoek_gr": 180.0 + alpha_gr, "eind_hoek_gr": 180.0,
+        "start_hoek_rad": math.pi + alpha_rad, "eind_hoek_rad": math.pi,
+        "x_start": x1, "z_start": z_boog_start,
+        "x_end": x2_end, "z_end": diepte,
+    })
+    return segs, x2_end
+
+
+def _maak_uittree_segmenten(
+    MVuit: float, diepte: float, alpha_rad: float, alpha_gr: float, Rv: float,
+    L_totaal: float,
+) -> list:
+    """Genereer uittree boog + lijn segmenten. Returned (segmenten, x_positie_voor_boog)."""
+    Tuit_h = Rv * math.sin(alpha_rad)
+    Tuit_v = Rv * (1 - math.cos(alpha_rad))
+    z_boog_start = diepte + Tuit_v
+
+    if alpha_gr > 0 and math.tan(alpha_rad) > 0:
+        x5_lengte = (MVuit - z_boog_start) / math.tan(alpha_rad)
+    else:
+        x5_lengte = 0.0
+    x5_lengte = max(x5_lengte, 0.0)
+
+    x3_end = L_totaal - x5_lengte - Tuit_h
+    x4_end = x3_end + Tuit_h
+    arc_cx = x3_end
+    arc_cz = diepte + Rv
+
+    segs = []
+    # Uittree boog
+    segs.append({
+        "type": "arc",
+        "cx": arc_cx, "cz": arc_cz, "radius": Rv,
+        "start_hoek_gr": 0.0, "eind_hoek_gr": 360.0 - alpha_gr,
+        "start_hoek_rad": 0.0, "eind_hoek_rad": 2 * math.pi - alpha_rad,
+        "x_start": x3_end, "z_start": diepte,
+        "x_end": x4_end, "z_end": z_boog_start,
+    })
+    # Schuine lijn uittree
+    segs.append({
+        "type": "lijn",
+        "x_start": x4_end, "z_start": z_boog_start,
+        "x_end": L_totaal, "z_end": MVuit,
+        "horizontaal": False,
+        "lengte": math.sqrt(x5_lengte**2 + (MVuit - z_boog_start)**2) if x5_lengte > 0 else 0.0,
+    })
+    return segs, x3_end
+
+
+def _maak_tussenovergang(x_van: float, z_van: float, x_naar: float, z_naar: float, Rv: float) -> list:
+    """Genereer boog + lijn + boog overgang tussen twee diepteniveaus.
+
+    Van (x_van, z_van) horizontaal naar (x_naar, z_naar) horizontaal.
+    Gebruikt één boog om af te buigen en één boog om weer horizontaal te worden.
+    """
+    dx = x_naar - x_van
+    dz = z_naar - z_van
+
+    if abs(dx) < 0.01 or abs(dz) < 0.01:
+        # Geen hoogteverschil of geen afstand: rechte lijn
+        return [{
+            "type": "lijn",
+            "x_start": x_van, "z_start": z_van,
+            "x_end": x_naar, "z_end": z_naar,
+            "horizontaal": abs(dz) < 0.01,
+            "lengte": math.sqrt(dx**2 + dz**2),
+        }]
+
+    # Hoek van de schuine verbinding
+    alpha_rad = abs(math.atan2(abs(dz), dx))
+    alpha_gr = math.degrees(alpha_rad)
+
+    # Beperk alpha om te grote bogen te voorkomen
+    alpha_rad = min(alpha_rad, math.radians(30))
+    alpha_gr = math.degrees(alpha_rad)
+
+    # Tangent lengtes voor deze boog
+    T_h = Rv * math.sin(alpha_rad)
+    T_v = Rv * (1 - math.cos(alpha_rad))
+
+    # Check of er genoeg ruimte is voor 2 bogen
+    if 2 * T_h > dx * 0.95:
+        # Te krap: verklein Rv voor deze overgang
+        Rv = (dx * 0.45) / math.sin(alpha_rad) if math.sin(alpha_rad) > 0.01 else dx
+        T_h = Rv * math.sin(alpha_rad)
+        T_v = Rv * (1 - math.cos(alpha_rad))
+
+    segs = []
+    gaat_omlaag = dz < 0
+
+    # Boog 1: van horizontaal naar schuine lijn
+    x_boog1_end = x_van + T_h
+    if gaat_omlaag:
+        z_boog1_end = z_van - T_v
+        arc1_cx = x_van
+        arc1_cz = z_van - Rv
+        segs.append({
+            "type": "arc",
+            "cx": arc1_cx, "cz": arc1_cz, "radius": Rv,
+            "start_hoek_gr": 90.0, "eind_hoek_gr": 90.0 - alpha_gr,
+            "start_hoek_rad": math.pi / 2, "eind_hoek_rad": math.pi / 2 - alpha_rad,
+            "x_start": x_van, "z_start": z_van,
+            "x_end": x_boog1_end, "z_end": z_boog1_end,
+        })
+    else:
+        z_boog1_end = z_van + T_v
+        arc1_cx = x_van
+        arc1_cz = z_van + Rv
+        segs.append({
+            "type": "arc",
+            "cx": arc1_cx, "cz": arc1_cz, "radius": Rv,
+            "start_hoek_gr": 270.0, "eind_hoek_gr": 270.0 + alpha_gr,
+            "start_hoek_rad": 3 * math.pi / 2, "eind_hoek_rad": 3 * math.pi / 2 + alpha_rad,
+            "x_start": x_van, "z_start": z_van,
+            "x_end": x_boog1_end, "z_end": z_boog1_end,
+        })
+
+    # Rechte lijn (schuine verbinding)
+    x_boog2_start = x_naar - T_h
+    if gaat_omlaag:
+        z_boog2_start = z_naar + T_v
+    else:
+        z_boog2_start = z_naar - T_v
+
+    if x_boog2_start > x_boog1_end + 0.01:
+        lijn_len = math.sqrt((x_boog2_start - x_boog1_end)**2 + (z_boog2_start - z_boog1_end)**2)
+        segs.append({
+            "type": "lijn",
+            "x_start": x_boog1_end, "z_start": z_boog1_end,
+            "x_end": x_boog2_start, "z_end": z_boog2_start,
+            "horizontaal": False,
+            "lengte": lijn_len,
+        })
+    else:
+        x_boog2_start = x_boog1_end
+        z_boog2_start = z_boog1_end
+
+    # Boog 2: van schuine lijn terug naar horizontaal
+    if gaat_omlaag:
+        arc2_cx = x_naar
+        arc2_cz = z_naar + Rv
+        segs.append({
+            "type": "arc",
+            "cx": arc2_cx, "cz": arc2_cz, "radius": Rv,
+            "start_hoek_gr": 270.0 + alpha_gr, "eind_hoek_gr": 270.0,
+            "start_hoek_rad": 3 * math.pi / 2 + alpha_rad, "eind_hoek_rad": 3 * math.pi / 2,
+            "x_start": x_boog2_start, "z_start": z_boog2_start,
+            "x_end": x_naar, "z_end": z_naar,
+        })
+    else:
+        arc2_cx = x_naar
+        arc2_cz = z_naar - Rv
+        segs.append({
+            "type": "arc",
+            "cx": arc2_cx, "cz": arc2_cz, "radius": Rv,
+            "start_hoek_gr": 90.0 - alpha_gr, "eind_hoek_gr": 90.0,
+            "start_hoek_rad": math.pi / 2 - alpha_rad, "eind_hoek_rad": math.pi / 2,
+            "x_start": x_boog2_start, "z_start": z_boog2_start,
+            "x_end": x_naar, "z_end": z_naar,
+        })
+
+    return segs
 
 
 def bereken_boorprofiel(
@@ -24,36 +230,120 @@ def bereken_boorprofiel(
     alpha_uit_gr: float,
     De_mm: float,
     dekking_min_m: float = 3.0,
+    profiel_punten: list = None,
 ) -> BoorProfiel:
-    """Bereken het complete boorprofiel met intreeboog, horizontaal segment, en uittreeboog.
+    """Bereken het complete boorprofiel met N-segment ondersteuning.
 
-    Profiel in verticaal vlak:
-      x = horizontale afstand vanaf intreepunt (0..L_totaal)
-      z = NAP hoogte
+    Zonder profiel_punten: standaard 5-segment profiel (intree, boog, horizontaal, boog, uittree).
+    Met profiel_punten: tussenliggende dieptepunten met eigen buigradius.
 
-    Segmenten:
-      1. Lijn: intreepunt schuin omlaag onder intreehoek
-      2. ARC: intreeboog (van schuine lijn naar horizontaal)
-      3. Lijn: horizontaal segment
-      4. ARC: uittreeboog (van horizontaal naar schuine lijn omhoog)
-      5. Lijn: uittreepunt schuin omhoog onder uittreehoek
+    Parameters:
+        profiel_punten: lijst van ProfielPunt objecten (uit DB of direct).
+                        Elk punt definieert een diepte (NAP_z) op een afstand (afstand_m)
+                        met optioneel eigen Rv_m.
     """
     Rv = bereken_Rv(De_mm)
-
     alpha_in_rad = math.radians(alpha_in_gr)
     alpha_uit_rad = math.radians(alpha_uit_gr)
 
-    # Tangent lengtes van de bogen (horizontale en verticale componenten)
+    # Standaard diepte
+    diepte_NAP = min(MVin_NAP_m, MVuit_NAP_m) - dekking_min_m
+
+    # Geen profielpunten → standaard 5-segment profiel
+    if not profiel_punten:
+        return _bereken_standaard_profiel(
+            L_totaal_m, MVin_NAP_m, MVuit_NAP_m,
+            alpha_in_gr, alpha_uit_gr, Rv, diepte_NAP,
+        )
+
+    # N-segment profiel
+    # Sorteer profielpunten op afstand
+    pp = sorted(profiel_punten, key=lambda p: p.afstand_m)
+
+    # Bouw lijst van waypoints: intree-diepte, profielpunten, uittree-diepte
+    waypoints = []
+    waypoints.append((0.0, diepte_NAP, Rv))  # virtueel startpunt op intree-diepte
+    for p in pp:
+        rv = p.Rv_m if p.Rv_m and p.Rv_m > 0 else Rv
+        waypoints.append((p.afstand_m, p.NAP_z, rv))
+    waypoints.append((L_totaal_m, diepte_NAP, Rv))  # virtueel eindpunt op uittree-diepte
+
+    # Diepste punt
+    diepte_NAP_min = min(w[1] for w in waypoints)
+
+    # Intree segmenten
+    intree_segs, x_na_intree = _maak_intree_segmenten(
+        MVin_NAP_m, waypoints[0][1], alpha_in_rad, alpha_in_gr, Rv,
+    )
+
+    # Uittree segmenten
+    uittree_segs, x_voor_uittree = _maak_uittree_segmenten(
+        MVuit_NAP_m, waypoints[-1][1], alpha_uit_rad, alpha_uit_gr, Rv, L_totaal_m,
+    )
+
+    # Midden segmenten: van waypoint naar waypoint
+    midden_segs = []
+    # We lopen van x_na_intree (na intree boog, op waypoints[0] diepte)
+    # via alle profielpunten naar x_voor_uittree (voor uittree boog)
+    huidige_x = x_na_intree
+    huidige_z = waypoints[0][1]
+
+    for i in range(1, len(waypoints)):
+        doel_x = waypoints[i][0]
+        doel_z = waypoints[i][1]
+        doel_rv = waypoints[i][2]
+
+        # Laatste waypoint: stop bij x_voor_uittree
+        if i == len(waypoints) - 1:
+            doel_x = x_voor_uittree
+
+        if doel_x <= huidige_x + 0.1:
+            continue
+
+        if abs(doel_z - huidige_z) < 0.01:
+            # Zelfde diepte: horizontale lijn
+            midden_segs.append({
+                "type": "lijn",
+                "x_start": huidige_x, "z_start": huidige_z,
+                "x_end": doel_x, "z_end": doel_z,
+                "horizontaal": True,
+                "lengte": doel_x - huidige_x,
+            })
+        else:
+            # Diepteverschil: boog-lijn-boog overgang
+            overgang = _maak_tussenovergang(huidige_x, huidige_z, doel_x, doel_z, doel_rv)
+            midden_segs.extend(overgang)
+
+        huidige_x = doel_x
+        huidige_z = doel_z
+
+    # Assembleer: intree + midden + uittree
+    segmenten = intree_segs + midden_segs + uittree_segs
+
+    return BoorProfiel(
+        Rv_m=Rv,
+        L_totaal_m=L_totaal_m,
+        diepte_NAP_m=diepte_NAP_min,
+        segmenten=segmenten,
+    )
+
+
+def _bereken_standaard_profiel(
+    L_totaal_m: float, MVin: float, MVuit: float,
+    alpha_in_gr: float, alpha_uit_gr: float,
+    Rv: float, diepte_NAP: float,
+) -> BoorProfiel:
+    """Standaard 5-segment profiel (backward compatible)."""
+    alpha_in_rad = math.radians(alpha_in_gr)
+    alpha_uit_rad = math.radians(alpha_uit_gr)
+
     Tin_h = Rv * math.sin(alpha_in_rad)
     Tin_v = Rv * (1 - math.cos(alpha_in_rad))
     Tuit_h = Rv * math.sin(alpha_uit_rad)
     Tuit_v = Rv * (1 - math.cos(alpha_uit_rad))
 
-    # Controleer of trace lang genoeg is
     L_horiz = L_totaal_m - Tin_h - Tuit_h
     if L_horiz < 0:
-        # Trace te kort: pas Rv aan zodat het net past
-        # Rv_max zodat Rv*sin(a_in) + Rv*sin(a_uit) = L_totaal
         Rv = L_totaal_m / (math.sin(alpha_in_rad) + math.sin(alpha_uit_rad))
         Tin_h = Rv * math.sin(alpha_in_rad)
         Tin_v = Rv * (1 - math.cos(alpha_in_rad))
@@ -61,175 +351,51 @@ def bereken_boorprofiel(
         Tuit_v = Rv * (1 - math.cos(alpha_uit_rad))
         L_horiz = 0.0
 
-    # Rechte stukken boven de bogen (van maaiveld naar begin boog)
-    # De schuine lijn begint bij maaiveld en gaat onder hoek naar beneden.
-    # De boog sluit aan waar de lijn tangent raakt aan de boog.
-    # Intree schuine lijn: van (0, MVin) naar beneden onder alpha_in
-    # Horizontale lengte schuine intree lijn = afstand tot tangentpunt boog
-    # Maar de boog begint NA de schuine lijn. De tangentlengte Tin_h is de
-    # horizontale afstand van tangentpunt tot einde boog (= begin horizontaal).
-    # Dus de schuine lijn loopt van x=0 tot x=x_boog_start.
+    z_boog_in_start = diepte_NAP + Tin_v
+    z_boog_uit_start = diepte_NAP + Tuit_v
 
-    # Diepte van het horizontaal segment:
-    # Verticale daling door schuine lijn + boog intree = Tin_h * tan(alpha_in)
-    # Maar dat klopt niet helemaal. De verticale daling door de boog = Tin_v.
-    # De schuine lijn voor de boog kan 0 lengte hebben als de boog direct begint.
-
-    # Correct model:
-    # Het punt waar de intreeboog begint heeft x-coordinaat x1 en de boog
-    # eindigt bij x-coordinaat x1 + Tin_h. De boog gaat van hoek alpha_in
-    # naar hoek 0 (horizontaal).
-    #
-    # De schuine intree lijn loopt van (0, MVin) naar (x1, z1) onder hoek alpha_in.
-    # De boog buigt van alpha_in naar horizontaal.
-    # Het horizontaal segment loopt op NAP-hoogte diepte_NAP.
-    #
-    # De NAP-hoogte van het begin van de intreeboog:
-    #   z_boog_start = diepte_NAP + Tin_v
-    # De verticale daling over de schuine lijn:
-    #   MVin - z_boog_start = x1 * tan(alpha_in)
-    #   x1 = (MVin - z_boog_start) / tan(alpha_in)
-    #
-    # Analoog voor uittrede:
-    #   z_boog_start_uit = diepte_NAP + Tuit_v
-    #   x5_lengte = (MVuit - z_boog_start_uit) / tan(alpha_uit)
-
-    # Diepte berekening:
-    # De diepte wordt bepaald door de minimale dekking.
-    # Het laagste punt van het maaiveld bepaalt de maximaal toelaatbare NAP hoogte.
-    diepte_NAP = min(MVin_NAP_m, MVuit_NAP_m) - dekking_min_m
-
-    # Check dat diepte haalbaar is (diepte moet lager zijn dan de boog-tangenten)
-    # De boog intree brengt je tot diepte_NAP + Tin_v, dit moet boven MVin liggen
-    # anders is de schuine lijn negatief (leiding komt omhoog ipv omlaag).
-    # In praktijk bij standaard HDD is dit altijd OK.
-
-    # z-coordinaten
-    z_boog_in_start = diepte_NAP + Tin_v    # NAP van begin intreeboog
-    z_boog_uit_start = diepte_NAP + Tuit_v  # NAP van begin uittreeboog
-
-    # Schuine lijn intree: van (0, MVin) naar (x1, z_boog_in_start)
     if alpha_in_gr > 0 and math.tan(alpha_in_rad) > 0:
-        x1 = (MVin_NAP_m - z_boog_in_start) / math.tan(alpha_in_rad)
+        x1 = (MVin - z_boog_in_start) / math.tan(alpha_in_rad)
     else:
         x1 = 0.0
-    x1 = max(x1, 0.0)  # kan niet negatief zijn
+    x1 = max(x1, 0.0)
 
-    # Schuine lijn uittree: van (x5_start, z_boog_uit_start) naar (L_totaal, MVuit)
     if alpha_uit_gr > 0 and math.tan(alpha_uit_rad) > 0:
-        x5_lengte = (MVuit_NAP_m - z_boog_uit_start) / math.tan(alpha_uit_rad)
+        x5_lengte = (MVuit - z_boog_uit_start) / math.tan(alpha_uit_rad)
     else:
         x5_lengte = 0.0
     x5_lengte = max(x5_lengte, 0.0)
 
-    # x-posities van alle segmenten
-    # Segment 1: lijn x=0 tot x=x1
-    # Segment 2: arc  x=x1 tot x=x1+Tin_h
     x2_end = x1 + Tin_h
-    # Segment 3: lijn x=x2_end tot x=x3_end (horizontaal)
     x3_end = L_totaal_m - x5_lengte - Tuit_h
-    # Segment 4: arc  x=x3_end tot x=x3_end+Tuit_h
     x4_end = x3_end + Tuit_h
-    # Segment 5: lijn x=x4_end tot x=L_totaal
 
-    # Intree ARC centrum: de boog gaat van hoek -alpha_in (omlaag) naar 0 (horizontaal)
-    # Center zit recht onder het tangentpunt, op afstand Rv
-    arc_in_cx = x1 + Tin_h   # = x2_end
-    arc_in_cz = diepte_NAP + Rv  # center is Rv boven het horizontale segment
-
-    # Uittree ARC centrum
-    arc_uit_cx = x3_end       # begin van uittree boog
+    arc_in_cx = x2_end
+    arc_in_cz = diepte_NAP + Rv
+    arc_uit_cx = x3_end
     arc_uit_cz = diepte_NAP + Rv
 
-    segmenten = []
+    segmenten = [
+        {"type": "lijn", "x_start": 0.0, "z_start": MVin,
+         "x_end": x1, "z_end": z_boog_in_start, "horizontaal": False,
+         "lengte": math.sqrt(x1**2 + (MVin - z_boog_in_start)**2) if x1 > 0 else 0.0},
+        {"type": "arc", "cx": arc_in_cx, "cz": arc_in_cz, "radius": Rv,
+         "start_hoek_gr": 180.0 + alpha_in_gr, "eind_hoek_gr": 180.0,
+         "start_hoek_rad": math.pi + alpha_in_rad, "eind_hoek_rad": math.pi,
+         "x_start": x1, "z_start": z_boog_in_start, "x_end": x2_end, "z_end": diepte_NAP},
+        {"type": "lijn", "x_start": x2_end, "z_start": diepte_NAP,
+         "x_end": x3_end, "z_end": diepte_NAP, "horizontaal": True,
+         "lengte": max(x3_end - x2_end, 0.0)},
+        {"type": "arc", "cx": arc_uit_cx, "cz": arc_uit_cz, "radius": Rv,
+         "start_hoek_gr": 0.0, "eind_hoek_gr": 360.0 - alpha_uit_gr,
+         "start_hoek_rad": 0.0, "eind_hoek_rad": 2 * math.pi - alpha_uit_rad,
+         "x_start": x3_end, "z_start": diepte_NAP, "x_end": x4_end, "z_end": z_boog_uit_start},
+        {"type": "lijn", "x_start": x4_end, "z_start": z_boog_uit_start,
+         "x_end": L_totaal_m, "z_end": MVuit, "horizontaal": False,
+         "lengte": math.sqrt(x5_lengte**2 + (MVuit - z_boog_uit_start)**2) if x5_lengte > 0 else 0.0},
+    ]
 
-    # Segment 1: schuine lijn intree
-    segmenten.append({
-        "type": "lijn",
-        "x_start": 0.0,
-        "z_start": MVin_NAP_m,
-        "x_end": x1,
-        "z_end": z_boog_in_start,
-        "horizontaal": False,
-        "lengte": math.sqrt(x1**2 + (MVin_NAP_m - z_boog_in_start)**2) if x1 > 0 else 0.0,
-    })
-
-    # Segment 2: intree ARC
-    # In ezdxf/SVG conventie: hoeken in graden, gemeten CCW van positieve x-as
-    # De boog gaat van hoek (270 - alpha_in_gr) naar 270° (= -90° = recht omlaag naar beneden)
-    # Eigenlijk: center is boven de boorlijn, boog loopt aan onderzijde
-    # Hoeken gemeten vanaf center: de boog gaat van (270 - alpha_in_gr) naar 270°
-    # In ons coordinatensysteem (x=rechts, z=omhoog):
-    #   - Center op (arc_in_cx, arc_in_cz) = (x2_end, diepte_NAP + Rv)
-    #   - Startpunt boog: (x1, z_boog_in_start) → relatief: (-Tin_h, -(Rv - Tin_v)) = (-Rv*sin(a), -Rv*cos(a))
-    #     hoek = atan2(-(Rv*cos(a)), -(Rv*sin(a))) = atan2(-Rv*cos(a), -Rv*sin(a))
-    #     = 180 + atan2(Rv*cos(a), Rv*sin(a)) = 180 + (90-a) = 270-a  [in graden]
-    #   - Eindpunt boog: (x2_end, diepte_NAP) → relatief: (0, -Rv) → hoek = 270°
-    segmenten.append({
-        "type": "arc",
-        "cx": arc_in_cx,
-        "cz": arc_in_cz,
-        "radius": Rv,
-        "start_hoek_gr": 180.0 + alpha_in_gr,   # = 180+alpha vanuit center gezien
-        "eind_hoek_gr": 180.0,                   # horizontaal links vanuit center
-        "start_hoek_rad": math.pi + alpha_in_rad,
-        "eind_hoek_rad": math.pi,
-        "x_start": x1,
-        "z_start": z_boog_in_start,
-        "x_end": x2_end,
-        "z_end": diepte_NAP,
-    })
-
-    # Segment 3: horizontaal segment
-    horiz_lengte = max(x3_end - x2_end, 0.0)
-    segmenten.append({
-        "type": "lijn",
-        "x_start": x2_end,
-        "z_start": diepte_NAP,
-        "x_end": x3_end,
-        "z_end": diepte_NAP,
-        "horizontaal": True,
-        "lengte": horiz_lengte,
-    })
-
-    # Segment 4: uittree ARC
-    # Center op (arc_uit_cx, arc_uit_cz) = (x3_end, diepte_NAP + Rv)
-    # Startpunt: (x3_end, diepte_NAP) → relatief: (0, -Rv) → hoek = 0° (recht naar rechts vanuit center? Nee)
-    # relatief: (0, -Rv) → hoek = 270° in standaard math
-    # Eindpunt: (x4_end, z_boog_uit_start) → relatief: (Tuit_h, -(Rv-Tuit_v)) = (Rv*sin(a), -Rv*cos(a))
-    #   hoek = atan2(-Rv*cos(a), Rv*sin(a)) = 360 - a  [in graden]
-    segmenten.append({
-        "type": "arc",
-        "cx": arc_uit_cx,
-        "cz": arc_uit_cz,
-        "radius": Rv,
-        "start_hoek_gr": 0.0,                      # horizontaal rechts vanuit center
-        "eind_hoek_gr": 360.0 - alpha_uit_gr,      # naar uittreehoek
-        "start_hoek_rad": 0.0,
-        "eind_hoek_rad": 2 * math.pi - alpha_uit_rad,
-        "x_start": x3_end,
-        "z_start": diepte_NAP,
-        "x_end": x4_end,
-        "z_end": z_boog_uit_start,
-    })
-
-    # Segment 5: schuine lijn uittree
-    segmenten.append({
-        "type": "lijn",
-        "x_start": x4_end,
-        "z_start": z_boog_uit_start,
-        "x_end": L_totaal_m,
-        "z_end": MVuit_NAP_m,
-        "horizontaal": False,
-        "lengte": math.sqrt(x5_lengte**2 + (MVuit_NAP_m - z_boog_uit_start)**2) if x5_lengte > 0 else 0.0,
-    })
-
-    return BoorProfiel(
-        Rv_m=Rv,
-        L_totaal_m=L_totaal_m,
-        diepte_NAP_m=diepte_NAP,
-        segmenten=segmenten,
-    )
+    return BoorProfiel(Rv_m=Rv, L_totaal_m=L_totaal_m, diepte_NAP_m=diepte_NAP, segmenten=segmenten)
 
 
 def arc_punten(cx: float, cz: float, radius: float,
