@@ -106,7 +106,7 @@ def test_adm2_logo_upload_verkeerd_formaat(client, workspace, db):
 
     resp = client.post(
         "/admin/klanten/logo/logo-bad",
-        files={"logo": ("virus.exe", io.BytesIO(b"MZ\x00\x00"), "application/octet-stream")},
+        files={"logo": ("virus.exe", io.BytesIO(b"MZ" + b"\x00" * 100), "application/octet-stream")},
         auth=AUTH,
     )
     assert resp.status_code == 400

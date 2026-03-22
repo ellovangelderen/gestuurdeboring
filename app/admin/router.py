@@ -144,7 +144,16 @@ async def klant_logo_upload(
     if not klant:
         raise HTTPException(404, "Klant niet gevonden")
 
+    # Check of er een bestand geselecteerd is
+    if not logo.filename or not logo.filename.strip():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/admin/klanten", status_code=303)
+
     content = await logo.read()
+    if len(content) < 10:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/admin/klanten", status_code=303)
+
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(413, "Logo te groot (max 5MB)")
 

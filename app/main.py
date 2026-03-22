@@ -86,13 +86,28 @@ async def lifespan(application: FastAPI):
         # Klanten (Martien's 50 opdrachtgevers)
         if _db.query(Klant).count() == 0:
             from scripts.seed_klanten import KLANTEN
+            from pathlib import Path as _P
             for nr, code, naam, contact, logo in KLANTEN:
                 if nr == 3:
                     code = "VB3"
                 if not _db.query(Klant).filter_by(code=code).first():
-                    _db.add(Klant(nr=nr, code=code, naam=naam, contact=contact, logo_bestand=logo))
+                    # Alleen logo zetten als het bestand echt bestaat
+                    logo_val = None
+                    if logo:
+                        for ext in (".jpg", ".jpeg", ".png", ".svg", ".webp", ""):
+                            if _P(f"static/logos/{logo}{ext}").exists():
+                                logo_val = f"{logo}{ext}"
+                                break
+                    _db.add(Klant(nr=nr, code=code, naam=naam, contact=contact, logo_bestand=logo_val))
             _db.commit()
             logger.info("Klanten: %d geseeded", _db.query(Klant).count())
+
+        # Fix: verwijder logo_bestand waarden waar het bestand niet bestaat
+        from pathlib import Path as _P2
+        for klant in _db.query(Klant).filter(Klant.logo_bestand != None).all():
+            if klant.logo_bestand and not _P2(f"static/logos/{klant.logo_bestand}").exists():
+                klant.logo_bestand = None
+        _db.commit()
 
         # Eisenprofielen
         from app.rules.models import EisenProfiel
