@@ -48,6 +48,8 @@ def admin_dashboard(
     user: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    import os
+    from app.core.config import settings
     from app.order.models import Order, Boring, TracePunt, KLICUpload
 
     stats = {
@@ -57,14 +59,35 @@ def admin_dashboard(
         "klic_uploads": db.query(KLICUpload).count(),
         "klanten": db.query(Klant).count(),
     }
-    db_path = Path("data/hdd.db")
-    if not db_path.exists():
-        db_path = Path("hdd.db")
+
+    # Database info
+    db_path_str = settings.DATABASE_URL.replace("sqlite:///", "").replace("sqlite:", "")
+    db_path = Path(db_path_str)
     stats["db_grootte_mb"] = round(db_path.stat().st_size / 1024 / 1024, 1) if db_path.exists() else 0
+    stats["db_path"] = db_path_str
+
+    # Health checks
+    health = {
+        "db_exists": db_path.exists(),
+        "db_on_volume": db_path_str.startswith("/data"),
+        "volume_exists": Path("/data").exists(),
+        "env": settings.ENV,
+    }
+    if Path("/data").exists():
+        try:
+            stat = os.statvfs("/data")
+            health["volume_free_mb"] = round(stat.f_frsize * stat.f_bavail / 1024 / 1024)
+            health["volume_used_pct"] = round((1 - stat.f_bavail / stat.f_blocks) * 100, 1)
+        except Exception:
+            health["volume_free_mb"] = 0
+            health["volume_used_pct"] = 0
+
+    # Alles OK?
+    health["ok"] = health["db_exists"] and health["db_on_volume"] and health["volume_exists"]
 
     return templates.TemplateResponse(
         "admin/dashboard.html",
-        {"request": request, "user": user, "stats": stats},
+        {"request": request, "user": user, "stats": stats, "health": health},
     )
 
 

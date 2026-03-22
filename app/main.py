@@ -9,6 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.admin.router import router as admin_router
 from app.documents.router import router as documents_router
+from app.ops import router as ops_router
 from app.order.router import router as order_router
 from app.project.router import router as project_router
 
@@ -146,6 +147,7 @@ app.include_router(order_router)
 app.include_router(project_router)
 app.include_router(documents_router)
 app.include_router(admin_router)
+app.include_router(ops_router)
 
 
 @app.exception_handler(HTTPException)
