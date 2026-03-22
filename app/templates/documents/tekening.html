@@ -33,9 +33,15 @@
       {% endif %}
 
       <div class="zone-title" style="margin-top: 1mm;">GPS punten boorlijn:</div>
-      <div class="mono">
-        {% for p in punten %}{{ p.label }}: {{ p.RD_x }}, {{ p.RD_y }}<br>{% endfor %}
-      </div>
+      <table style="font-family: 'Courier New', monospace; font-size: 5.5pt; border-collapse: collapse; width: 100%;">
+        {% for p in punten %}
+        <tr>
+          <td style="padding: 0 1mm; font-weight: bold; width: 18px;">{{ p.label }}</td>
+          <td style="padding: 0 1mm;">{{ p.RD_x }}</td>
+          <td style="padding: 0 1mm;">{{ p.RD_y }}</td>
+        </tr>
+        {% endfor %}
+      </table>
 
       {% if not is_boogzinker %}
       <div style="font-size: 6pt; margin-top: 1mm;">
@@ -135,11 +141,15 @@
         <tr>
           <!-- Opmerkingen -->
           <td style="padding: 1.5mm; vertical-align: top; border-right: 0.5pt solid #000; width: 40%;">
-            <strong>OPMERKINGEN:</strong><br>
-            1. Dieptes K&amp;L indicatief — opzoeken conform CROW 96b.<br>
-            2. CROW 96b: grondroerder verantwoordelijk.<br>
-            3. Sensorpunten via walk-over meetsysteem.<br>
-            4. DWG is leidend; PDF is afgeleid.
+            <div style="font-size: 5.5pt; line-height: 1.5;">
+              <strong style="font-size: 6pt;">OPMERKINGEN:</strong><br>
+              1. Dieptes K&amp;L zijn indicatief en niet betrouwbaar als harde waarde.
+              Alle leidingen dienen ter plaatse te worden opgezocht conform CROW 96b.<br>
+              2. CROW 96b: Veilig werken nabij kabels en leidingen — grondroerder is
+              verantwoordelijk voor toepassing van de richtlijn.<br>
+              3. Sensorpunten bepaald via walk-over meetsysteem tijdens uitvoering.<br>
+              4. DWG is leidend; PDF is afgeleid document.
+            </div>
           </td>
           <!-- Logo's -->
           <td style="padding: 1.5mm; vertical-align: middle; text-align: center; border-right: 0.5pt solid #000; width: 25%;">

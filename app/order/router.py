@@ -960,10 +960,15 @@ async def klic_upload(
     dest_dir.mkdir(parents=True, exist_ok=True)
     safe_filename = Path(klic_zip.filename).name
 
-    # Accepteer .zip, .xml en .gml bestanden
+    # Accepteer .zip, .xml en .gml bestanden (extensie + magic bytes)
     suffix = Path(safe_filename).suffix.lower()
     if suffix not in (".zip", ".xml", ".gml"):
         raise HTTPException(status_code=400, detail="Alleen .zip, .xml of .gml bestanden toegestaan")
+    # Magic bytes check
+    if suffix == ".zip" and not content[:2] == b"PK":
+        raise HTTPException(status_code=400, detail="Bestand is geen geldig ZIP-bestand")
+    if suffix in (".xml", ".gml") and b"<?xml" not in content[:100] and b"<gml:" not in content[:200]:
+        raise HTTPException(status_code=400, detail="Bestand is geen geldig XML/GML-bestand")
 
     dest_path = dest_dir / safe_filename
 

@@ -26,11 +26,13 @@ def fetch_project(project_id: str, db: Session):
     return project
 
 
-def fetch_order(order_id: str, db: Session):
-    """Haalt order op of geeft 404."""
+def fetch_order(order_id: str, db: Session, user: str | None = None):
+    """Haalt order op of geeft 404. Checkt workspace ownership als user meegegeven."""
     from app.order.models import Order
     order = db.get(Order, order_id)
     if not order:
+        raise HTTPException(status_code=404, detail="Order niet gevonden")
+    if user and order.workspace_id != get_workspace_id(user):
         raise HTTPException(status_code=404, detail="Order niet gevonden")
     return order
 
