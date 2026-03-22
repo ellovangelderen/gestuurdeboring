@@ -1,9 +1,17 @@
 from pydantic_settings import BaseSettings
 
 
+def _default_db_url() -> str:
+    """DB op persistent volume als /data/ bestaat (Railway), anders lokaal."""
+    from pathlib import Path
+    if Path("/data").exists():
+        return "sqlite:////data/hdd.db"
+    return "sqlite:///./hdd.db"
+
+
 class Settings(BaseSettings):
     ENV: str = "development"
-    DATABASE_URL: str = "sqlite:///./hdd.db"
+    DATABASE_URL: str = _default_db_url()
     USER_MARTIEN_PASSWORD: str = ""
     USER_SOPA_PASSWORD: str = ""
     USER_LUCAS_PASSWORD: str = ""
