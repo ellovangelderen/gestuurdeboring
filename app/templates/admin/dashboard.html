@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Admin — HDD Platform{% endblock %}
+{% block content %}
+<h1>Beheer</h1>
+
+<!-- Systeem stats -->
+<div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 120px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; background: #fff;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.orders }}</div>
+    <div style="font-size: 0.8em; color: #666;">Orders</div>
+  </div>
+  <div style="flex: 1; min-width: 120px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; background: #fff;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.boringen }}</div>
+    <div style="font-size: 0.8em; color: #666;">Boringen</div>
+  </div>
+  <div style="flex: 1; min-width: 120px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; background: #fff;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.klic_uploads }}</div>
+    <div style="font-size: 0.8em; color: #666;">KLIC uploads</div>
+  </div>
+  <div style="flex: 1; min-width: 120px; text-align: center; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; background: #fff;">
+    <div style="font-size: 1.5rem; font-weight: 700;">{{ stats.db_grootte_mb }} MB</div>
+    <div style="font-size: 0.8em; color: #666;">Database</div>
+  </div>
+</div>
+
+<!-- Beheer modules -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+
+  <a href="/admin/klanten" style="text-decoration: none; color: inherit;">
+    <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+      <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Opdrachtgevers</h3>
+      <p style="font-size: 0.85em; color: #666; margin: 0;">Klantcodes, contactpersonen, logo's beheren</p>
+    </div>
+  </a>
+
+  <a href="/admin/export" style="text-decoration: none; color: inherit;">
+    <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+      <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Data export</h3>
+      <p style="font-size: 0.85em; color: #666; margin: 0;">Database backup downloaden, CSV exports</p>
+    </div>
+  </a>
+
+  <a href="/orders/import" style="text-decoration: none; color: inherit;">
+    <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+      <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Data import</h3>
+      <p style="font-size: 0.85em; color: #666; margin: 0;">Excel order overview importeren</p>
+    </div>
+  </a>
+
+  <a href="/admin/instellingen" style="text-decoration: none; color: inherit;">
+    <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+      <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Instellingen</h3>
+      <p style="font-size: 0.85em; color: #666; margin: 0;">Bundelfactoren, ruimfactoren, standaard dieptes</p>
+    </div>
+  </a>
+
+</div>
+
+{% endblock %}

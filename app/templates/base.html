@@ -11,6 +11,12 @@
 <body>
   <nav>
     <a href="/orders/" class="nav-brand">HDD Platform</a>
+    <div class="nav-links">
+      <a href="/orders/" class="nav-link">Orders</a>
+      {% if user in ['martien', 'ello', 'test'] %}
+      <a href="/admin/" class="nav-link nav-link--admin">Admin</a>
+      {% endif %}
+    </div>
     <span class="nav-user">{{ user }}</span>
   </nav>
   <main>

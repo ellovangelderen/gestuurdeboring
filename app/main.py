@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.admin.router import router as admin_router
 from app.documents.router import router as documents_router
 from app.order.router import router as order_router
 from app.project.router import router as project_router
@@ -86,6 +87,7 @@ _error_templates = Jinja2Templates(directory="app/templates")
 app.include_router(order_router)
 app.include_router(project_router)
 app.include_router(documents_router)
+app.include_router(admin_router)
 
 
 @app.exception_handler(HTTPException)
