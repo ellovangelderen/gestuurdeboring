@@ -212,7 +212,7 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 | 🔴 MUST | SEC-2 | Logging toevoegen | ✅ DONE |
 | 🔴 MUST | SEC-3 | tifffile/numpy in requirements | ✅ DONE |
 | 🟠 SHOULD | SEC-4 | Rate limiting login | ✅ DONE |
-| 🟠 SHOULD | SEC-5 | CSRF bescherming | Open |
+| 🟢 WONTFIX | SEC-5 | CSRF — HTTP Basic Auth mitigeert, geen cookie auth | — |
 | 🟠 SHOULD | SEC-6 | Dependency lock file | ✅ DONE |
 | 🟠 SHOULD | SEC-7 | Auth failure logging | ✅ DONE (in SEC-2) |
 | 🟠 SHOULD | QUA-1 | Split god router | Open |
