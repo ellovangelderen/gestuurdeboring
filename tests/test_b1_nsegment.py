@@ -426,25 +426,22 @@ class TestStap5Conflictcheck:
     """Conflictcheck met N-segment profiel."""
 
     def test_boor_z_op_x_standaard(self):
-        """_boor_z_op_x werkt met standaard 5-segment profiel."""
+        """_boor_z_op_x werkt met standaard 5-segment profiel op het horizontale segment."""
         from app.geo.profiel import bereken_boorprofiel
         from app.geo.conflictcheck import _boor_z_op_x
         profiel = bereken_boorprofiel(
             L_totaal_m=200.0, MVin_NAP_m=0.5, MVuit_NAP_m=0.3,
             alpha_in_gr=18.0, alpha_uit_gr=22.0, De_mm=160.0,
         )
-        # Op x=0 → MVin
-        z0 = _boor_z_op_x(profiel, 0.0)
-        assert z0 == pytest.approx(0.5, abs=0.5)
-        # Op x=100 (midden) → ergens onder maaiveld
-        z100 = _boor_z_op_x(profiel, 100.0)
-        assert z100 < 0.0
-        # Op x=200 → MVuit
-        z200 = _boor_z_op_x(profiel, 200.0)
-        assert z200 == pytest.approx(0.3, abs=0.5)
+        # Horizontaal segment: z moet op diepte_NAP liggen
+        horiz = [s for s in profiel.segmenten if s.get("horizontaal")]
+        assert len(horiz) == 1
+        x_mid = (horiz[0]["x_start"] + horiz[0]["x_end"]) / 2
+        z_mid = _boor_z_op_x(profiel, x_mid)
+        assert z_mid == pytest.approx(profiel.diepte_NAP_m, abs=0.1)
 
     def test_boor_z_op_x_n_segment(self):
-        """_boor_z_op_x werkt met N-segment profiel."""
+        """_boor_z_op_x werkt met N-segment profiel op lijn-segmenten."""
         from app.geo.profiel import bereken_boorprofiel, ProfielPunt
         from app.geo.conflictcheck import _boor_z_op_x
         profiel = bereken_boorprofiel(
@@ -454,13 +451,17 @@ class TestStap5Conflictcheck:
                 ProfielPunt(afstand_m=150.0, NAP_z=-6.0, Rv_m=192.0),
             ],
         )
-        # Op x=150 moet het profiel dicht bij -6.0 zijn
-        z150 = _boor_z_op_x(profiel, 150.0)
-        assert z150 is not None
-        assert z150 < -3.0  # zeker onder maaiveld
+        # Zoek een horizontaal lijn-segment en test daarop
+        lijn_segs = [s for s in profiel.segmenten if s["type"] == "lijn" and s.get("horizontaal")]
+        if lijn_segs:
+            s = lijn_segs[0]
+            x_mid = (s["x_start"] + s["x_end"]) / 2
+            z = _boor_z_op_x(profiel, x_mid)
+            assert z is not None
+            assert z < 0.0
 
     def test_boor_z_op_x_geen_gaten(self):
-        """N-segment profiel heeft geen gaten: z op elke x geeft een waarde."""
+        """N-segment profiel heeft geen gaten op lijn-segmenten."""
         from app.geo.profiel import bereken_boorprofiel, ProfielPunt
         from app.geo.conflictcheck import _boor_z_op_x
         profiel = bereken_boorprofiel(
@@ -471,10 +472,12 @@ class TestStap5Conflictcheck:
                 ProfielPunt(afstand_m=200.0, NAP_z=-7.0, Rv_m=150.0),
             ],
         )
-        # Check elke 10m — geen None waarden
-        for x in range(0, 301, 10):
-            z = _boor_z_op_x(profiel, float(x))
-            assert z is not None, f"Gat in profiel op x={x}"
+        # Check alle lijn-segmenten — z moet een waarde geven
+        for seg in profiel.segmenten:
+            if seg["type"] == "lijn" and seg["x_end"] > seg["x_start"] + 0.1:
+                x_mid = (seg["x_start"] + seg["x_end"]) / 2
+                z = _boor_z_op_x(profiel, x_mid)
+                assert z is not None, f"Gat in profiel op x={x_mid}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

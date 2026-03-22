@@ -301,6 +301,54 @@ def intrekkracht_opslaan(
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
 
 
+# ── Profielpunten ─────────────────────────────────────────────────────────
+
+@router.post("/{order_id}/boringen/{volgnr}/profielpunten")
+def profielpunten_opslaan(
+    order_id: str,
+    volgnr: int,
+    afstand_list: str = Form(...),
+    NAP_z_list: str = Form(...),
+    Rv_list: str = Form(""),
+    user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sla verticale profielpunten op voor N-segment profiel."""
+    from app.order.models import ProfielPunt
+
+    fetch_order(order_id, db)
+    boring = fetch_boring(order_id, volgnr, db)
+
+    try:
+        afstanden = [float(v.strip()) for v in afstand_list.split(",") if v.strip()]
+        nap_zs = [float(v.strip()) for v in NAP_z_list.split(",") if v.strip()]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ongeldige afstanden of NAP-waarden")
+
+    rvs = [v.strip() for v in Rv_list.split(",")] if Rv_list else [""] * len(afstanden)
+
+    # Verwijder bestaande profielpunten
+    for p in boring.profiel_punten:
+        db.delete(p)
+    db.flush()
+
+    for i, (afstand, nap_z) in enumerate(zip(afstanden, nap_zs)):
+        rv_val = rvs[i] if i < len(rvs) else ""
+        try:
+            rv = float(rv_val) if rv_val else None
+        except ValueError:
+            rv = None
+        db.add(ProfielPunt(
+            boring_id=boring.id,
+            volgorde=i,
+            afstand_m=afstand,
+            NAP_z=nap_z,
+            Rv_m=rv,
+        ))
+    db.commit()
+    return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}/brondata", status_code=303)
+
+
 # ── Dinoloket sonderingen ─────────────────────────────────────────────────
 
 @router.get("/{order_id}/boringen/{volgnr}/sonderingen", response_class=HTMLResponse)

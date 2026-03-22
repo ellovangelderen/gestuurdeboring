@@ -211,6 +211,12 @@ def _draw_lengteprofiel(msp, boring: Boring, order: Order, db: Optional[Session]
                 De_mm=boring.De_mm or 160.0,
             )
         else:
+            # Converteer DB ProfielPunt naar engine ProfielPunt
+            from app.geo.profiel import ProfielPunt as PP
+            pp = []
+            if hasattr(boring, 'profiel_punten') and boring.profiel_punten:
+                pp = [PP(afstand_m=p.afstand_m, NAP_z=p.NAP_z, Rv_m=p.Rv_m or 0.0)
+                      for p in boring.profiel_punten]
             profiel = bereken_boorprofiel(
                 L_totaal_m=L_totaal,
                 MVin_NAP_m=mv.MVin_NAP_m,
@@ -218,6 +224,7 @@ def _draw_lengteprofiel(msp, boring: Boring, order: Order, db: Optional[Session]
                 alpha_in_gr=boring.intreehoek_gr or 18.0,
                 alpha_uit_gr=boring.uittreehoek_gr or 22.0,
                 De_mm=boring.De_mm or 160.0,
+                profiel_punten=pp,
             )
     except Exception:
         return
