@@ -69,7 +69,7 @@ def test_nav_e2_dxf_volledige_flow(client, db, workspace):
     order_id, volgnr = _maak_order_boring(client, db, "HDD-dxf-full")
 
     # Trace opslaan
-    with patch("app.order.router.bepaal_waterschap", return_value=None):
+    with patch("app.order.routers.trace.bepaal_waterschap", return_value=None):
         client.post(
             f"/orders/{order_id}/boringen/{volgnr}/trace",
             data={
@@ -100,7 +100,7 @@ def test_nav_e3_pdf_volledige_flow(client, db, workspace):
     from unittest.mock import patch
     order_id, volgnr = _maak_order_boring(client, db, "HDD-pdf-full")
 
-    with patch("app.order.router.bepaal_waterschap", return_value=None):
+    with patch("app.order.routers.trace.bepaal_waterschap", return_value=None):
         client.post(
             f"/orders/{order_id}/boringen/{volgnr}/trace",
             data={

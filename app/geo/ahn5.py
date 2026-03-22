@@ -6,6 +6,8 @@ Publieke API:
 Gebruikt tifffile + numpy voor GeoTIFF-parsing.
 Alle fouten worden gevangen en gelogd; de functie geeft altijd None terug bij fouten.
 """
+from __future__ import annotations
+
 import io
 import logging
 import math

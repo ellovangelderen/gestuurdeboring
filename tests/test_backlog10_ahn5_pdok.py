@@ -40,7 +40,7 @@ def test_tc_b10_a_ahn5_route_succes(client, workspace, db):
     """TC-b10-A: AHN5 route haalt beide waarden op en slaat correct op."""
     _maak_boring_met_trace(db, "order-a", "boring-a", "B10-A")
 
-    with patch("app.order.router.haal_maaiveld_op", side_effect=[1.01, 1.27]):
+    with patch("app.order.routers.brondata.haal_maaiveld_op", side_effect=[1.01, 1.27]):
         resp = client.post("/orders/order-a/boringen/1/maaiveld/ahn5", auth=AUTH)
 
     assert resp.status_code == 200
@@ -66,7 +66,7 @@ def test_tc_b10_b_ahn5_route_partial(client, workspace, db):
     """TC-b10-B: AHN5 partial — intree OK, uittree niet beschikbaar."""
     _maak_boring_met_trace(db, "order-b", "boring-b", "B10-B")
 
-    with patch("app.order.router.haal_maaiveld_op", side_effect=[1.01, None]):
+    with patch("app.order.routers.brondata.haal_maaiveld_op", side_effect=[1.01, None]):
         resp = client.post("/orders/order-b/boringen/1/maaiveld/ahn5", auth=AUTH)
 
     data = resp.json()
@@ -95,7 +95,7 @@ def test_tc_b10_d_ahn5_service_onbereikbaar(client, workspace, db):
     """TC-b10-D: AHN5 service onbereikbaar (beide None) → foutmelding."""
     _maak_boring_met_trace(db, "order-d", "boring-d", "B10-D")
 
-    with patch("app.order.router.haal_maaiveld_op", return_value=None):
+    with patch("app.order.routers.brondata.haal_maaiveld_op", return_value=None):
         resp = client.post("/orders/order-d/boringen/1/maaiveld/ahn5", auth=AUTH)
 
     data = resp.json()
@@ -108,7 +108,7 @@ def test_tc_b10_e_handmatig_na_ahn5_bewaart_ref(client, workspace, db):
     _maak_boring_met_trace(db, "order-e", "boring-e", "B10-E")
 
     # Eerst AHN5
-    with patch("app.order.router.haal_maaiveld_op", side_effect=[1.01, 1.27]):
+    with patch("app.order.routers.brondata.haal_maaiveld_op", side_effect=[1.01, 1.27]):
         client.post("/orders/order-e/boringen/1/maaiveld/ahn5", auth=AUTH)
 
     # Dan handmatig
@@ -140,7 +140,7 @@ def test_tc_b10_f_ahn5_gebruikt_rd_coordinaten(client, workspace, db):
         calls.append((x, y))
         return 1.0
 
-    with patch("app.order.router.haal_maaiveld_op", side_effect=mock_ahn):
+    with patch("app.order.routers.brondata.haal_maaiveld_op", side_effect=mock_ahn):
         client.post("/orders/order-f/boringen/1/maaiveld/ahn5", auth=AUTH)
 
     assert len(calls) == 2
@@ -179,7 +179,7 @@ def test_tc_b10_i_trace_opslaan_genereert_pdok_url(client, workspace, db):
     db.add(Boring(id="boring-i", order_id="order-i", volgnummer=1, type="B"))
     db.commit()
 
-    with patch("app.order.router.bepaal_waterschap", return_value=None):
+    with patch("app.order.routers.trace.bepaal_waterschap", return_value=None):
         resp = client.post(
             "/orders/order-i/boringen/1/trace",
             data={
@@ -277,7 +277,7 @@ def test_tc_b10_o_trace_opslaan_vult_waterschap_url(client, workspace, db):
     db.add(Boring(id="boring-o", order_id="order-o", volgnummer=1, type="B"))
     db.commit()
 
-    with patch("app.order.router.bepaal_waterschap", return_value="Hoogheemraadschap van Rijnland"):
+    with patch("app.order.routers.trace.bepaal_waterschap", return_value="Hoogheemraadschap van Rijnland"):
         resp = client.post(
             "/orders/order-o/boringen/1/trace",
             data={

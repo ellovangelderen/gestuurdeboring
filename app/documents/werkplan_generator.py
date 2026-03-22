@@ -4,6 +4,8 @@ Genereert een compleet werkplan voor een gestuurde boring op basis van
 Order- en Boring-data uit de database. Het formaat volgt het standaard
 werkplan template van GestuurdeBoring Tekening.nl.
 """
+from __future__ import annotations
+
 import io
 import math
 from datetime import date

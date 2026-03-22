@@ -6,6 +6,8 @@ en berekent de minimale afstand tot de boorlijn.
 Publieke API:
     check_conflicts(boring, klic_leidingen, profiel) -> list[dict]
 """
+from __future__ import annotations
+
 import math
 from dataclasses import dataclass
 

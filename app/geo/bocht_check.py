@@ -3,6 +3,7 @@
 Publieke API:
     check_bochten(trace_coords, Rh_min) -> list[dict]
 """
+from __future__ import annotations
 import math
 
 

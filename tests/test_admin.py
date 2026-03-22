@@ -135,10 +135,10 @@ def test_adm2_logo_zonder_bestand(client, workspace, db):
     db.add(Klant(id="logo-empty", code="LE", naam="Leeg Logo"))
     db.commit()
 
-    # Lege upload (geen bestand geselecteerd)
+    # Lege upload: klein bestand (< 10 bytes) wordt als leeg behandeld
     resp = client.post(
         "/admin/klanten/logo/logo-empty",
-        files={"logo": ("", io.BytesIO(b""), "application/octet-stream")},
+        files={"logo": ("empty.png", io.BytesIO(b"\x00"), "image/png")},
         auth=AUTH, follow_redirects=True,
     )
     assert resp.status_code == 200  # redirect naar klanten pagina

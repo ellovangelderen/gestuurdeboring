@@ -3,6 +3,7 @@
 Publieke API:
     haal_riooldata_op(rd_x, rd_y, buffer_m) -> list[RioolLeiding]
 """
+from __future__ import annotations
 import logging
 from dataclasses import dataclass
 

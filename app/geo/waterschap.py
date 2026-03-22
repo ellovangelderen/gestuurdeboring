@@ -4,6 +4,8 @@ Publieke API:
     bepaal_waterschap(rd_x, rd_y) -> str | None
     waterschap_kaart_url(waterschap_naam) -> str | None
 """
+from __future__ import annotations
+
 import logging
 
 import httpx
