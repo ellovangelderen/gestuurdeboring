@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -28,7 +28,7 @@ def fetch_project(project_id: str, db: Session):
     return project
 
 
-def fetch_order(order_id: str, db: Session, user: str | None = None):
+def fetch_order(order_id: str, db: Session, user: Optional[str] = None):
     """Haalt order op of geeft 404. Checkt workspace ownership als user meegegeven."""
     from app.order.models import Order
     order = db.get(Order, order_id)
@@ -48,7 +48,7 @@ def fetch_boring(order_id: str, volgnummer: int, db: Session):
     return boring
 
 
-def fetch_order_boring(order_id: str, volgnr: int, db: Session, user: str | None = None):
+def fetch_order_boring(order_id: str, volgnr: int, db: Session, user: Optional[str] = None):
     """Gecombineerde fetch: order + boring in één call. Returns (order, boring)."""
     order = fetch_order(order_id, db, user)
     boring = fetch_boring(order_id, volgnr, db)

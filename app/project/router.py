@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 
 import shutil
 from pathlib import Path
@@ -33,12 +33,12 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 
-def _f(v: str) -> float | None:
+def _f(v: str) -> Optional[float]:
     """Converteer leeg Form string-veld naar None (optionele float)."""
     return float(v) if v and v.strip() else None
 
 
-def _i(v: str) -> int | None:
+def _i(v: str) -> Optional[int]:
     """Converteer leeg Form string-veld naar None (optionele int)."""
     return int(v) if v and v.strip() else None
 
@@ -347,8 +347,8 @@ def maaiveld_ahn5_ophalen(
             "melding": "Geen intree- of uittree-punt gevonden — sla eerst het tracé op",
         })
 
-    mv_in: float | None = None
-    mv_uit: float | None = None
+    mv_in: Optional[float] = None
+    mv_uit: Optional[float] = None
 
     if intree is not None:
         mv_in = haal_maaiveld_op(intree.RD_x, intree.RD_y)
