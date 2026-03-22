@@ -17,6 +17,22 @@ templates = Jinja2Templates(directory="app/templates")
 
 ADMIN_USERS = {"martien", "ello", "test"}
 
+# Logo directory: persistent volume op Railway, static lokaal
+LOGO_DIR = Path("data/logos") if Path("data").exists() else Path("static/logos")
+LOGO_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.get("/logo/{filename}")
+def serve_logo(filename: str):
+    """Serveer logo bestand (uit persistent volume of static)."""
+    from fastapi.responses import FileResponse
+    # Check data/logos eerst (Railway volume), dan static/logos
+    for d in [Path("data/logos"), Path("static/logos")]:
+        fpath = d / filename
+        if fpath.exists():
+            return FileResponse(fpath)
+    raise HTTPException(404, "Logo niet gevonden")
+
 
 def require_admin(user: str = Depends(get_current_user)) -> str:
     if user not in ADMIN_USERS:
@@ -162,10 +178,8 @@ async def klant_logo_upload(
     if suffix not in (".jpg", ".jpeg", ".png", ".svg", ".webp"):
         raise HTTPException(400, "Alleen JPG, PNG, SVG of WebP logo's toegestaan")
 
-    logo_dir = Path("static/logos")
-    logo_dir.mkdir(parents=True, exist_ok=True)
     safe_name = f"logo_{klant.code}{suffix}"
-    dest = logo_dir / safe_name
+    dest = LOGO_DIR / safe_name
     with open(dest, "wb") as f:
         f.write(content)
 

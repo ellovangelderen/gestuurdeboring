@@ -105,8 +105,11 @@ async def lifespan(application: FastAPI):
         # Fix: verwijder logo_bestand waarden waar het bestand niet bestaat
         from pathlib import Path as _P2
         for klant in _db.query(Klant).filter(Klant.logo_bestand != None).all():
-            if klant.logo_bestand and not _P2(f"static/logos/{klant.logo_bestand}").exists():
-                klant.logo_bestand = None
+            if klant.logo_bestand:
+                found = any(_P2(d / klant.logo_bestand).exists()
+                           for d in [_P2("data/logos"), _P2("static/logos")])
+                if not found:
+                    klant.logo_bestand = None
         _db.commit()
 
         # Eisenprofielen
