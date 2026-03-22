@@ -46,6 +46,7 @@ async def lifespan(application: FastAPI):
     import app.core.models       # noqa: F401
     import app.project.models    # noqa: F401
     import app.rules.models      # noqa: F401
+    import app.admin.models      # noqa: F401
 
     # Ad-hoc kolom migraties (SQLite heeft geen IF NOT EXISTS bij ALTER TABLE)
     migrations = [

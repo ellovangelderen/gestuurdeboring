@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Data export — Admin{% endblock %}
+{% block content %}
+<h1>Data export</h1>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+
+  <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+    <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Database backup</h3>
+    <p style="font-size: 0.85em; color: #666;">Download de volledige SQLite database.</p>
+    <a href="/admin/export/database" class="btn btn-primary btn-sm">Download .db</a>
+  </div>
+
+  <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+    <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Klantlijst</h3>
+    <p style="font-size: 0.85em; color: #666;">Alle opdrachtgevers als CSV.</p>
+    <a href="/admin/export/klanten-csv" class="btn btn-secondary btn-sm">Download CSV</a>
+  </div>
+
+  <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
+    <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Orders export</h3>
+    <p style="font-size: 0.85em; color: #666;">Alle orders als CSV (zelfde als cockpit export).</p>
+    <a href="/orders/export/csv" class="btn btn-secondary btn-sm">Download CSV</a>
+  </div>
+
+</div>
+
+<a href="/admin/" class="btn btn-secondary">&larr; Admin</a>
+{% endblock %}

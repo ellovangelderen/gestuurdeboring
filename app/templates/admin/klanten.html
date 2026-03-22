@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Opdrachtgevers — Admin{% endblock %}
+{% block content %}
+<h1>Opdrachtgevers</h1>
+<p>{{ klanten|length }} klanten in het systeem.</p>
+
+<table class="table" style="margin-bottom: 1.5rem;">
+  <thead>
+    <tr><th>Nr</th><th>Code</th><th>Naam</th><th>Contact</th><th>Logo</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for k in klanten %}
+    <tr>
+      <td>{{ k.nr or '—' }}</td>
+      <td><strong>{{ k.code }}</strong></td>
+      <td>{{ k.naam }}</td>
+      <td>{{ k.contact or '—' }}</td>
+      <td>
+        {% if k.logo_bestand %}
+          <img src="/static/logos/{{ k.logo_bestand }}" style="max-height: 20px; max-width: 60px;">
+        {% else %}
+          <form method="post" action="/admin/klanten/logo/{{ k.id }}" enctype="multipart/form-data" style="display: inline;">
+            <input type="file" name="logo" accept=".jpg,.jpeg,.png,.svg" style="width: 120px; font-size: 0.75em;">
+            <button type="submit" class="btn btn-sm btn-secondary">Upload</button>
+          </form>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" action="/admin/klanten/{{ k.id }}/verwijder" style="display: inline;">
+          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Verwijderen?')">X</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Nieuwe klant toevoegen -->
+<details>
+  <summary class="btn btn-primary btn-sm">+ Klant toevoegen</summary>
+  <form method="post" action="/admin/klanten/nieuw" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end;">
+    <label style="font-size: 0.85em;">Nr<br><input type="number" name="nr" style="width: 50px;"></label>
+    <label style="font-size: 0.85em;">Code *<br><input type="text" name="code" required style="width: 50px;" maxlength="4"></label>
+    <label style="font-size: 0.85em;">Naam *<br><input type="text" name="naam" required style="width: 200px;"></label>
+    <label style="font-size: 0.85em;">Contact<br><input type="text" name="contact" style="width: 150px;"></label>
+    <label style="font-size: 0.85em;">Logo bestandsnaam<br><input type="text" name="logo_bestand" style="width: 150px;" placeholder="logo_XX.png"></label>
+    <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+  </form>
+</details>
+
+<div style="margin-top: 1rem;">
+  <a href="/admin/" class="btn btn-secondary">&larr; Admin</a>
+  <a href="/admin/export/klanten-csv" class="btn btn-secondary">Export CSV</a>
+</div>
+{% endblock %}
