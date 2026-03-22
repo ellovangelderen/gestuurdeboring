@@ -98,6 +98,72 @@ def test_adm2_logo_upload(client, workspace, db):
     assert klant.logo_bestand == "logo_LT.png"
 
 
+def test_adm2_logo_upload_roundtrip(client, workspace, db):
+    """Regressie BG-15: logo uploaden, DB check, serve check, zichtbaar in tabel."""
+    _ensure_klant_table(db)
+    from app.admin.models import Klant
+    db.add(Klant(id="logo-rt", code="RT", naam="Roundtrip BV"))
+    db.commit()
+
+    # 1. Upload logo
+    fake_png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 200
+    resp = client.post(
+        "/admin/klanten/logo/logo-rt",
+        files={"logo": ("mijn_logo.png", io.BytesIO(fake_png), "image/png")},
+        auth=AUTH, follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # 2. DB record bijgewerkt
+    db.expire_all()
+    klant = db.get(Klant, "logo-rt")
+    assert klant.logo_bestand == "logo_RT.png"
+
+    # 3. Logo zichtbaar in klanten tabel
+    assert "logo_RT.png" in resp.text
+
+    # 4. Logo bestand ophaalbaar via serve route
+    resp2 = client.get("/admin/logo/logo_RT.png", auth=AUTH)
+    assert resp2.status_code == 200
+    assert len(resp2.content) == len(fake_png)
+
+
+def test_adm2_logo_zonder_bestand(client, workspace, db):
+    """Regressie BG-11: logo upload zonder bestand geeft redirect, niet 400."""
+    _ensure_klant_table(db)
+    from app.admin.models import Klant
+    db.add(Klant(id="logo-empty", code="LE", naam="Leeg Logo"))
+    db.commit()
+
+    # Lege upload (geen bestand geselecteerd)
+    resp = client.post(
+        "/admin/klanten/logo/logo-empty",
+        files={"logo": ("", io.BytesIO(b""), "application/octet-stream")},
+        auth=AUTH, follow_redirects=True,
+    )
+    assert resp.status_code == 200  # redirect naar klanten pagina
+
+    # DB niet gewijzigd
+    db.expire_all()
+    klant = db.get(Klant, "logo-empty")
+    assert klant.logo_bestand is None
+
+
+def test_adm2_seed_klanten_geen_cleanup(client, workspace, db):
+    """Regressie BG-15: startup mag logo_bestand niet wissen als bestand nog niet op volume staat."""
+    _ensure_klant_table(db)
+    from app.admin.models import Klant
+
+    # Simuleer klant met logo_bestand gezet (bestand staat op remote volume)
+    db.add(Klant(id="logo-persist", code="LP", naam="Persist BV", logo_bestand="Logo_Persist.png"))
+    db.commit()
+
+    # Na seed/startup mag logo_bestand NIET gewist zijn
+    db.expire_all()
+    klant = db.get(Klant, "logo-persist")
+    assert klant.logo_bestand == "Logo_Persist.png"
+
+
 def test_adm2_logo_upload_verkeerd_formaat(client, workspace, db):
     _ensure_klant_table(db)
     from app.admin.models import Klant

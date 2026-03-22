@@ -120,6 +120,22 @@ What:     Martien's Excel werkboek (2300 rijen) bevat de complete domeinkennis: 
 Why:      De Excel IS de huidige applicatie. Het platform moet minimaal alles kunnen wat de Excel kan.
 Suggest:  Bij elk project: bestaande tools (Excel, Word, email) als requirements bron analyseren vóór architectuur.
 
+## 2026-03-22 — Startup cleanup wist DB waarden op container platform
+Type:     PROBLEM
+Phase:    release
+Affect:   builder / release
+What:     Startup code in lifespan() wiste `logo_bestand` waarden voor klanten waarvan het logo-bestand niet op disk stond. Op Railway werden volumes async gemount, waardoor de cleanup draaide vóórdat de bestanden beschikbaar waren.
+Why:      DB cleanup op basis van filesystem state is onbetrouwbaar op container platforms. Volumes, network mounts en copy-operaties zijn niet gegarandeerd klaar bij startup.
+Suggest:  Nooit DB-waarden wissen op basis van ontbrekende bestanden. Als cleanup nodig is, maak het een expliciete admin-actie, niet een automatische startup-stap.
+
+## 2026-03-22 — Logo management op persistent volumes
+Type:     PROBLEM
+Phase:    release
+Affect:   builder / release
+What:     Logo's werden opgeslagen in `static/logos/` (ephemeral container filesystem). Na elke Railway redeploy waren alle uploads weg. Verplaatst naar `data/logos/` (persistent volume) met fallback serve route.
+Why:      Container filesystems zijn ephemeral by design. Alle user-uploaded bestanden moeten op een persistent volume staan.
+Suggest:  Bij ELKE file-upload feature: (1) sla op naar persistent volume, niet naar app directory, (2) serve route moet meerdere paden checken voor backward compatibility, (3) test met container restart.
+
 ---
 
 ## PROCESSED ENTRIES

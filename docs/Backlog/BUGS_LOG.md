@@ -85,6 +85,24 @@
 
 ---
 
+### BG-15 — Logo's verdwijnen na Railway restart
+**Datum:** 22 maart 2026
+**Gemeld door:** Ello (staging + productie)
+**Symptoom:** Logo upload werkte lokaal, maar na deploy op Railway waren alle logo's weg. Na handmatig kopiëren naar het volume verdwenen de `logo_bestand` DB-waarden alsnog bij elke restart.
+**Oorzaak:** Drie samenhangende problemen:
+1. Logo's werden opgeslagen in `static/logos/` (ephemeral filesystem) i.p.v. persistent volume (`data/logos/`).
+2. Upload zonder bestand geselecteerd gaf 400 i.p.v. redirect (BG-11).
+3. Startup cleanup in `lifespan()` wiste `logo_bestand` voor klanten waarvan het bestand niet op disk stond — maar de bestanden stonden op het volume dat pas NA de cleanup gemount was, of waren nog niet gekopieerd door de ops agent.
+**Fix:**
+- Logo opslag verplaatst naar `data/logos/` (Railway persistent volume).
+- Serve route checkt beide directories (`data/logos/` + `static/logos/`).
+- Lege upload geeft redirect i.p.v. 400.
+- **Startup cleanup volledig verwijderd** — was te agressief en wiste geldige waarden.
+- Seed zet `logo_bestand=None` voor nieuwe klanten (logo uploaden via admin UI).
+**Les:** Startup cleanup van DB-waarden gebaseerd op filesystem state is gevaarlijk op container platforms waar volumes async gemount worden. Nooit DB-waarden wissen op basis van ontbrekende bestanden — het bestand kan op een ander pad of volume staan.
+
+---
+
 ## Patronen / terugkerende issues
 
 ### P1 — SQLite timezone handling
@@ -102,3 +120,11 @@ WeasyPrint ondersteunt geen: inline SVG in tabel-cellen, data: URIs, CSS grid. A
 ### P4 — Content-Disposition headers
 Bugs: BG-1
 Altijd quotes om filenames. Altijd extensie in de filename. Test met bestandsnamen die spaties en komma's bevatten.
+
+### P5 — Referentiedata seeden bij startup
+Bugs: BG-4, BG-9, BG-10
+Alle referentietabellen (kaartlinks, klanten, eisenprofielen) seeden in `lifespan()` met `if count() == 0` check. Nooit afhankelijk zijn van handmatige seed scripts.
+
+### P6 — Geen DB cleanup op basis van filesystem state
+Bugs: BG-15
+Op container platforms (Railway, Docker) worden volumes async gemount. Startup code mag nooit DB-waarden wissen omdat bestanden niet gevonden worden — het bestand kan op een volume staan dat nog niet klaar is.
