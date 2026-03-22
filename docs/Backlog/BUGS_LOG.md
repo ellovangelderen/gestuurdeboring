@@ -85,6 +85,19 @@
 
 ---
 
+### BG-16 — Logo upload via browser werkt niet op staging/productie
+**Datum:** 22 maart 2026
+**Gemeld door:** Ello (staging + productie)
+**Symptoom:** Logo uploaden via de browser voor klant FB (FonsBakker) werkt niet. Via API/script werkt de upload wel (303 redirect, bestand correct opgeslagen en ophaalbaar).
+**Oorzaak:** Wordt onderzocht. API test met Origin/Referer headers slaagt. Mogelijke oorzaken:
+- Browser stuurt een andere Origin/Referer (bijv. via proxy/redirect)
+- Form `enctype="multipart/form-data"` probleem
+- CSRF middleware blokkeert op een subtiele manier
+- Railway reverse proxy/load balancer strippen headers
+**Status:** Open — API werkt, browser niet. Nader onderzoek nodig.
+
+---
+
 ### BG-15 — Logo's verdwijnen na Railway restart
 **Datum:** 22 maart 2026
 **Gemeld door:** Ello (staging + productie)
