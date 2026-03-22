@@ -85,6 +85,17 @@
 
 ---
 
+### BG-20 — Boormachines ontbreekt op admin dashboard
+**Datum:** 22 maart 2026
+**Gemeld door:** Ello (staging)
+**Symptoom:** Na deploy van B4 (boormachines) was de tegel "Boormachines" niet zichtbaar op het admin dashboard. De pagina `/admin/boormachines` werkte wel, maar was niet bereikbaar via het dashboard.
+**Oorzaak:** Bij het bouwen van B4 was de link in `dashboard.html` niet toegevoegd. De routes, template en seed werkten correct — alleen de navigatie ontbrak.
+**Fix:** Link toegevoegd aan admin dashboard template.
+**Les:** Bij elke nieuwe admin module: (1) model, (2) routes, (3) template, (4) seed, EN (5) dashboard link. Checklist voor nieuwe admin modules.
+**Status:** Opgelost.
+
+---
+
 ### BG-18 — Auth sessie conflict: wachtwoord wijzigen / deactiveren werkt niet
 **Datum:** 22 maart 2026
 **Gemeld door:** Staging integratietest
