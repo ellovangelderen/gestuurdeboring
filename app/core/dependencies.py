@@ -44,3 +44,10 @@ def fetch_boring(order_id: str, volgnummer: int, db: Session):
     if not boring:
         raise HTTPException(status_code=404, detail="Boring niet gevonden")
     return boring
+
+
+def fetch_order_boring(order_id: str, volgnr: int, db: Session, user: str | None = None):
+    """Gecombineerde fetch: order + boring in één call. Returns (order, boring)."""
+    order = fetch_order(order_id, db, user)
+    boring = fetch_boring(order_id, volgnr, db)
+    return order, boring

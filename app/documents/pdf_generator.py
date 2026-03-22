@@ -351,6 +351,20 @@ def _generate_lengteprofiel_svg(boring: Boring) -> str:
         f'xmlns="http://www.w3.org/2000/svg" style="background:#fff;">\n'
     )
     svg += "\n".join(svg_parts) + "\n"
+
+    # Schaalbalk rechtsonder
+    schaal_m = 50 if L_totaal > 150 else 20 if L_totaal > 50 else 10
+    schaal_px = schaal_m * sx
+    sb_x = svg_width - margin_right - schaal_px - 10
+    sb_y = svg_height - 10
+    svg += (
+        f'<line x1="{sb_x:.0f}" y1="{sb_y}" x2="{sb_x + schaal_px:.0f}" y2="{sb_y}" '
+        f'stroke="#000" stroke-width="1.5"/>\n'
+        f'<line x1="{sb_x:.0f}" y1="{sb_y - 3}" x2="{sb_x:.0f}" y2="{sb_y + 3}" stroke="#000" stroke-width="1"/>\n'
+        f'<line x1="{sb_x + schaal_px:.0f}" y1="{sb_y - 3}" x2="{sb_x + schaal_px:.0f}" y2="{sb_y + 3}" stroke="#000" stroke-width="1"/>\n'
+        f'<text x="{sb_x + schaal_px / 2:.0f}" y="{sb_y - 4}" font-size="8" text-anchor="middle" fill="#000">{schaal_m}m</text>\n'
+    )
+
     svg += "</svg>"
     return svg
 
@@ -381,18 +395,37 @@ def _fetch_map_image_b64(lat_center: float, lon_center: float, zoom: int = 16,
 
     canvas = Image.new("RGB", (tiles_x * tile_size, tiles_y * tile_size))
 
+    # Tile cache directory
+    from pathlib import Path as _Path
+    cache_dir = _Path("data/tile_cache") if _Path("data").exists() else _Path("/tmp/tile_cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
     for dy in range(tiles_y):
         for dx in range(tiles_x):
             tx = tile_cx - half_x + dx
             ty = tile_cy - half_y + dy
             url = f"https://tile.openstreetmap.org/{zoom}/{tx}/{ty}.png"
-            try:
-                resp = httpx.get(url, timeout=8, headers={"User-Agent": "HDD-Platform/1.0"})
-                if resp.status_code == 200:
-                    tile_img = Image.open(io.BytesIO(resp.content))
+
+            # Check cache eerst
+            cache_file = cache_dir / f"{zoom}_{tx}_{ty}.png"
+            tile_bytes = None
+            if cache_file.exists() and cache_file.stat().st_size > 100:
+                tile_bytes = cache_file.read_bytes()
+            else:
+                try:
+                    resp = httpx.get(url, timeout=8, headers={"User-Agent": "HDD-Platform/1.0"})
+                    if resp.status_code == 200:
+                        tile_bytes = resp.content
+                        cache_file.write_bytes(tile_bytes)
+                except Exception as exc:
+                    logger.warning("OSM tile fout %s: %s", url, exc)
+
+            if tile_bytes:
+                try:
+                    tile_img = Image.open(io.BytesIO(tile_bytes))
                     canvas.paste(tile_img, (dx * tile_size, dy * tile_size))
-            except Exception as exc:
-                logger.warning("OSM tile fout %s: %s", url, exc)
+                except Exception:
+                    pass
 
     buf = io.BytesIO()
     canvas.save(buf, format="JPEG", quality=85)
