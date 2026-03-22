@@ -456,6 +456,42 @@ def user_deactiveer(
     return RedirectResponse("/admin/users", status_code=303)
 
 
+# ── OPS-1: Backup ─────────────────────────────────────────────────────────
+
+@router.post("/backup")
+def admin_backup(
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Handmatige backup naar R2."""
+    from app.core.backup import run_backup
+    from fastapi.responses import RedirectResponse
+    from urllib.parse import quote
+
+    resultaat = run_backup()
+
+    from app.core.audit import log_audit
+    fouten = len(resultaat.get("fouten", []))
+    log_audit(db, user, "backup", "System", details=f"db={resultaat['db_uploaded']}, logos={resultaat['logos_uploaded']}, fouten={fouten}")
+
+    if fouten:
+        msg = f"Backup met {fouten} fout(en): {'; '.join(resultaat['fouten'])}"
+    else:
+        msg = f"Backup OK — DB + {resultaat['logos_uploaded']} logo's naar R2"
+
+    return RedirectResponse(f"/admin/export?backup={quote(msg)}", status_code=303)
+
+
+@router.get("/backup/status")
+def backup_status(
+    user: str = Depends(require_admin),
+):
+    """Lijst R2 backups als JSON."""
+    from app.core.backup import list_r2_backups
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"backups": list_r2_backups()})
+
+
 # ── B4: Boormachines ──────────────────────────────────────────────────────
 
 @router.get("/boormachines", response_class=HTMLResponse)

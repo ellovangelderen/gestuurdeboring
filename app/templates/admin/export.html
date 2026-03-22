@@ -3,6 +3,12 @@
 {% block content %}
 <h1>Data export</h1>
 
+{% if request.query_params.get('backup') %}
+<div style="background: #d1fae5; color: #065f46; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9em;">
+  {{ request.query_params.get('backup') }}
+</div>
+{% endif %}
+
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
 
   <div class="card" style="padding: 1.25rem; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
@@ -21,6 +27,14 @@
     <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Orders export</h3>
     <p style="font-size: 0.85em; color: #666;">Alle orders als CSV (zelfde als cockpit export).</p>
     <a href="/orders/export/csv" class="btn btn-secondary btn-sm">Download CSV</a>
+  </div>
+
+  <div class="card" style="padding: 1.25rem; border: 2px solid #0d6efd; border-radius: 8px; background: #f0f7ff;">
+    <h3 style="margin: 0 0 0.5rem; font-size: 1em;">Backup naar R2</h3>
+    <p style="font-size: 0.85em; color: #666;">Database + logo's uploaden naar Cloudflare R2. Draait ook automatisch elke nacht.</p>
+    <form method="post" action="/admin/backup" style="display: inline;">
+      <button type="submit" class="btn btn-primary btn-sm" onclick="this.disabled=true; this.textContent='Bezig...'; this.form.submit();">Backup nu</button>
+    </form>
   </div>
 
 </div>

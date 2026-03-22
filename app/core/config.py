@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     USER_LUCAS_PASSWORD: str = ""
     USER_TEST_PASSWORD: str = ""
     ANTHROPIC_API_KEY: str = ""
+    # Cloudflare R2 backup
+    R2_ENDPOINT: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET: str = "hdd-backups"
 
     class Config:
         env_file = ".env"
