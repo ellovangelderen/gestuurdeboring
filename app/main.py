@@ -55,6 +55,7 @@ async def lifespan(application: FastAPI):
         "ALTER TABLE orders ADD COLUMN vergunning_checklist TEXT",
         "ALTER TABLE boringen ADD COLUMN revisie INTEGER DEFAULT 0",
         "ALTER TABLE trace_punten ADD COLUMN variant INTEGER DEFAULT 0",
+        "ALTER TABLE boringen ADD COLUMN machine_type TEXT",
     ]
     with engine.connect() as conn:
         for stmt in migrations:
@@ -116,6 +117,21 @@ async def lifespan(application: FastAPI):
                 _db.add(User(username="test", wachtwoord_hash=hash_password(_settings.USER_TEST_PASSWORD), rol="admin"))
             _db.commit()
             logger.info("Users: %d geseeded vanuit env vars", _db.query(User).count())
+
+        # Boormachines
+        from app.admin.models import Boormachine
+        if _db.query(Boormachine).count() == 0:
+            for naam, code, l, b, t in [
+                ("Vermeer D7x11", "D7x11", 3.0, 1.5, 3.0),
+                ("Vermeer D24x40", "D24x40", 5.0, 2.0, 11.0),
+                ("Vermeer D40x55", "D40x55", 6.0, 2.5, 18.0),
+                ("Vermeer D100x140", "D100x140", 9.0, 3.0, 45.0),
+                ("Pers", "PERS", 2.0, 1.0, 0.0),
+                ("Boogzinker", "BZ", 2.0, 1.0, 0.0),
+            ]:
+                _db.add(Boormachine(naam=naam, code=code, lengte_m=l, breedte_m=b, trekkracht_ton=t))
+            _db.commit()
+            logger.info("Boormachines: 6 defaults geseeded")
 
         # Eisenprofielen
         from app.rules.models import EisenProfiel

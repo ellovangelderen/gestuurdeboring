@@ -68,6 +68,8 @@ class Boring(Base):
     # Boogzinker params (alleen Z)
     booghoek_gr = Column(Float, nullable=True)
     stand = Column(Integer, nullable=True)
+    # Boormachine
+    machine_type = Column(String, nullable=True)   # code uit boormachines tabel
     # Meta
     revisie = Column(Integer, default=0)     # 0=ontwerp, 1+=as-built revisies
     status = Column(String, default="concept")

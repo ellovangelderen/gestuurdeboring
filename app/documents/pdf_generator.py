@@ -412,7 +412,7 @@ def _fetch_map_image_b64(lat_center: float, lon_center: float, zoom: int = 16,
     return "image/jpeg," + base64.b64encode(data).decode("ascii")
 
 
-def _generate_bovenaanzicht_svg(boring: Boring) -> str:
+def _generate_bovenaanzicht_svg(boring: Boring, machine_afmetingen: dict = None) -> str:
     """Genereer SVG van trace bovenaanzicht met kaartachtergrond."""
     punten = boring.trace_punten
     if len(punten) < 2:
@@ -488,6 +488,34 @@ def _generate_bovenaanzicht_svg(boring: Boring) -> str:
                 f'<text x="{px + 7:.1f}" y="{py - 5:.1f}" '
                 f'font-size="10" font-weight="bold" fill="#fff" stroke="#333" stroke-width="0.3">{p.label}</text>\n'
             )
+
+    # Machine symbool bij intreepunt
+    if machine_afmetingen or (boring.machine_type and not machine_afmetingen):
+        import math as _m
+        intree = next((p for p in punten if p.type == "intree"), None)
+        if intree and len(punten) >= 2:
+            afm = machine_afmetingen or {"lengte_m": 4.0, "breedte_m": 2.0}
+            dx_bore = punten[1].RD_x - punten[0].RD_x
+            dy_bore = punten[1].RD_y - punten[0].RD_y
+            hoek = _m.atan2(dy_bore, dx_bore)
+
+            # Machine afmetingen in schaal (overdreven zodat zichtbaar op kaart)
+            ml = afm["lengte_m"] * s * 3  # 3x overdreven
+            mb = afm["breedte_m"] * s * 3
+            px_i, py_i = tx(intree.RD_x), ty(intree.RD_y)
+            hoek_deg = -_m.degrees(hoek)  # SVG Y is omgekeerd
+
+            svg += (
+                f'<rect x="{-ml:.1f}" y="{-mb/2:.1f}" width="{ml:.1f}" height="{mb:.1f}" '
+                f'fill="rgba(100,100,100,0.3)" stroke="#666" stroke-width="1" '
+                f'transform="translate({px_i:.1f},{py_i:.1f}) rotate({hoek_deg:.1f})"/>\n'
+            )
+            label = boring.machine_type or ""
+            if label:
+                svg += (
+                    f'<text x="{px_i - ml * 0.3:.1f}" y="{py_i - mb * 0.4:.1f}" '
+                    f'font-size="8" fill="#666">{label}</text>\n'
+                )
 
     # Noordpijl
     svg += (

@@ -456,6 +456,108 @@ def user_deactiveer(
     return RedirectResponse("/admin/users", status_code=303)
 
 
+# ── B4: Boormachines ──────────────────────────────────────────────────────
+
+@router.get("/boormachines", response_class=HTMLResponse)
+def boormachines_lijst(
+    request: Request,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import Boormachine
+    machines = db.query(Boormachine).order_by(Boormachine.naam).all()
+    fout = request.query_params.get("fout", "")
+    return templates.TemplateResponse(
+        "admin/boormachines.html",
+        {"request": request, "user": user, "machines": machines, "fout": fout},
+    )
+
+
+@router.post("/boormachines/nieuw")
+def boormachine_toevoegen(
+    naam: str = Form(...),
+    code: str = Form(...),
+    lengte_m: str = Form("3.0"),
+    breedte_m: str = Form("1.5"),
+    trekkracht_ton: str = Form("0"),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import Boormachine
+    from urllib.parse import quote
+    from fastapi.responses import RedirectResponse
+
+    code = code.strip().upper()
+    if db.query(Boormachine).filter_by(code=code).first():
+        return RedirectResponse(f"/admin/boormachines?fout={quote(f'Code {code} bestaat al')}", status_code=303)
+
+    try:
+        db.add(Boormachine(
+            naam=naam.strip(), code=code,
+            lengte_m=float(lengte_m), breedte_m=float(breedte_m),
+            trekkracht_ton=float(trekkracht_ton or 0),
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse(f"/admin/boormachines?fout={quote('Ongeldige invoer')}", status_code=303)
+
+    from app.core.audit import log_audit
+    log_audit(db, user, "aangemaakt", "Boormachine", code)
+
+    return RedirectResponse("/admin/boormachines", status_code=303)
+
+
+@router.post("/boormachines/{machine_id}/update")
+def boormachine_wijzigen(
+    machine_id: str,
+    naam: str = Form(...),
+    code: str = Form(...),
+    lengte_m: str = Form("3.0"),
+    breedte_m: str = Form("1.5"),
+    trekkracht_ton: str = Form("0"),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import Boormachine
+    from fastapi.responses import RedirectResponse
+
+    m = db.get(Boormachine, machine_id)
+    if not m:
+        raise HTTPException(404, "Boormachine niet gevonden")
+
+    m.naam = naam.strip()
+    m.code = code.strip().upper()
+    m.lengte_m = float(lengte_m)
+    m.breedte_m = float(breedte_m)
+    m.trekkracht_ton = float(trekkracht_ton or 0)
+    db.commit()
+
+    from app.core.audit import log_audit
+    log_audit(db, user, "gewijzigd", "Boormachine", m.code)
+
+    return RedirectResponse("/admin/boormachines", status_code=303)
+
+
+@router.post("/boormachines/{machine_id}/verwijder")
+def boormachine_verwijderen(
+    machine_id: str,
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    from app.admin.models import Boormachine
+    from fastapi.responses import RedirectResponse
+
+    m = db.get(Boormachine, machine_id)
+    if m:
+        from app.core.audit import log_audit
+        log_audit(db, user, "verwijderd", "Boormachine", m.code)
+        db.delete(m)
+        db.commit()
+
+    return RedirectResponse("/admin/boormachines", status_code=303)
+
+
 # ── ADM-6: Eisenprofielen ────────────────────────────────────────────────
 
 @router.get("/eisenprofielen", response_class=HTMLResponse)

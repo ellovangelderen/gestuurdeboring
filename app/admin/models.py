@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
 from app.core.database import Base
 
 
@@ -18,6 +18,18 @@ class User(Base):
     workspace_id = Column(String, nullable=False, default="gbt-workspace-001")
     aangemaakt_op = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     laatst_ingelogd = Column(DateTime, nullable=True)
+
+
+class Boormachine(Base):
+    """Boormachine type met afmetingen voor tekening."""
+    __tablename__ = "boormachines"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    naam = Column(String, nullable=False)
+    code = Column(String, nullable=False, unique=True)
+    lengte_m = Column(Float, nullable=False, default=3.0)
+    breedte_m = Column(Float, nullable=False, default=1.5)
+    trekkracht_ton = Column(Float, nullable=True, default=0.0)
 
 
 class Instelling(Base):

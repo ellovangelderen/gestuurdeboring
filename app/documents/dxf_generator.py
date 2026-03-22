@@ -43,6 +43,7 @@ LAYERS: dict[str, dict] = {
     "LP-BOORLIJN":       {"color": 1,   "linetype": "Continuous"},
     "LP-MAATVOERING":    {"color": 7,   "linetype": "Continuous"},
     "LP-KADER":          {"color": 7,   "linetype": "Continuous"},
+    "MACHINE":           {"color": 8,   "linetype": "Continuous"},
 }
 
 
@@ -99,6 +100,66 @@ def _draw_boorgat(msp, boring: Boring) -> None:
     r_buis = (boring.De_mm / 2) / 1000
     msp.add_circle(center, radius=r_boorgat, dxfattribs={"layer": "BOORGAT"})
     msp.add_circle(center, radius=r_buis, dxfattribs={"layer": "BOORGAT"})
+
+
+def _draw_machine(msp, boring: Boring, db=None) -> None:
+    """Teken boormachine als rechthoek op MACHINE laag bij intreepunt."""
+    if not boring.machine_type:
+        return
+
+    # Haal machine afmetingen uit DB
+    afmetingen = None
+    if db:
+        from app.admin.models import Boormachine
+        machine = db.query(Boormachine).filter_by(code=boring.machine_type).first()
+        if machine:
+            afmetingen = {"lengte_m": machine.lengte_m, "breedte_m": machine.breedte_m,
+                          "naam": machine.naam, "code": machine.code}
+
+    if not afmetingen:
+        return
+
+    intree = next((p for p in boring.trace_punten if p.type == "intree"), None)
+    if not intree:
+        return
+
+    # Bereken richting van intree naar volgende punt
+    import math
+    punten = sorted(boring.trace_punten, key=lambda p: p.volgorde)
+    if len(punten) >= 2:
+        dx = punten[1].RD_x - punten[0].RD_x
+        dy = punten[1].RD_y - punten[0].RD_y
+        hoek = math.atan2(dy, dx)
+    else:
+        hoek = 0.0
+
+    L = afmetingen["lengte_m"]
+    B = afmetingen["breedte_m"]
+
+    # Machine staat ACHTER het intreepunt (tegengestelde richting van boring)
+    cx = intree.RD_x - (L / 2) * math.cos(hoek)
+    cy = intree.RD_y - (L / 2) * math.sin(hoek)
+
+    # 4 hoeken van de rechthoek, geroteerd om (cx, cy)
+    corners = [(-L / 2, -B / 2), (L / 2, -B / 2), (L / 2, B / 2), (-L / 2, B / 2)]
+    rotated = []
+    for dx_c, dy_c in corners:
+        rx = cx + dx_c * math.cos(hoek) - dy_c * math.sin(hoek)
+        ry = cy + dx_c * math.sin(hoek) + dy_c * math.cos(hoek)
+        rotated.append((rx, ry))
+
+    msp.add_lwpolyline(rotated + [rotated[0]], dxfattribs={"layer": "MACHINE"})
+
+    # Label
+    msp.add_text(
+        afmetingen.get("code", boring.machine_type),
+        dxfattribs={
+            "layer": "MACHINE",
+            "height": 1.5,
+            "insert": (cx, cy),
+            "rotation": math.degrees(hoek),
+        },
+    )
 
 
 def _draw_sensorpunten(msp, boring: Boring) -> None:
@@ -404,6 +465,7 @@ def generate_dxf(boring: Boring, order: Order, db: Optional[Session] = None) -> 
     _setup_layers(doc)
     _draw_boorlijn(msp, boring)
     _draw_boorgat(msp, boring)
+    _draw_machine(msp, boring, db)
     _draw_sensorpunten(msp, boring)
     _draw_titelblok(msp, boring, order)
     _draw_lengteprofiel(msp, boring, order, db)

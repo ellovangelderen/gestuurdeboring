@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Boormachines — Admin{% endblock %}
+{% block content %}
+<h1>Boormachines</h1>
+{% if fout %}
+<div style="background: #f8d7da; color: #842029; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9em;">
+  {{ fout }}
+</div>
+{% endif %}
+<p>{{ machines|length }} boormachines in het systeem.</p>
+
+<table class="table" style="margin-bottom: 1.5rem;">
+  <thead>
+    <tr><th>Code</th><th>Naam</th><th>L x B (m)</th><th>Trekkracht (ton)</th><th>Bewerken</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for m in machines %}
+    <tr>
+      <td><strong>{{ m.code }}</strong></td>
+      <td>{{ m.naam }}</td>
+      <td>{{ m.lengte_m }} x {{ m.breedte_m }}</td>
+      <td>{{ m.trekkracht_ton or '—' }}</td>
+      <td>
+        <form method="post" action="/admin/boormachines/{{ m.id }}/update" style="display: inline-flex; gap: 4px; align-items: end;">
+          <input type="text" name="naam" value="{{ m.naam }}" style="width: 120px; font-size: 0.85em;" required>
+          <input type="text" name="code" value="{{ m.code }}" style="width: 60px; font-size: 0.85em;" required>
+          <input type="number" name="lengte_m" value="{{ m.lengte_m }}" style="width: 50px; font-size: 0.85em;" step="0.1" required>
+          <input type="number" name="breedte_m" value="{{ m.breedte_m }}" style="width: 50px; font-size: 0.85em;" step="0.1" required>
+          <input type="number" name="trekkracht_ton" value="{{ m.trekkracht_ton or 0 }}" style="width: 50px; font-size: 0.85em;" step="0.1">
+          <button type="submit" class="btn btn-sm btn-secondary">Opslaan</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/boormachines/{{ m.id }}/verwijder" style="display: inline;">
+          <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('{{ m.naam }} verwijderen?')">X</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<details>
+  <summary class="btn btn-primary btn-sm">+ Boormachine toevoegen</summary>
+  <form method="post" action="/admin/boormachines/nieuw" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end;">
+    <label style="font-size: 0.85em;">Naam *<br><input type="text" name="naam" required style="width: 150px;"></label>
+    <label style="font-size: 0.85em;">Code *<br><input type="text" name="code" required style="width: 80px;" maxlength="10"></label>
+    <label style="font-size: 0.85em;">Lengte (m)<br><input type="number" name="lengte_m" value="3.0" style="width: 60px;" step="0.1"></label>
+    <label style="font-size: 0.85em;">Breedte (m)<br><input type="number" name="breedte_m" value="1.5" style="width: 60px;" step="0.1"></label>
+    <label style="font-size: 0.85em;">Trekkracht (ton)<br><input type="number" name="trekkracht_ton" value="0" style="width: 60px;" step="0.1"></label>
+    <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+  </form>
+</details>
+
+<div style="margin-top: 1rem;">
+  <a href="/admin/" class="btn btn-secondary">&larr; Admin</a>
+</div>
+{% endblock %}

@@ -50,6 +50,7 @@ def boring_update(
     booghoek_gr: str = Form(""),
     stand: str = Form(""),
     naam: str = Form(""),
+    machine_type: str = Form(""),
     user: str = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -68,5 +69,6 @@ def boring_update(
     boring.booghoek_gr = _f(booghoek_gr)
     boring.stand = _i(stand)
     boring.naam = naam.strip() or None
+    boring.machine_type = machine_type.strip() or None
     db.commit()
     return RedirectResponse(f"/orders/{order_id}/boringen/{volgnr}", status_code=303)
