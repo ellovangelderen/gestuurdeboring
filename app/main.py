@@ -65,24 +65,50 @@ async def lifespan(application: FastAPI):
 
     Base.metadata.create_all(bind=engine)
 
-    # Seed standaard kaartlinks als tabel leeg is
+    # Seed referentiedata als tabellen leeg zijn (P5 patroon)
     from sqlalchemy.orm import Session as _Sess
     _db = _Sess(bind=engine)
     try:
-        from app.admin.models import KaartLink
+        # Kaartlinks
+        from app.admin.models import KaartLink, Klant
         if _db.query(KaartLink).count() == 0:
-            _defaults = [
+            for n, u, o, c, v in [
                 ("RWS Beheerzones", "https://geoweb.rijkswaterstaat.nl/ModuleViewer/?app=635b0d2325b642c38ad0c9c82da66ae1", "Rijkswaterstaat beheergrenzen", "zonering", 1),
                 ("ProRail Beperkingengebied", "https://maps.prorail.nl/portal/home/webmap/viewer.html?url=https%3A%2F%2Fmaps.prorail.nl%2Farcgis%2Frest%2Fservices%2FBeperkingengebied%2FFeatureServer&source=sd", "Spoorzone beperkingen", "zonering", 2),
                 ("DINOloket", "https://www.dinoloket.nl/ondergrondgegevens", "Sonderingen, boringen, grondwater", "kaart", 3),
                 ("Kaart Haarlem", "https://kaart.haarlem.nl/app/map/18", "Gemeente Haarlem riool + bomen", "gemeente", 4),
-            ]
-            for n, u, o, c, v in _defaults:
+            ]:
                 _db.add(KaartLink(naam=n, url=u, omschrijving=o, categorie=c, volgorde=v))
             _db.commit()
-            logger.info("Kaartlinks: %d defaults geseeded", len(_defaults))
-    except Exception:
-        pass
+            logger.info("Kaartlinks: defaults geseeded")
+
+        # Klanten (Martien's 50 opdrachtgevers)
+        if _db.query(Klant).count() == 0:
+            from scripts.seed_klanten import KLANTEN
+            for nr, code, naam, contact, logo in KLANTEN:
+                if nr == 3:
+                    code = "VB3"
+                if not _db.query(Klant).filter_by(code=code).first():
+                    _db.add(Klant(nr=nr, code=code, naam=naam, contact=contact, logo_bestand=logo))
+            _db.commit()
+            logger.info("Klanten: %d geseeded", _db.query(Klant).count())
+
+        # Eisenprofielen
+        from app.rules.models import EisenProfiel
+        if _db.query(EisenProfiel).count() == 0:
+            for naam, dw, dwat, rmin in [
+                ("RWS Rijksweg", 3.0, 5.0, 150),
+                ("Waterschap waterkering", 5.0, 10.0, 200),
+                ("Provincie", 2.0, 3.0, 120),
+                ("Gemeente", 1.2, 1.5, 100),
+                ("ProRail spoor", 4.0, 6.0, 150),
+            ]:
+                _db.add(EisenProfiel(naam=naam, dekking_weg_m=dw, dekking_water_m=dwat, Rmin_m=rmin))
+            _db.commit()
+            logger.info("Eisenprofielen: 5 defaults geseeded")
+
+    except Exception as exc:
+        logger.warning("Seed fout (niet kritisch): %s", exc)
     finally:
         _db.close()
 
