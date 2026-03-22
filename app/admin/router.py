@@ -144,9 +144,14 @@ async def klant_logo_upload(
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(413, "Logo te groot (max 5MB)")
 
+    # Valideer bestandstype
+    suffix = Path(logo.filename).suffix.lower()
+    if suffix not in (".jpg", ".jpeg", ".png", ".svg", ".webp"):
+        raise HTTPException(400, "Alleen JPG, PNG, SVG of WebP logo's toegestaan")
+
     logo_dir = Path("static/logos")
     logo_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = f"logo_{klant.code}.{Path(logo.filename).suffix.lstrip('.')}"
+    safe_name = f"logo_{klant.code}{suffix}"
     dest = logo_dir / safe_name
     with open(dest, "wb") as f:
         f.write(content)
