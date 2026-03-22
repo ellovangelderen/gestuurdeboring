@@ -352,17 +352,20 @@ def user_aanmaken(
     from app.admin.models import User
     from app.core.password import hash_password, validate_password
 
+    from urllib.parse import quote
+    from fastapi.responses import RedirectResponse
+
     username = username.strip().lower()
     if not username:
-        raise HTTPException(400, "Gebruikersnaam is verplicht")
+        return RedirectResponse(f"/admin/users?fout={quote('Gebruikersnaam is verplicht')}", status_code=303)
     if db.query(User).filter_by(username=username).first():
-        raise HTTPException(400, f"Gebruiker '{username}' bestaat al")
+        return RedirectResponse(f"/admin/users?fout={quote(f'Gebruiker {username} bestaat al')}", status_code=303)
     if rol not in ("admin", "tekenaar", "viewer"):
-        raise HTTPException(400, "Ongeldige rol")
+        return RedirectResponse(f"/admin/users?fout={quote('Ongeldige rol')}", status_code=303)
 
     fouten = validate_password(wachtwoord, username)
     if fouten:
-        raise HTTPException(400, "; ".join(fouten))
+        return RedirectResponse(f"/admin/users?fout={quote('; '.join(fouten))}", status_code=303)
 
     db.add(User(
         username=username,
@@ -374,7 +377,6 @@ def user_aanmaken(
     from app.core.audit import log_audit
     log_audit(db, user, "aangemaakt", "User", username, f"rol={rol}")
 
-    from fastapi.responses import RedirectResponse
     return RedirectResponse("/admin/users", status_code=303)
 
 
@@ -416,7 +418,9 @@ def user_wachtwoord_wijzigen(
 
     fouten = validate_password(wachtwoord, target.username)
     if fouten:
-        raise HTTPException(400, "; ".join(fouten))
+        from urllib.parse import quote
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"/admin/users?fout={quote('; '.join(fouten))}", status_code=303)
 
     target.wachtwoord_hash = hash_password(wachtwoord)
     db.commit()

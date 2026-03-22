@@ -2,6 +2,11 @@
 {% block title %}Gebruikers — Admin{% endblock %}
 {% block content %}
 <h1>Gebruikers</h1>
+{% if request.query_params.get('fout') %}
+<div style="background: #f8d7da; color: #842029; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9em;">
+  {{ request.query_params.get('fout') }}
+</div>
+{% endif %}
 <p>{{ users|length }} gebruikers in het systeem.</p>
 
 <table class="table" style="margin-bottom: 1.5rem;">

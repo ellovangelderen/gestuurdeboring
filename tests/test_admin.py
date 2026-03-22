@@ -302,22 +302,25 @@ def test_adm1_user_aanmaken(client, workspace, db):
 def test_adm1_user_aanmaken_kort_wachtwoord(client, workspace, db):
     resp = client.post("/admin/users/nieuw",
                        data={"username": "kort", "wachtwoord": "Ab1", "rol": "tekenaar"},
-                       auth=AUTH)
-    assert resp.status_code == 400
+                       auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "minimaal 8" in resp.text
 
 
 def test_adm1_user_aanmaken_geen_hoofdletter(client, workspace, db):
     resp = client.post("/admin/users/nieuw",
                        data={"username": "nohoofd", "wachtwoord": "welkom012", "rol": "tekenaar"},
-                       auth=AUTH)
-    assert resp.status_code == 400
+                       auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "hoofdletter" in resp.text
 
 
 def test_adm1_user_aanmaken_geen_cijfer(client, workspace, db):
     resp = client.post("/admin/users/nieuw",
                        data={"username": "nocijfer", "wachtwoord": "Welkomhier", "rol": "tekenaar"},
-                       auth=AUTH)
-    assert resp.status_code == 400
+                       auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "cijfer" in resp.text
 
 
 def test_adm1_user_aanmaken_dubbel(client, workspace, db):
@@ -326,8 +329,9 @@ def test_adm1_user_aanmaken_dubbel(client, workspace, db):
                 auth=AUTH)
     resp = client.post("/admin/users/nieuw",
                        data={"username": "dubbel", "wachtwoord": "Welkom02", "rol": "tekenaar"},
-                       auth=AUTH)
-    assert resp.status_code == 400
+                       auth=AUTH, follow_redirects=True)
+    assert resp.status_code == 200
+    assert "bestaat al" in resp.text
 
 
 def test_adm1_user_deactiveren(client, workspace, db):

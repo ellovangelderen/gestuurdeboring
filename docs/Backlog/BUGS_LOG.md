@@ -85,6 +85,25 @@
 
 ---
 
+### BG-18 — Auth sessie conflict: wachtwoord wijzigen / deactiveren werkt niet
+**Datum:** 22 maart 2026
+**Gemeld door:** Staging integratietest
+**Symptoom:** Wachtwoord wijzigen had geen effect (oud wachtwoord bleef werken, nieuw niet). Deactiveren/heractiveren werkte niet. Admin kon zichzelf deactiveren (zou geblokkeerd moeten zijn).
+**Oorzaak:** `get_current_user()` deed `db.commit()` voor `laatst_ingelogd` update op dezelfde DB sessie als de route. Op SQLite (single-writer) lockte dit de DB, waardoor de route-wijzigingen niet doorkwamen.
+**Fix:** `laatst_ingelogd` update verplaatst naar aparte `SessionLocal()` sessie (zelfde patroon als audit log — mag nooit de hoofdoperatie beïnvloeden).
+**Status:** Opgelost. Alle scenarios getest op staging.
+
+---
+
+### BG-19 — User aanmaken toont 400 error pagina bij dubbele username
+**Datum:** 22 maart 2026
+**Gemeld door:** Ello (productie)
+**Symptoom:** Bij het aanmaken van een gebruiker die al bestaat (bijv. 'ello') toont het systeem een kale 400 error pagina met "Gebruiker 'ello' bestaat al". Geen teruglink naar het formulier, geen inline foutmelding.
+**Oorzaak:** `HTTPException(400)` wordt door de error handler als volledige pagina getoond i.p.v. redirect terug naar het formulier met foutmelding.
+**Status:** Open — validatiefouten bij user/klant/order formulieren moeten inline getoond worden of redirect met flash message.
+
+---
+
 ### BG-16 — Logo upload via browser werkt niet op staging/productie
 **Datum:** 22 maart 2026
 **Gemeld door:** Ello (staging + productie)
