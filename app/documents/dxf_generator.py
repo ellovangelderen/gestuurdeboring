@@ -180,13 +180,19 @@ def _draw_titelblok(msp, boring: Boring, order: Order) -> None:
     """Titelblok tekst op laag TITELBLOK_TEKST."""
     from datetime import date
 
+    rev = boring.revisie or 0
+    ordernr = order.ordernummer or ""
+    naam = boring.naam or f"HDD{boring.volgnummer}"
+    locatie = order.locatie or ""
+    tek_nr = f"{ordernr} {locatie}-{boring.volgnummer:02d}"
+
     regels = [
-        f"{order.ordernummer or ''} - {order.locatie or ''}",
-        f"Boring {boring.volgnummer:02d} ({boring.type}) {boring.naam or ''}",
+        f"{ordernr} {locatie} — {naam}",
         f"Opdrachtgever: {order.opdrachtgever or ''}",
-        f"Datum: {date.today().strftime('%d-%m-%Y')}",
-        "Getekend: M.Luijben",
+        f"Getekend: M. Luijben",
         f"Akkoord: {order.akkoord_contact or ''}",
+        f"Datum: {date.today().strftime('%d-%m-%Y')}",
+        f"Nr: {tek_nr}  Rev: {rev}",
     ]
     # Plaatst tekst links-onder van oorsprong (modelspace 0,0)
     for i, regel in enumerate(regels):

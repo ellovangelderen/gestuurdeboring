@@ -22,6 +22,64 @@ def boring_detail(
 ):
     order = fetch_order(order_id, db)
     boring = fetch_boring(order_id, volgnr, db)
+
+    # Parameter validatie + profiel preview
+    preview = None
+    waarschuwingen = []
+    if boring.type in ("B", "N") and boring.trace_punten and boring.maaiveld_override:
+        try:
+            from app.geo.profiel import bereken_boorprofiel, bereken_Rv, trace_totale_afstand, ProfielPunt
+            import math
+
+            coords = [(p.RD_x, p.RD_y) for p in boring.trace_punten
+                       if getattr(p, 'variant', 0) == 0]
+            if len(coords) >= 2:
+                L = trace_totale_afstand(coords)
+                Rv = bereken_Rv(boring.De_mm or 160.0)
+                a_in = math.radians(boring.intreehoek_gr or 18.0)
+                a_uit = math.radians(boring.uittreehoek_gr or 22.0)
+                Tin_h = Rv * math.sin(a_in)
+                Tuit_h = Rv * math.sin(a_uit)
+                min_lengte = Tin_h + Tuit_h
+
+                mv = boring.maaiveld_override
+                dekking = min(mv.MVin_NAP_m, mv.MVuit_NAP_m) - (
+                    bereken_boorprofiel(
+                        L_totaal_m=L, MVin_NAP_m=mv.MVin_NAP_m, MVuit_NAP_m=mv.MVuit_NAP_m,
+                        alpha_in_gr=boring.intreehoek_gr or 18.0,
+                        alpha_uit_gr=boring.uittreehoek_gr or 22.0,
+                        De_mm=boring.De_mm or 160.0,
+                    ).diepte_NAP_m
+                )
+
+                preview = {
+                    "L_totaal": round(L, 1),
+                    "Rv": round(Rv, 1),
+                    "Tin_h": round(Tin_h, 1),
+                    "Tuit_h": round(Tuit_h, 1),
+                    "min_lengte": round(min_lengte, 1),
+                    "dekking": round(dekking, 1),
+                }
+
+                if L < min_lengte:
+                    waarschuwingen.append(
+                        f"Boring te kort ({L:.0f}m) voor Rv={Rv:.0f}m. "
+                        f"Minimaal {min_lengte:.0f}m nodig (Tin={Tin_h:.0f}m + Tuit={Tuit_h:.0f}m). "
+                        f"Rv wordt automatisch verkleind."
+                    )
+                if dekking < 1.5:
+                    waarschuwingen.append(f"Dekking is slechts {dekking:.1f}m — controleer diepte.")
+        except Exception:
+            pass
+
+    # Boormachines voor dropdown
+    machines = []
+    try:
+        from app.admin.models import Boormachine
+        machines = db.query(Boormachine).order_by(Boormachine.naam).all()
+    except Exception:
+        pass
+
     return templates.TemplateResponse(
         "order/boring_detail.html",
         {
@@ -29,6 +87,9 @@ def boring_detail(
             "order": order,
             "boring": boring,
             "user": user,
+            "preview": preview,
+            "waarschuwingen": waarschuwingen,
+            "machines": machines,
         },
     )
 

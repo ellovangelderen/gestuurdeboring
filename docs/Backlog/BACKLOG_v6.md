@@ -620,3 +620,67 @@ Gedocumenteerde en geteste restore procedure:
 - Recovery Time Objective (RTO): < 15 minuten
 - Recovery Point Objective (RPO): < 24 uur (dagelijkse backup)
 
+---
+
+## Feedback Martien (23 maart 2026)
+
+### MF-1 — Kaart zoekfunctie (adres/postcode)
+**Waarde:** Sneller locatie vinden op trace kaart
+**Prioriteit:** Middel
+**Effort:** 2-3 uur
+**Beschrijving:** Zoekbalk op de trace kaartpagina. Geocoding via PDOK Locatieserver (gratis, NL-dekkend). Zoek op adres, postcode+huisnummer, of plaatsnaam → kaart centreert op resultaat.
+
+---
+
+### MF-2 — Kaart in apart window
+**Waarde:** Hogere nauwkeurigheid bij trace invoer
+**Prioriteit:** Laag
+**Effort:** 1 uur
+**Beschrijving:** Knop "Open in groot venster" op trace pagina → opent kaart in fullscreen popup/nieuw tabblad. Zelfde functionaliteit, meer schermruimte.
+
+---
+
+### MF-3 — DXF layout (paperspace) met views
+**Waarde:** Werkdocument voor AutoCAD — dit is wat Martien oplevert
+**Prioriteit:** Hoog
+**Effort:** 8-12 uur
+**Beschrijving:**
+DXF met model + paperspace layout (A3). Views in layout:
+- BOVENAANZICHT: schaal 1:2000, 1:4000, 1:5000 of 1:10000
+- SITUATIE: schaal 1:200-1:500, geroteerd zodat intree links, uittree rechts
+- LENGTEPROFIEL: zelfde schaal als situatie, "platgeslagen dwarsprofiel"
+- DOORSNEDE BOORGAT
+- Titelblok met tekeningnummer + revisie rechtsonderin
+
+Dit is de kernfunctie van het platform — Martien zegt "DXF is leidend, PDF is afgeleid".
+
+---
+
+### MF-4 — Parameter validatie + preview
+**Waarde:** Voorkom fouten vóór generatie (bijv. boring te kort voor Rv)
+**Prioriteit:** Hoog
+**Effort:** 3-4 uur
+**Beschrijving:**
+- Validatie: check of L_totaal >= Tin_h + Tuit_h, waarschuw als Rv aangepast moet worden
+- Preview: toon lengteprofiel schets + parameters tabel op boring detail pagina
+- Toon berekende waarden: Rv, tangentlengtes, dekking, diepte
+- Blokkeer niet — waarschuw alleen, laat gebruiker parameters aanpassen
+
+---
+
+### MF-5 — Lengteprofiel bij horizontale bochten
+**Waarde:** Correcte profiellengte bij bochtige tracés
+**Prioriteit:** Middel
+**Effort:** 2-3 uur
+**Beschrijving:**
+Lengteprofiel is een "platgeslagen dwarsprofiel": bij een boorlijn met horizontale bochten is de profiellengte = de werkelijke booglengte over het maaiveld, niet de rechte lijn intree→uittree. Huidige engine gebruikt `trace_totale_afstand()` wat al de som van segmenten is — maar moet geverifieerd worden dat dit correct doorwerkt naar DXF/PDF schaal.
+
+---
+
+### MF-6 — Tekeningnummer + revisie rechtsonderin [KLEIN]
+**Waarde:** Standaard tekening conventie
+**Prioriteit:** Hoog
+**Effort:** 15 min
+**Beschrijving:** Tekeningnummer (= ordernummer-boringnummer) + revisienummer rechtsonderin in titelblok. Formaat: "Nr: BT26V204 Zwolle-01 Rev: 0"
+- Recovery Point Objective (RPO): < 24 uur (dagelijkse backup)
+

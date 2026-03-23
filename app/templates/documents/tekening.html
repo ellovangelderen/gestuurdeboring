@@ -199,12 +199,12 @@
                   Datum: {{ datum }}
                 </td>
                 <td style="padding: 0.5mm 1mm; border-bottom: 0.3pt solid #eee; font-weight: bold;">
-                  Nr: {{ order.ordernummer or '' }}-{{ '%02d'|format(boring.volgnummer) }}
+                  Nr: {{ order.ordernummer or '' }} {{ order.locatie or '' }}-{{ '%02d'|format(boring.volgnummer) }}
                 </td>
               </tr>
               <tr>
                 <td style="padding: 0.5mm 1mm; font-size: 5pt;" colspan="2">
-                  Rev 0 · {{ datum }} · Eerste uitgifte · M.Luijben
+                  Rev {{ boring.revisie or 0 }} · {{ datum }} · {% if boring.revisie and boring.revisie > 0 %}As-built revisie{% else %}Eerste uitgifte{% endif %} · M.Luijben
                 </td>
               </tr>
             </table>

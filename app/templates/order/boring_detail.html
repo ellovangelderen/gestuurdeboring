@@ -16,6 +16,28 @@
   </h1>
 </div>
 
+{% if waarschuwingen %}
+{% for w in waarschuwingen %}
+<div class="card" style="border-left: 4px solid #ffc107; background: #fff8e1; padding: 12px; margin-bottom: 8px;">
+  <strong style="color: #856404;">PARAMETER WAARSCHUWING:</strong> {{ w }}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if preview %}
+<div class="card" style="border: 1px solid #dee2e6; padding: 12px; margin-bottom: 16px; font-size: 0.85em; background: #f8f9fa;">
+  <strong>Profiel preview</strong>
+  <div style="display: flex; gap: 2rem; margin-top: 6px; flex-wrap: wrap;">
+    <span>L = {{ preview.L_totaal }}m</span>
+    <span>Rv = {{ preview.Rv }}m</span>
+    <span>Tin = {{ preview.Tin_h }}m</span>
+    <span>Tuit = {{ preview.Tuit_h }}m</span>
+    <span>Min. lengte = {{ preview.min_lengte }}m</span>
+    <span>Dekking = {{ preview.dekking }}m</span>
+  </div>
+</div>
+{% endif %}
+
 {% if order.ev_partijen %}
 <div class="card" style="border-left: 4px solid #dc3545; background: #fff5f5; padding: 12px; margin-bottom: 16px;">
   <strong style="color: #dc3545;">WAARSCHUWING: EV-leidingen aanwezig</strong>
