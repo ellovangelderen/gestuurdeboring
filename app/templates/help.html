@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Handleiding — HDD Platform{% endblock %}
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+<h1>Handleiding</h1>
+<p style="color: #666;">Gebruik Ctrl+F (of Cmd+F op Mac) om te zoeken op deze pagina.</p>
+
+<div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+  <strong>Inhoud</strong>
+  <ol style="margin: 0.5rem 0 0; padding-left: 1.5rem;">
+    <li><a href="#inloggen">Inloggen &amp; uitloggen</a></li>
+    <li><a href="#cockpit">Cockpit (orderoverzicht)</a></li>
+    <li><a href="#order">Order aanmaken &amp; beheren</a></li>
+    <li><a href="#boring">Boring invoeren</a></li>
+    <li><a href="#trace">Tracé op de kaart</a></li>
+    <li><a href="#brondata">Brondata (maaiveld, KLIC, doorsneden)</a></li>
+    <li><a href="#downloads">PDF &amp; DXF downloaden</a></li>
+    <li><a href="#klic">KLIC uploaden &amp; conflictcheck</a></li>
+    <li><a href="#vergunning">Vergunningscheck</a></li>
+    <li><a href="#admin">Admin panel</a></li>
+    <li><a href="#backup">Backup &amp; data export</a></li>
+    <li><a href="#tips">Tips &amp; sneltoetsen</a></li>
+  </ol>
+</div>
+
+<!-- ─── 1. INLOGGEN ──────────────────────────────────────────────── -->
+<h2 id="inloggen">1. Inloggen &amp; uitloggen</h2>
+<p>Bij het openen van het platform verschijnt een login popup. Vul je gebruikersnaam en wachtwoord in.</p>
+<table class="table">
+  <tr><td><strong>Inloggen</strong></td><td>Gebruikersnaam + wachtwoord in de browser popup</td></tr>
+  <tr><td><strong>Uitloggen</strong></td><td>Klik "uitloggen" rechtsboven. Open daarna een incognito venster of wis je browser cache om als andere gebruiker in te loggen.</td></tr>
+  <tr><td><strong>Wachtwoord vergeten</strong></td><td>Vraag een admin om je wachtwoord te resetten via Admin → Gebruikers</td></tr>
+</table>
+
+<!-- ─── 2. COCKPIT ───────────────────────────────────────────────── -->
+<h2 id="cockpit">2. Cockpit (orderoverzicht)</h2>
+<p>De startpagina na inloggen. Toont alle orders met status, deadline en filters.</p>
+<table class="table">
+  <tr><td><strong>Filters</strong></td><td>Klik op "Actief", "Wacht akkoord", "Geleverd" of "Mijn orders" om te filteren</td></tr>
+  <tr><td><strong>Zoeken</strong></td><td>Typ in het zoekveld op ordernummer, locatie of klant</td></tr>
+  <tr><td><strong>Sorteren</strong></td><td>Klik op een kolomkop om te sorteren (deadline, datum, klant, status)</td></tr>
+  <tr><td><strong>CSV export</strong></td><td>Klik "CSV" om de huidige weergave als Excel-leesbaar bestand te downloaden</td></tr>
+  <tr><td><strong>Statusmail</strong></td><td>Klik "Statusmail" voor conceptmails per klant met openstaande orders</td></tr>
+</table>
+
+<!-- ─── 3. ORDER ─────────────────────────────────────────────────── -->
+<h2 id="order">3. Order aanmaken &amp; beheren</h2>
+<h3>Nieuwe order</h3>
+<p>Klik "+ Order" in de cockpit. Vul in:</p>
+<ul>
+  <li><strong>Ordernummer</strong> — verplicht, bijv. "2026-0042"</li>
+  <li><strong>Locatie</strong> — straat of projectnaam</li>
+  <li><strong>Klantcode</strong> — selecteer opdrachtgever uit de lijst</li>
+  <li><strong>Vergunning</strong> — type vergunning</li>
+  <li><strong>Boringtype + aantal</strong> — bijv. 2x type B (gestuurde boring)</li>
+  <li><strong>Deadline</strong> — optioneel, toont in cockpit als over deadline</li>
+</ul>
+
+<h3>Order bewerken</h3>
+<p>Klik op een order in de cockpit → order detail pagina. Hier kun je alle velden wijzigen, status veranderen, en notities toevoegen. Vink "Prio" aan voor urgente orders.</p>
+
+<!-- ─── 4. BORING ────────────────────────────────────────────────── -->
+<h2 id="boring">4. Boring invoeren</h2>
+<p>Vanuit de order detail pagina klik je op een boring (bijv. "Boring 01 (B)"). Op de boring detail pagina stel je in:</p>
+<table class="table">
+  <tr><td><strong>Materiaal</strong></td><td>PE100, PVC, staal etc.</td></tr>
+  <tr><td><strong>SDR</strong></td><td>Standaard Diameter Ratio (11, 17, etc.)</td></tr>
+  <tr><td><strong>De (mm)</strong></td><td>Buitendiameter productbuis</td></tr>
+  <tr><td><strong>Dg (mm)</strong></td><td>Diameter gatboring (ruimer)</td></tr>
+  <tr><td><strong>Intreehoek / Uittreehoek</strong></td><td>In graden (standaard 18° / 22°)</td></tr>
+  <tr><td><strong>Boormachine</strong></td><td>Selecteer machine type (afmetingen worden op tekening gezet)</td></tr>
+  <tr><td><strong>Boogzinker</strong></td><td>Bij type Z: stel booghoek en stand in</td></tr>
+</table>
+
+<!-- ─── 5. TRACÉ ─────────────────────────────────────────────────── -->
+<h2 id="trace">5. Tracé op de kaart</h2>
+<p>Klik "Tracé invoeren" op de boring detail pagina.</p>
+<ul>
+  <li><strong>Klik op de kaart</strong> om punten te plaatsen: intree (A), tussenpunten, uittree (B)</li>
+  <li><strong>Versleep punten</strong> door ze te pakken en te bewegen</li>
+  <li><strong>KLIC overlay</strong> — als er een KLIC bestand is geüpload, worden de kabels en leidingen op de kaart getoond</li>
+  <li>Klik "Opslaan" om het tracé op te slaan</li>
+</ul>
+<p>Na opslaan worden automatisch de PDOK URL, Google Maps link en waterschap bepaald.</p>
+
+<!-- ─── 6. BRONDATA ──────────────────────────────────────────────── -->
+<h2 id="brondata">6. Brondata</h2>
+<p>Klik "Brondata" op de boring detail pagina. Hier vul je de invoergegevens in:</p>
+
+<h3>Maaiveld (MVin / MVuit)</h3>
+<ul>
+  <li><strong>Handmatig</strong> — vul NAP waarden in en klik "Opslaan"</li>
+  <li><strong>AHN5</strong> — klik "Ophalen via AHN5" om automatisch maaiveld op te halen uit het Actueel Hoogtebestand Nederland</li>
+</ul>
+
+<h3>KLIC uploaden</h3>
+<p>Upload een KLIC .zip, .xml of .gml bestand (max 50MB). Het systeem verwerkt automatisch alle kabels en leidingen en toont een samenvatting.</p>
+
+<h3>Doorsneden</h3>
+<p>Voeg grondlagen toe met afstand, NAP-hoogte, grondtype en grondwaterstand.</p>
+
+<!-- ─── 7. DOWNLOADS ─────────────────────────────────────────────── -->
+<h2 id="downloads">7. PDF &amp; DXF downloaden</h2>
+<p>Vanuit de boring detail pagina:</p>
+<table class="table">
+  <tr><td><strong>PDF</strong></td><td>A3 tekening met bovenaanzicht, lengteprofiel, doorsnede en titelblok</td></tr>
+  <tr><td><strong>DXF</strong></td><td>AutoCAD bestand met NLCS lagen (boorlijn, boorgat, maaiveld, KLIC leidingen, machine)</td></tr>
+  <tr><td><strong>CSV GPS</strong></td><td>Coördinaten per meter langs de boorlijn (voor uitzetten in het veld)</td></tr>
+  <tr><td><strong>AutoCAD .scr</strong></td><td>Script om de boorlijn in AutoCAD te tekenen</td></tr>
+</table>
+<p><strong>Let op:</strong> het bestand krijgt automatisch een naam met ordernummer, boringnaam en revisienummer.</p>
+
+<!-- ─── 8. KLIC ──────────────────────────────────────────────────── -->
+<h2 id="klic">8. KLIC &amp; conflictcheck</h2>
+<p>Na het uploaden van een KLIC bestand zijn er extra pagina's beschikbaar:</p>
+<table class="table">
+  <tr><td><strong>Conflictcheck</strong></td><td>Vergelijkt het boortracé met alle KLIC leidingen. Toont afstand tot elke leiding: veilig (groen), waarschuwing (oranje), te dicht (rood), diepte onbekend (grijs).</td></tr>
+  <tr><td><strong>Sleufloze leidingen</strong></td><td>Overzicht van leidingen die met sleufloze techniek zijn aangelegd (kruisingen)</td></tr>
+  <tr><td><strong>GWSW riool</strong></td><td>Riooldata uit het GWSW met BOB-waarden. Genereert een concept gemeente-mail als BOB ontbreekt.</td></tr>
+</table>
+
+<!-- ─── 9. VERGUNNING ────────────────────────────────────────────── -->
+<h2 id="vergunning">9. Vergunningscheck</h2>
+<p>Toont links naar relevante portalen op basis van de coördinaten van het intreepunt:</p>
+<ul>
+  <li>Omgevingsloket, PDOK Viewer, BAG Viewer, Bodemloket</li>
+  <li>Waterschapskaart (automatisch bepaald)</li>
+  <li>Google Maps</li>
+  <li>Admin-beheerbare kaartlinks (RWS, ProRail, gemeente)</li>
+</ul>
+<p>Vink de checklist af om bij te houden welke checks zijn gedaan.</p>
+
+<!-- ─── 10. ADMIN ────────────────────────────────────────────────── -->
+<h2 id="admin">10. Admin panel</h2>
+<p>Alleen toegankelijk voor gebruikers met de rol "admin". Klik "Admin" in de navigatie.</p>
+<table class="table">
+  <tr><td><strong>Gebruikers</strong></td><td>Aanmaken, rol wijzigen, wachtwoord resetten, deactiveren. Wachtwoord: min 8 tekens, 1 hoofdletter, 1 cijfer.</td></tr>
+  <tr><td><strong>Opdrachtgevers</strong></td><td>Klantcodes, contactpersonen, logo's beheren</td></tr>
+  <tr><td><strong>Boormachines</strong></td><td>Machine types met afmetingen (worden op DXF tekening geplaatst)</td></tr>
+  <tr><td><strong>Eisenprofielen</strong></td><td>Dekking weg/water en minimale buigradius per beheerder (RWS, waterschap, etc.)</td></tr>
+  <tr><td><strong>Externe kaartlinks</strong></td><td>Beheer links die verschijnen bij vergunningscheck</td></tr>
+  <tr><td><strong>Instellingen</strong></td><td>Bundelfactoren, ruimfactoren, standaard dieptes</td></tr>
+</table>
+
+<!-- ─── 11. BACKUP ───────────────────────────────────────────────── -->
+<h2 id="backup">11. Backup &amp; data export</h2>
+<p>Via Admin → Data export:</p>
+<table class="table">
+  <tr><td><strong>Database download</strong></td><td>Download de volledige SQLite database als .db bestand</td></tr>
+  <tr><td><strong>Backup naar R2</strong></td><td>Upload database + logo's naar Cloudflare R2 (cloud backup). Draait ook automatisch elke nacht.</td></tr>
+  <tr><td><strong>CSV exports</strong></td><td>Klantlijst en orders als CSV</td></tr>
+</table>
+
+<!-- ─── 12. TIPS ─────────────────────────────────────────────────── -->
+<h2 id="tips">12. Tips &amp; sneltoetsen</h2>
+<ul>
+  <li><strong>Zoeken op deze pagina:</strong> Ctrl+F (Windows) / Cmd+F (Mac)</li>
+  <li><strong>Meerdere vergunningtypes:</strong> houd Ctrl ingedrukt bij selectie</li>
+  <li><strong>Tracé bewerken:</strong> versleep punten op de kaart, klik niet opnieuw</li>
+  <li><strong>Revisienummer:</strong> wordt automatisch verhoogd bij het opslaan van as-built punten</li>
+  <li><strong>Tracévarianten:</strong> vergelijk alternatieve routes via de varianten pagina</li>
+  <li><strong>Topotijdreis:</strong> bekijk historische kaarten (1815-2015) van het tracégebied</li>
+</ul>
+
+<div style="margin-top: 2rem; padding: 1rem; background: #f0f7ff; border-radius: 8px; font-size: 0.85em; color: #444;">
+  <strong>Probleem of vraag?</strong> Neem contact op met Ello van Gelderen (Inodus).
+</div>
+
+</div>
+{% endblock %}

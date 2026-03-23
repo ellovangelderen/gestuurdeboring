@@ -222,6 +222,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/help", response_class=HTMLResponse)
+def help_pagina(request: Request):
+    return _error_templates.TemplateResponse("help.html", {"request": request, "user": ""})
+
+
+
 @app.get("/logout")
 def logout():
     """Stuur 401 terug zodat de browser de cached Basic Auth credentials vergeet."""
