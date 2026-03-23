@@ -488,8 +488,35 @@ def backup_status(
 ):
     """Lijst R2 backups als JSON."""
     from app.core.backup import list_r2_backups
+    from app.core.restore import list_available_backups
     from fastapi.responses import JSONResponse
-    return JSONResponse({"backups": list_r2_backups()})
+    return JSONResponse({"backups": list_r2_backups(), "datums": list_available_backups()})
+
+
+@router.post("/restore")
+def admin_restore(
+    datum: str = Form(""),
+    user: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Restore database vanuit R2 backup. DESTRUCTIEF — overschrijft huidige DB."""
+    from app.core.restore import restore_from_r2
+    from fastapi.responses import RedirectResponse
+    from urllib.parse import quote
+
+    resultaat = restore_from_r2(datum.strip() or None)
+
+    from app.core.audit import log_audit
+    log_audit(db, user, "restore", "System",
+              details=f"datum={resultaat.get('datum')}, ok={resultaat.get('ok')}, fouten={len(resultaat.get('fouten', []))}")
+
+    if resultaat["ok"]:
+        msg = f"Restore OK — DB + {resultaat['logos_restored']} logo's hersteld van {resultaat['datum']}"
+    else:
+        fouten = "; ".join(resultaat.get("fouten", []))
+        msg = f"Restore mislukt: {fouten or resultaat.get('fout', 'onbekend')}"
+
+    return RedirectResponse(f"/admin/export?backup={quote(msg)}", status_code=303)
 
 
 # ── B4: Boormachines ──────────────────────────────────────────────────────

@@ -39,5 +39,19 @@
 
 </div>
 
+  <div class="card" style="padding: 1.25rem; border: 2px solid #dc3545; border-radius: 8px; background: #fff5f5;">
+    <h3 style="margin: 0 0 0.5rem; font-size: 1em; color: #dc3545;">Restore vanuit R2</h3>
+    <p style="font-size: 0.85em; color: #666;">Herstel database + logo's vanuit een R2 backup. <strong>Overschrijft de huidige database!</strong></p>
+    <form method="post" action="/admin/restore" style="display: flex; gap: 0.5rem; align-items: end;">
+      <label style="font-size: 0.85em;">Datum (leeg = laatste)<br>
+        <input type="text" name="datum" placeholder="2026-03-23" style="width: 120px;">
+      </label>
+      <button type="submit" class="btn btn-sm" style="background: #dc3545; color: #fff;"
+              onclick="return confirm('WAARSCHUWING: dit overschrijft de huidige database. Weet je het zeker?')">Restore</button>
+    </form>
+  </div>
+
+</div>
+
 <a href="/admin/" class="btn btn-secondary">&larr; Admin</a>
 {% endblock %}
