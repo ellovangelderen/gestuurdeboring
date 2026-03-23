@@ -44,6 +44,16 @@ def test_trace_pagina_heeft_search_results(client, workspace, db):
     assert 'id="search-results"' in resp.text
 
 
+# ── MF-2: Fullscreen knop ──
+
+def test_trace_pagina_heeft_fullscreen_knop(client, workspace, db):
+    """Trace pagina bevat fullscreen knop."""
+    _maak_order_boring(db)
+    resp = client.get("/orders/mf1-order/boringen/1/trace", auth=AUTH)
+    assert 'id="fullscreen-btn"' in resp.text
+    assert "Volledig scherm" in resp.text
+
+
 # ── PDOK API tests (staging) ──
 
 @pytest.mark.external

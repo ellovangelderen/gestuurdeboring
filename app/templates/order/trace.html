@@ -58,6 +58,9 @@
         <button type="button" id="search-btn"
                 style="padding: 6px 10px; border: 2px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.2);"
                 title="Zoeken">&#128269;</button>
+        <button type="button" id="fullscreen-btn"
+                style="padding: 6px 10px; border: 2px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.2);"
+                title="Volledig scherm">&#x26F6;</button>
       </div>
       <div id="search-results" style="position: absolute; top: 42px; left: 50px; z-index: 1000; background: #fff; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); width: 300px; font-size: 0.85em;"></div>
       <div id="map" style="height: 500px;"></div>
@@ -335,6 +338,30 @@ searchInput.addEventListener('keydown', (e) => {
 searchBtn.addEventListener('click', () => zoekAdres(searchInput.value));
 document.addEventListener('click', (e) => {
   if (!searchResults.contains(e.target) && e.target !== searchInput) searchResults.style.display = 'none';
+});
+
+// ── Fullscreen kaart ──
+const mapContainer = document.getElementById('map');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+let isFullscreen = false;
+const originalStyle = mapContainer.style.cssText;
+
+fullscreenBtn.addEventListener('click', () => {
+  if (!isFullscreen) {
+    mapContainer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;';
+    fullscreenBtn.textContent = '\u2716';
+    fullscreenBtn.title = 'Sluiten';
+    isFullscreen = true;
+  } else {
+    mapContainer.style.cssText = originalStyle;
+    fullscreenBtn.textContent = '\u26F6';
+    fullscreenBtn.title = 'Volledig scherm';
+    isFullscreen = false;
+  }
+  setTimeout(() => map.invalidateSize(), 100);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isFullscreen) fullscreenBtn.click();
 });
 </script>
 {% endblock %}
