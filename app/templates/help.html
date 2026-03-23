@@ -151,6 +151,21 @@
   <tr><td><strong>CSV exports</strong></td><td>Klantlijst en orders als CSV</td></tr>
 </table>
 
+<h3>Automatische backup</h3>
+<p>Elke nacht wordt automatisch een backup gemaakt van de database en alle logo's. Deze backups worden 30 dagen bewaard. Je kunt ook handmatig een backup maken via de "Backup nu" knop.</p>
+
+<h3>Herstel (restore)</h3>
+<p>Als er iets misgaat (data kwijt, per ongeluk gewist), kun je herstellen vanuit een backup:</p>
+<ol>
+  <li>Ga naar Admin → Data export</li>
+  <li>Onderaan staat "Restore vanuit R2"</li>
+  <li>Vul de datum in van de backup die je wilt terugzetten (leeg = meest recente)</li>
+  <li>Klik "Restore" en bevestig</li>
+</ol>
+<div style="background: #fff3cd; padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem; font-size: 0.85em;">
+  <strong>Let op:</strong> een restore overschrijft de huidige database. Alle wijzigingen na de backup-datum gaan verloren. Er wordt automatisch een kopie gemaakt van de huidige database vóór het herstellen.
+</div>
+
 <!-- ─── 12. TIPS ─────────────────────────────────────────────────── -->
 <h2 id="tips">12. Tips &amp; sneltoetsen</h2>
 <ul>
