@@ -51,7 +51,17 @@
   </div>
 
   <div class="trace-map">
-    <div id="map" style="height: 500px;"></div>
+    <div style="position: relative;">
+      <div id="address-search" style="position: absolute; top: 10px; left: 50px; z-index: 1000; display: flex; gap: 4px;">
+        <input type="text" id="search-input" placeholder="Zoek adres, postcode..."
+               style="width: 260px; padding: 6px 10px; border: 2px solid #ccc; border-radius: 4px; font-size: 0.85em; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.2);">
+        <button type="button" id="search-btn"
+                style="padding: 6px 10px; border: 2px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.2);"
+                title="Zoeken">&#128269;</button>
+      </div>
+      <div id="search-results" style="position: absolute; top: 42px; left: 50px; z-index: 1000; background: #fff; border: 1px solid #ccc; border-radius: 4px; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); width: 300px; font-size: 0.85em;"></div>
+      <div id="map" style="height: 500px;"></div>
+    </div>
   </div>
 </div>
 
@@ -266,6 +276,65 @@ map.on('click', function(e) {
   if (data) {
     data.zetCoordinaten(rd.x, rd.y);
   }
+});
+
+// ── Adres zoekfunctie via PDOK Locatieserver ──
+let searchMarker = null;
+const searchInput = document.getElementById('search-input');
+const searchBtn = document.getElementById('search-btn');
+const searchResults = document.getElementById('search-results');
+
+function zoekAdres(query) {
+  if (!query || query.length < 2) { searchResults.style.display = 'none'; return; }
+  fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(query)}&rows=5`)
+    .then(r => r.json())
+    .then(data => {
+      const docs = data.response?.docs || [];
+      if (docs.length === 0) {
+        searchResults.innerHTML = '<div style="padding:8px;color:#999;">Geen resultaten</div>';
+        searchResults.style.display = 'block';
+        return;
+      }
+      searchResults.innerHTML = docs.map(d => {
+        const label = d.weergavenaam || d.suggest || '';
+        return `<div class="search-result-item" data-centroide="${d.centroide_ll || ''}" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid #eee;">${label}</div>`;
+      }).join('');
+      searchResults.style.display = 'block';
+
+      searchResults.querySelectorAll('.search-result-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const centroide = el.dataset.centroide;
+          if (!centroide) return;
+          // centroide_ll = "POINT(lon lat)"
+          const match = centroide.match(/POINT\(([^ ]+) ([^ ]+)\)/);
+          if (match) {
+            const lon = parseFloat(match[1]);
+            const lat = parseFloat(match[2]);
+            map.setView([lat, lon], 17);
+            if (searchMarker) map.removeLayer(searchMarker);
+            searchMarker = L.marker([lat, lon]).addTo(map).bindPopup(el.textContent).openPopup();
+          }
+          searchResults.style.display = 'none';
+          searchInput.value = el.textContent;
+        });
+        el.addEventListener('mouseenter', () => { el.style.background = '#f0f7ff'; });
+        el.addEventListener('mouseleave', () => { el.style.background = '#fff'; });
+      });
+    })
+    .catch(() => { searchResults.style.display = 'none'; });
+}
+
+let searchTimeout;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => zoekAdres(searchInput.value), 300);
+});
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); zoekAdres(searchInput.value); }
+});
+searchBtn.addEventListener('click', () => zoekAdres(searchInput.value));
+document.addEventListener('click', (e) => {
+  if (!searchResults.contains(e.target) && e.target !== searchInput) searchResults.style.display = 'none';
 });
 </script>
 {% endblock %}
