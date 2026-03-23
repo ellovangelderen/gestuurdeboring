@@ -677,6 +677,35 @@ Lengteprofiel is een "platgeslagen dwarsprofiel": bij een boorlijn met horizonta
 
 ---
 
+### MF-7 — DXF/PDF opslaan op Google Drive
+**Waarde:** Martien en Ello werken vanuit gedeelde Drive, geen lokale downloads
+**Prioriteit:** Hoog
+**Effort:** 3-4 uur
+**Afhankelijk van:** Google Cloud Service Account + Drive toegang
+**Beschrijving:**
+Bij DXF/PDF generatie: upload naar Google Drive i.p.v. download naar browser.
+- Gedeelde drive: "Ello - Martien"
+- Mapstructuur: `orders/{ordernummer} {locatie}/`
+- Map wordt automatisch aangemaakt als die niet bestaat
+- Bestandsnaam: `{ordernummer}-{volgnr} {naam}-rev.{rev}.dxf`
+- Gebruiker krijgt link naar Drive bestand
+- Optie: ook lokale download behouden als fallback
+
+Technisch:
+- `google-api-python-client` + `google-auth` dependencies
+- Service Account met toegang tot gedeelde drive
+- Env vars: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_DRIVE_FOLDER_ID`
+
+Stappen voor setup:
+1. Google Cloud project aanmaken (of bestaand gebruiken)
+2. Google Drive API inschakelen
+3. Service Account aanmaken → JSON key downloaden
+4. Service Account e-mail toevoegen aan gedeelde drive "Ello - Martien" als Editor
+5. Folder ID van "orders" map ophalen uit Drive URL
+6. Env vars op Railway instellen
+
+---
+
 ### MF-6 — Tekeningnummer + revisie rechtsonderin [KLEIN]
 **Waarde:** Standaard tekening conventie
 **Prioriteit:** Hoog
