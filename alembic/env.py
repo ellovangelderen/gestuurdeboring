@@ -16,7 +16,10 @@ if config.config_file_name is not None:
 
 import app.core.models       # noqa: F401
 import app.project.models    # noqa: F401
+import app.order.models      # noqa: F401
 import app.rules.models      # noqa: F401
+import app.admin.models      # noqa: F401
+import app.core.audit        # noqa: F401
 from app.core.database import Base
 from app.core.config import settings
 
