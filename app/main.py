@@ -1,12 +1,13 @@
 import logging
 import time
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.auth import get_current_user
 from app.admin.router import router as admin_router
 from app.documents.router import router as documents_router
 from app.ops import router as ops_router
@@ -223,8 +224,8 @@ def health():
 
 
 @app.get("/help", response_class=HTMLResponse)
-def help_pagina(request: Request):
-    return _error_templates.TemplateResponse("help.html", {"request": request, "user": ""})
+def help_pagina(request: Request, user: str = Depends(get_current_user)):
+    return _error_templates.TemplateResponse("help.html", {"request": request, "user": user})
 
 
 
