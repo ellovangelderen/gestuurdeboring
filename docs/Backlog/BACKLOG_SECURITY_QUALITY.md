@@ -219,12 +219,12 @@ if klic_zip.size and klic_zip.size > 50_000_000:
 | 🟠 SHOULD | QUA-2 | Temp file cleanup | ✅ DONE |
 | 🟠 SHOULD | QUA-3 | Alembic migraties | Open |
 | 🟡 NICE | QUA-4 | Deprecated on_startup | ✅ DONE |
-| 🟡 NICE | QUA-5 | Pydantic schemas | 4+ uur |
-| 🟡 NICE | QUA-6 | Fetch dependency | 1 uur |
-| 🟡 NICE | SEC-8 | IDOR ownership check | 15 min |
-| 🟡 NICE | SEC-9 | Magic bytes check | 15 min |
-| 🟡 NICE | QUA-7 | Audit trail | 2 uur |
-| 🟡 NICE | QUA-8 | OSM tile caching | 1-2 uur |
+| 🟢 WONTFIX | QUA-5 | Pydantic schemas — werkt zonder, oppakken als nodig | — |
+| 🟢 WONTFIX | QUA-6 | Fetch dependency — werkt prima zo | — |
+| 🟢 WONTFIX | SEC-8 | IDOR ownership — 1 workspace, laag risico | — |
+| 🟢 WONTFIX | SEC-9 | Magic bytes — extensie check volstaat | — |
+| 🟢 DONE | QUA-7 | Test coverage rapport — 61% gedocumenteerd | — |
+| 🟢 WONTFIX | QUA-8 | OSM tile caching — oppakken als rate limiting optreedt | — |
 | 🟢 WONTFIX | SEC-10 | Session/cookie auth — HTTP Basic volstaat, Martien switcht niet tussen users | — |
 | 🟠 BUG | BG-1 | Download bestanden zonder extensie | ✅ DONE |
 | 🟠 BUG | BG-2 | Railway 500 ontbrekende DB kolommen | ✅ DONE (startup migraties) |
